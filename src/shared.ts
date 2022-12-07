@@ -33,57 +33,37 @@ export type AnyResources = {
 	};
 };
 
-export const resources = {
+export type AnyRouter = {
 	get: {
-		resourceA: {
-			request: { aId: '123' },
-			response: { value: '321' },
-		},
-		'/resourceB': {
-			request: { bId: '123' },
-			response: { value: '321' },
-		},
-	},
-	set: {
-		'/setA': {
-			request: { bId: '123' },
-			response: { value: '321' },
-		},
-	},
-	subscribe: {
-		'/subscribeA': {
-			request: { bId: '123' },
-			response: { value: '321' },
-		},
-	},
-} as const satisfies AnyResources;
-
-export type Resources = typeof resources;
-
-type ResourcesOfType<Type extends Types, R extends AnyResources> = R[Type];
-
-export type GetResources<R extends AnyResources> = ResourcesOfType<'get', R>;
-export type SetResources<R extends AnyResources> = ResourcesOfType<'set', R>;
-export type SubscribeResources<R extends AnyResources> = ResourcesOfType<
-	'subscribe',
-	R
->;
-
-export type ServerHandlers = {
-	get: {
-		[R in keyof GetResources<Resources>]: (
-			request: GetResources<Resources>[R]['request'],
-		) => GetResources<Resources>[R]['response'];
+		[key: string]: (request: any) => any;
 	};
 	set: {
-		[R in keyof SetResources<Resources>]: (
-			request: SetResources<Resources>[R]['request'],
-		) => SetResources<Resources>[R]['response'];
+		[key: string]: (request: any) => any;
 	};
 	subscribe: {
-		[R in keyof SubscribeResources<Resources>]: (
-			request: SubscribeResources<Resources>[R]['request'],
-		) => SubscribeResources<Resources>[R]['response'];
+		[key: string]: (request: any) => any;
+	};
+};
+
+export type GetResources<R extends AnyRouter> = R['get'];
+export type SetResources<R extends AnyRouter> = R['set'];
+export type SubscribeResources<R extends AnyRouter> = R['subscribe'];
+
+export type Client<R extends AnyRouter> = {
+	get: {
+		[Resource in keyof GetResources<R>]: (
+			request: Parameters<GetResources<R>[Resource]>[0],
+		) => Promise<ReturnType<GetResources<R>[Resource]>>;
+	};
+	set: {
+		[Resource in keyof SetResources<R>]: (
+			request: Parameters<SetResources<R>[Resource]>[0],
+		) => Promise<ReturnType<SetResources<R>[Resource]>>;
+	};
+	subscribe: {
+		[Resource in keyof SubscribeResources<R>]: (
+			request: Parameters<SubscribeResources<R>[Resource]>[0],
+		) => Subscribable<ReturnType<SubscribeResources<R>[Resource]>>;
 	};
 };
 

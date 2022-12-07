@@ -1,35 +1,7 @@
-import { resolveProjectReferencePath } from 'typescript';
-import {
-	GetResources,
-	Resources,
-	AnyResources,
-	SetResources,
-	Subscribable,
-	SubscribeResources,
-	Types,
-	MessageTypes,
-} from './shared';
+import { Router } from './server';
+import { Subscribable, Types, Client, AnyRouter } from './shared';
 
-type HandlerType<
-	R extends AnyResources,
-	H extends GetResources<R> | SetResources<R> | SubscribeResources<R>,
-> = {
-	[key in keyof H]: (
-		request: H[key]['request'],
-	) => Promise<H[key]['response']>;
-};
-
-type Client<R extends AnyResources> = {
-	get: HandlerType<R, GetResources<R>>;
-	set: HandlerType<R, SetResources<R>>;
-	subscribe: {
-		[key in keyof SubscribeResources<R>]: (
-			request: SubscribeResources<R>[key]['request'],
-		) => Subscribable<SubscribeResources<R>[key]['response']>;
-	};
-};
-
-function makeClient<R extends AnyResources>(): Client<R> {
+function makeClient<R extends AnyRouter>(): Client<R> {
 	const socket = new WebSocket('localhost:9200');
 	type receiveMessageType =
 		| 'getReject'
@@ -84,7 +56,7 @@ function makeClient<R extends AnyResources>(): Client<R> {
 		msg:
 			| {
 					id: number;
-					key: string;
+					resource: string;
 					request: any;
 					type: Types;
 			  }
@@ -96,12 +68,12 @@ function makeClient<R extends AnyResources>(): Client<R> {
 		socket.send(JSON.stringify(msg));
 	}
 
-	function getHandler(key: string, request: unknown): Promise<unknown> {
+	function getHandler(resource: string, request: unknown): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			const msgId = ++id;
 			sendMessage({
 				id: msgId,
-				key,
+				resource,
 				request,
 				type: 'get',
 			});
@@ -115,12 +87,12 @@ function makeClient<R extends AnyResources>(): Client<R> {
 			});
 		});
 	}
-	function setHandler(key: string, request: unknown): Promise<unknown> {
+	function setHandler(resource: string, request: unknown): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			const msgId = ++id;
 			sendMessage({
 				id: msgId,
-				key,
+				resource,
 				request,
 				type: 'set',
 			});
@@ -135,13 +107,18 @@ function makeClient<R extends AnyResources>(): Client<R> {
 		});
 	}
 	function subscribeHandler(
-		key: string,
+		resource: string,
 		request: unknown,
 	): Subscribable<unknown> {
 		return {
 			subscribe: (observer) => {
 				const msgId = ++id;
-				sendMessage({ id: msgId, key, request, type: 'subscribe' });
+				sendMessage({
+					id: msgId,
+					resource,
+					request,
+					type: 'subscribe',
+				});
 				subscribeListeners.set(msgId, (msg) => {
 					setListeners.delete(msgId);
 					if (msg.type === 'subscribeReject') {
@@ -157,7 +134,7 @@ function makeClient<R extends AnyResources>(): Client<R> {
 							id: msgId,
 							type: 'unsubscribe',
 						});
-						listeners.delete(msgId);
+						subscribeListeners.delete(msgId);
 					},
 				};
 			},
@@ -184,9 +161,9 @@ function makeClient<R extends AnyResources>(): Client<R> {
 	} as any;
 }
 
-const client = makeClient<Resources>();
+const client = makeClient<Router>();
 
-const result = await client.get['resourceA']({ aId: '123' });
+const result = await client.get['/resourceA']({ aId: '123' });
 client.subscribe['/subscribeA']({ bId: '123' }).subscribe({
 	next: (val) => {
 		console.log('received subscription val', val);
