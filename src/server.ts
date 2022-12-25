@@ -1,9 +1,14 @@
 import { z } from 'zod';
-import { AnyRouter } from './shared';
+import { db } from './db';
+import { AnyRouter, ResourceParams } from './shared';
+import { WebSocketServer } from 'ws';
 
-function request<RequestType extends z.AnyZodObject>(zodType: RequestType) {
+function request<RequestType extends z.AnyZodObject>(zodType?: RequestType) {
 	function response<ResponseType>(
-		handler: (request: z.infer<RequestType>) => ResponseType,
+		handler: (args: {
+			resource: string;
+			request: z.infer<RequestType>;
+		}) => ResponseType,
 	) {
 		return handler;
 	}
@@ -15,20 +20,20 @@ function request<RequestType extends z.AnyZodObject>(zodType: RequestType) {
 const router = {
 	get: {
 		'/resourceA': request(z.object({ aId: z.string() })).response(
-			(request) => {
-				console.log(request);
-				return { aVal: 321 };
+			({ resource, request }) => {
+				console.log('get ' + resource, request);
+				const result = db.get('/resourceA/' + request.aId);
+				return result;
 			},
 		),
-		'/resourceB': request(z.object({ bId: z.string() })).response(
-			(request) => {
-				console.log(request);
-				return { bVal: 321 };
-			},
-		),
+		'/resourceB': request().response(({ resource, request }) => {
+			console.log('get ' + resource, request);
+			const result = db.get('/resourceA/' + request.aId);
+			return result;
+		}),
 	},
 	set: {
-		'/setA': (request) => {
+		'/setA': ({ resource, request }) => {
 			console.log(request);
 			return {
 				value: '321',
@@ -36,7 +41,7 @@ const router = {
 		},
 	},
 	subscribe: {
-		'/subscribeA': (request) => {
+		'/subscribeA': ({ resource, request }) => {
 			console.log(request);
 			return {
 				value: '321',
@@ -45,3 +50,13 @@ const router = {
 	},
 } as const satisfies AnyRouter;
 export type Router = typeof router;
+
+const wss = new WebSocketServer({ port: 8080 });
+
+wss.on('connection', function connection(ws) {
+	ws.on('message', function message(data) {
+		console.log('received: %s', data);
+	});
+
+	ws.send('something');
+});

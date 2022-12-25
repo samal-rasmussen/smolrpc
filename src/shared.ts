@@ -5,43 +5,22 @@ export type MessageTypes = Types | 'unsubscribe';
  * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
  * with the params as keys (eg. `{ thingId: string }`).
  */
-export type RouteParams<T> =
+export type ResourceParams<T> =
 	T extends `${infer _Start}:${infer Param}/${infer Rest}` // eslint-disable-line @typescript-eslint/no-unused-vars
-		? { [k in Param | keyof RouteParams<Rest>]: string }
+		? { [k in Param | keyof ResourceParams<Rest>]: string }
 		: T extends `${infer _Start}:${infer Param}` // eslint-disable-line @typescript-eslint/no-unused-vars
 		? { [k in Param]: string }
 		: unknown;
 
-export type AnyResources = {
-	get: {
-		[key: string]: {
-			request?: any;
-			response?: any;
-		};
-	};
-	set: {
-		[key: string]: {
-			request?: any;
-			response?: any;
-		};
-	};
-	subscribe: {
-		[key: string]: {
-			request?: any;
-			response?: any;
-		};
-	};
-};
-
 export type AnyRouter = {
 	get: {
-		[key: string]: (request: any) => any;
+		[key: string]: (args: { resource: string; request: any }) => any;
 	};
 	set: {
-		[key: string]: (request: any) => any;
+		[key: string]: (args: { resource: string; request: any }) => any;
 	};
 	subscribe: {
-		[key: string]: (request: any) => any;
+		[key: string]: (args: { resource: string; request: any }) => any;
 	};
 };
 
@@ -51,19 +30,22 @@ export type SubscribeResources<R extends AnyRouter> = R['subscribe'];
 
 export type Client<R extends AnyRouter> = {
 	get: {
-		[Resource in keyof GetResources<R>]: (
-			request: Parameters<GetResources<R>[Resource]>[0],
-		) => Promise<ReturnType<GetResources<R>[Resource]>>;
+		[Resource in keyof GetResources<R>]: (args: {
+			request: Parameters<GetResources<R>[Resource]>[0]['request'];
+			params: ResourceParams<Resource>;
+		}) => Promise<ReturnType<GetResources<R>[Resource]>>;
 	};
 	set: {
-		[Resource in keyof SetResources<R>]: (
-			request: Parameters<SetResources<R>[Resource]>[0],
-		) => Promise<ReturnType<SetResources<R>[Resource]>>;
+		[Resource in keyof SetResources<R>]: (args: {
+			request: Parameters<SetResources<R>[Resource]>[0]['request'];
+			params: ResourceParams<Resource>;
+		}) => Promise<ReturnType<SetResources<R>[Resource]>>;
 	};
 	subscribe: {
-		[Resource in keyof SubscribeResources<R>]: (
-			request: Parameters<SubscribeResources<R>[Resource]>[0],
-		) => Subscribable<ReturnType<SubscribeResources<R>[Resource]>>;
+		[Resource in keyof SubscribeResources<R>]: (args: {
+			request: Parameters<SubscribeResources<R>[Resource]>[0]['request'];
+			params: ResourceParams<Resource>;
+		}) => Subscribable<ReturnType<SubscribeResources<R>[Resource]>>;
 	};
 };
 

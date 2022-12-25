@@ -1,54 +1,27 @@
 import { Router } from './server';
 import { Subscribable, Types, Client, AnyRouter } from './shared';
+import {
+	getReject,
+	getResponse,
+	setReject,
+	setResponse,
+	subscribeEvent,
+	subscribeReject,
+} from './shared.message-types';
 
 function makeClient<R extends AnyRouter>(): Client<R> {
 	const socket = new WebSocket('localhost:9200');
-	type receiveMessageType =
-		| 'getReject'
-		| 'getResponse'
-		| 'setReject'
-		| 'setResponse'
-		| 'subscribeAccept'
-		| 'subscribeEvent'
-		| 'subscribeReject';
 	const getListeners = new Map<
 		Number,
-		(
-			msg:
-				| {
-						type: 'getResponse';
-						response: any;
-				  }
-				| {
-						type: 'getReject';
-						error: any;
-				  },
-		) => void
+		(msg: getResponse | getReject) => void
 	>();
 	const setListeners = new Map<
 		Number,
-		(
-			msg:
-				| {
-						type: 'setResponse';
-						response: any;
-				  }
-				| {
-						type: 'setReject';
-						error: any;
-				  },
-		) => void
+		(msg: setResponse | setReject) => void
 	>();
 	const subscribeListeners = new Map<
 		Number,
-		(
-			msg:
-				| {
-						type: 'subscribeReject';
-						error: any;
-				  }
-				| { type: 'subscribeEvent'; response: any },
-		) => void
+		(msg: subscribeEvent | subscribeReject) => void
 	>();
 	let id = 0;
 
@@ -163,8 +136,14 @@ function makeClient<R extends AnyRouter>(): Client<R> {
 
 const client = makeClient<Router>();
 
-const result = await client.get['/resourceA']({ aId: '123' });
-client.subscribe['/subscribeA']({ bId: '123' }).subscribe({
+const result = await client.get['/resourceB']({
+	request: { aId: '123' },
+	params: { id: '123' },
+});
+client.subscribe['/subscribeA']({
+	request: { aId: '123' },
+	params: null,
+}).subscribe({
 	next: (val) => {
 		console.log('received subscription val', val);
 	},
