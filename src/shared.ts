@@ -12,42 +12,28 @@ export type ResourceParams<T> =
 		? { [k in Param]: string }
 		: unknown;
 
-export type AnyRouter = {
-	get: {
-		[key: string]: (args: { resource: string; request: any }) => any;
-	};
-	set: {
-		[key: string]: (args: { resource: string; request: any }) => any;
-	};
-	subscribe: {
-		[key: string]: (args: { resource: string; request: any }) => any;
-	};
+type AnyResource = {
+	request?: any;
+	response?: any;
+	type: 'get' | 'set' | 'subscribe' | 'get|set' | 'get|subscribe' | 'set|subscribe' | 'get|set|subscribe'
+}
+type AnyResources = {
+		[key: string]: AnyResource;
 };
 
-export type GetResources<R extends AnyRouter> = R['get'];
-export type SetResources<R extends AnyRouter> = R['set'];
-export type SubscribeResources<R extends AnyRouter> = R['subscribe'];
-
-export type Client<R extends AnyRouter> = {
-	get: {
-		[Resource in keyof GetResources<R>]: (args: {
-			request: Parameters<GetResources<R>[Resource]>[0]['request'];
-			params: ResourceParams<Resource>;
-		}) => Promise<ReturnType<GetResources<R>[Resource]>>;
-	};
-	set: {
-		[Resource in keyof SetResources<R>]: (args: {
-			request: Parameters<SetResources<R>[Resource]>[0]['request'];
-			params: ResourceParams<Resource>;
-		}) => Promise<ReturnType<SetResources<R>[Resource]>>;
-	};
-	subscribe: {
-		[Resource in keyof SubscribeResources<R>]: (args: {
-			request: Parameters<SubscribeResources<R>[Resource]>[0]['request'];
-			params: ResourceParams<Resource>;
-		}) => Subscribable<ReturnType<SubscribeResources<R>[Resource]>>;
-	};
-};
+export const resources = {
+	'/resourceA': {
+		request: { aId: '123' },
+		response: { value: '321' },
+		type: 'get'
+	},
+	'/resourceB/:id': {
+		request: { bId: '123' },
+		response: { value: '321' },
+		type: 'get|set|subscribe'
+	},
+} as const satisfies AnyResources;
+export type Resources = typeof resources;
 
 interface Observer<T> {
 	next: (value: T) => void;

@@ -1,5 +1,4 @@
-import { Router } from './server';
-import { Subscribable, Types, Client, AnyRouter } from './shared';
+import { Subscribable, Types, Resources, ResourceParams } from './shared';
 import {
 	getReject,
 	getResponse,
@@ -9,7 +8,37 @@ import {
 	subscribeReject,
 } from './shared.message-types';
 
-function makeClient<R extends AnyRouter>(): Client<R> {
+type Handlers<Resource extends keyof Resources> = {
+	get: (args: {
+		params?: ResourceParams<Resource>;
+	}) => Promise<Resources[Resource]['response']>
+	set: (args: {
+		request: Resources[Resource]['request'];
+		params?: ResourceParams<Resource>;
+	}) => Promise<void>
+	subscribe: (args: {
+		params?: ResourceParams<Resource>;
+	}) => Subscribable<Resources[Resource]['response']>
+}
+
+export type Client = {
+	[Resource in keyof Resources]: Resources[Resource]['type'] extends 'get'
+		? Pick<Handlers<Resource>, 'get'> :
+		Resources[Resource]['type'] extends 'set'
+		? Pick<Handlers<Resource>, 'set'> :
+		Resources[Resource]['type'] extends 'subscribe'
+		? Pick<Handlers<Resource>, 'subscribe'>
+		: Resources[Resource]['type'] extends 'get|set' ? 
+		Pick<Handlers<Resource>, 'get' | 'set'>
+		: Resources[Resource]['type'] extends 'get|subscribe' ? 
+		Pick<Handlers<Resource>, 'get' | 'subscribe'>
+		: Resources[Resource]['type'] extends 'set|subscribe' ? 
+		Pick<Handlers<Resource>, 'set' | 'subscribe'>
+		: Resources[Resource]['type'] extends 'get|set|subscribe' ? 
+		Pick<Handlers<Resource>, 'get' | 'set' | 'subscribe'> : never;
+};
+
+function makeClient(): Client {
 	const socket = new WebSocket('localhost:9200');
 	const getListeners = new Map<
 		Number,
@@ -114,35 +143,31 @@ function makeClient<R extends AnyRouter>(): Client<R> {
 		};
 	}
 
-	function proxyHandler(handler: (property: any, request: any) => any) {
-		return new Proxy(
-			{},
-			{
-				get(target, p, receiver) {
-					return (r: any) => {
-						return handler(p, r);
+	return new Proxy(
+		{} as any,
+		{
+			get(target, p, receiver) {
+				return (r: any) => {
+					return {
+						get: (request: any) => getHandler(p as string, request),
+						set: (request: any) => setHandler(p as string, request),
+						subscribe: (request: any) => subscribeHandler(p as string, request),
 					};
-				},
+				};
 			},
-		);
-	}
-
-	return {
-		get: proxyHandler(getHandler),
-		set: proxyHandler(setHandler),
-		subscribe: proxyHandler(subscribeHandler),
-	} as any;
+		},
+	);
 }
 
-const client = makeClient<Router>();
+const client = makeClient();
 
-const result = await client.get['/resourceB']({
-	request: { aId: '123' },
+const result = await client['/resourceA'].get({
 	params: { id: '123' },
 });
-client.subscribe['/subscribeA']({
-	request: { aId: '123' },
-	params: null,
+console.log('result', result)
+
+client['/resourceB/:id'].subscribe({
+	params: { id: '123' },
 }).subscribe({
 	next: (val) => {
 		console.log('received subscription val', val);

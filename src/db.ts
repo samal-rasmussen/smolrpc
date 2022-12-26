@@ -4,7 +4,7 @@ const map = new Map<string, any>();
 const listeners = new Map<string, Set<(value: any) => void>>();
 
 export const db = {
-	get(resource: string): any {
+	get(resource: string): unknown {
 		return map.get(resource);
 	},
 	set(resource: string, value: any): void {
