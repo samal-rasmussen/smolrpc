@@ -6,25 +6,25 @@ import {
 	GetResponse,
 	Reject,
 	Request,
-	RequestMessageType,
-	SetResponse,
+	SetSuccess,
 	SubscribeAccept,
+	SubscribeEvent,
 } from './shared.message-types.js';
 
 type Handlers<Resource extends keyof Resources> = {
 	get: (args: {
 		resource: Resource;
 		params?: ResourceParams<Resource>;
-	}) => Promise<Resources[Resource]['response']>;
+	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	set: (args: {
 		resource: Resource;
-		request: Resources[Resource]['request'];
+		request: z.infer<Resources[Resource]['request']>;
 		params?: ResourceParams<Resource>;
 	}) => Promise<void>;
 	subscribe: (args: {
 		resource: Resource;
 		params?: ResourceParams<Resource>;
-	}) => Subscribable<Resources[Resource]['response']>;
+	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
 };
 
 export type Router = {
@@ -50,14 +50,14 @@ const router = {
 		async get({ params, resource }) {
 			console.log('get', resource, params);
 			const result = db.get(resource);
-			return result as Resources['/resourceA']['response'];
+			return result as z.infer<Resources['/resourceA']['response']>;
 		},
 	},
 	'/resourceB/:id': {
 		get: async ({ resource, params }) => {
 			console.log('get', resource, params);
 			const result = db.get(resource);
-			return result as Resources['/resourceA']['response'];
+			return result as z.infer<Resources['/resourceA']['response']>;
 		},
 		set: async ({ resource, params, request }) => {
 			console.log('set', resource, params, request);
@@ -80,75 +80,108 @@ function sendReject(ws: WebSocket, id: number, error: string) {
 		error,
 		type: 'Reject',
 	};
-	ws.send(reject);
+	ws.send(JSON.stringify(reject));
+}
+
+function validateParams(
+	resource: string,
+	params?: Record<string, string>,
+): boolean {
+	const count = resource.split(':').length - 1;
+	if (count > 0) {
+		if (params == null) {
+			return false;
+		}
+		if (Object.keys(params).length !== count) {
+			return false;
+		}
+	}
+	return true;
 }
 
 wss.on('connection', function connection(ws) {
 	ws.on('message', async function message(rawData: any) {
 		console.log('received: %s', rawData);
-		const data = JSON.parse(rawData) as Request;
-		if (typeof data.id !== 'number') {
+		const message = JSON.parse(rawData) as Request;
+		if (typeof message.id !== 'number') {
 			console.error(`no id number on message`);
 			return;
 		}
-		if (typeof data.resource !== 'string') {
+		if (typeof message.resource !== 'string') {
 			console.error(`no resource string on message`);
 			return;
 		}
-		const resource = router[data.resource];
+		const resource = router[message.resource];
 		if (resource == null) {
-			sendReject(ws, data.id, `resource not found`);
+			sendReject(ws, message.id, `resource not found`);
+			return;
 		}
-		if (data.type === 'GetRequest') {
+		if (!validateParams(message.resource, message.params)) {
+			sendReject(ws, message.id, `invalid params`);
+			return;
+		}
+		if (message.type === 'GetRequest') {
 			try {
 				const get = resource.get as Handlers<any>['get'];
 				const result = await get({
-					resource: data.resource,
-					params: data.params,
+					resource: message.resource,
+					params: message.params,
 				});
 				const response: GetResponse = {
-					id: data.id,
+					id: message.id,
 					data: result,
 					type: 'GetResponse',
 				};
-				ws.send(response);
+				console.log(response, JSON.stringify(response));
+				ws.send(JSON.stringify(response));
 			} catch (error) {
-				sendReject(ws, data.id, '500');
+				sendReject(ws, message.id, '500');
 			}
-		} else if (data.type === 'SetRequest') {
+		} else if (message.type === 'SetRequest') {
 			try {
 				const set = (resource as any).set as Handlers<any>['set'];
 				await set({
-					resource: data.resource,
-					request: data.data,
-					params: data.params,
+					resource: message.resource,
+					request: message.data,
+					params: message.params,
 				});
-				const response: SetResponse = {
-					id: data.id,
-					type: 'SetResponse',
+				const response: SetSuccess = {
+					id: message.id,
+					type: 'SetSuccess',
 				};
-				ws.send(response);
+				ws.send(JSON.stringify(response));
 			} catch (error) {
-				sendReject(ws, data.id, '500');
+				console.error(error);
+				sendReject(ws, message.id, '500');
 			}
-		} else if (data.type === 'SubscribeRequest') {
+		} else if (message.type === 'SubscribeRequest') {
 			try {
 				const subscribe = (resource as any)
 					.subscribe as Handlers<any>['subscribe'];
 				const observable = await subscribe({
-					resource: data.resource,
-					params: data.params,
+					resource: message.resource,
+					params: message.params,
+				});
+				observable.subscribe({
+					next(val) {
+						const event: SubscribeEvent = {
+							id: message.id,
+							type: 'SubscribeEvent',
+							data: val,
+						};
+						ws.send(JSON.stringify(event));
+					},
 				});
 				const response: SubscribeAccept = {
-					id: data.id,
+					id: message.id,
 					type: 'SubscribeAccept',
 				};
-				ws.send(response);
+				ws.send(JSON.stringify(response));
 			} catch (error) {
-				sendReject(ws, data.id, '500');
+				sendReject(ws, message.id, '500');
 			}
 		} else {
-			sendReject(ws, (data as any).id, `invalid type`);
+			sendReject(ws, (message as any).id, `invalid type`);
 		}
 	});
 });

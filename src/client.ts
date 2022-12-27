@@ -1,24 +1,24 @@
-import type { Subscribable, Types, Resources, ResourceParams } from './shared';
+import type { Subscribable, Resources, ResourceParams } from './shared';
 import type {
-	GetResponse,
 	Reject,
 	Request,
-	SetResponse,
+	Response,
 	SubscribeEvent,
 } from './shared.message-types';
 import { WebSocket } from 'ws';
+import { z } from 'zod';
 
 type Handlers<Resource extends keyof Resources> = {
 	get: (args: {
 		params?: ResourceParams<Resource>;
-	}) => Promise<Resources[Resource]['response']>;
+	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	set: (args: {
-		request: Resources[Resource]['request'];
+		request: z.infer<Resources[Resource]['request']>;
 		params?: ResourceParams<Resource>;
 	}) => Promise<void>;
 	subscribe: (args: {
 		params?: ResourceParams<Resource>;
-	}) => Subscribable<Resources[Resource]['response']>;
+	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
 };
 
 export type Client = {
@@ -44,11 +44,20 @@ async function makeClient(): Promise<Client> {
 		const proxy = new Proxy({} as any, {
 			get(target, p: any, receiver) {
 				return {
-					get: (params?: string[]) => getHandler(p, params),
-					set: (data: any, params?: string[]) =>
-						setHandler(p, data, params),
-					subscribe: (params?: string[]) =>
-						subscribeHandler(p, params),
+					get: ({ params }: { params?: Record<string, string> }) =>
+						getHandler(p, params),
+					set: ({
+						request,
+						params,
+					}: {
+						request: any;
+						params?: Record<string, string>;
+					}) => setHandler(p, request, params),
+					subscribe: ({
+						params,
+					}: {
+						params?: Record<string, string>;
+					}) => subscribeHandler(p, params),
 				};
 			},
 		});
@@ -71,20 +80,27 @@ async function makeClient(): Promise<Client> {
 			);
 		};
 		socket.onmessage = (event) => {
-			console.log('socket.onmessage', event.type, event.data);
+			console.log(
+				'socket.onmessage',
+				event.type,
+				typeof event.data,
+				event.data,
+			);
+			const message = JSON.parse(event.data as string) as
+				| Response
+				| SubscribeEvent
+				| Reject;
+			const listener = listeners.get(message.id);
+			if (listener == null) {
+				console.error(`no listener found for message`, message);
+				return;
+			}
+			listener(message);
 		};
 
-		const getListeners = new Map<
+		const listeners = new Map<
 			Number,
-			(msg: GetResponse | Reject) => void
-		>();
-		const setListeners = new Map<
-			Number,
-			(msg: SetResponse | Reject) => void
-		>();
-		const subscribeListeners = new Map<
-			Number,
-			(msg: SubscribeEvent | Reject) => void
+			(msg: Response | SubscribeEvent | Reject) => void
 		>();
 		let id = 0;
 
@@ -101,7 +117,7 @@ async function makeClient(): Promise<Client> {
 
 		function getHandler(
 			resource: keyof Resources,
-			params?: string[],
+			params?: Record<string, string>,
 		): Promise<unknown> {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
@@ -111,43 +127,53 @@ async function makeClient(): Promise<Client> {
 					params,
 					type: 'GetRequest',
 				});
-				getListeners.set(msgId, (msg) => {
-					getListeners.delete(msgId);
+				listeners.set(msgId, (msg) => {
+					listeners.delete(msgId);
 					if (msg.type === 'Reject') {
 						reject(msg.error);
-					} else {
+					} else if (msg.type === 'GetResponse') {
 						resolve(msg.data);
+					} else {
+						console.error(
+							`unexpected message type in get listener`,
+							msg,
+						);
 					}
 				});
 			});
 		}
 		function setHandler(
 			resource: keyof Resources,
-			data: any,
-			params?: string[],
+			request: any,
+			params?: Record<string, string>,
 		): Promise<unknown> {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
 				sendMessage({
 					id: msgId,
 					resource,
-					data,
+					data: request,
 					params,
 					type: 'SetRequest',
 				});
-				setListeners.set(msgId, (msg) => {
-					setListeners.delete(msgId);
+				listeners.set(msgId, (msg) => {
+					listeners.delete(msgId);
 					if (msg.type === 'Reject') {
 						reject(msg.error);
-					} else {
+					} else if (msg.type === 'SetSuccess') {
 						resolve(undefined);
+					} else {
+						console.error(
+							`unexpected message type in set listener`,
+							msg,
+						);
 					}
 				});
 			});
 		}
 		function subscribeHandler(
 			resource: keyof Resources,
-			params?: string[],
+			params?: Record<string, string>,
 		): Subscribable<unknown> {
 			return {
 				subscribe: (observer) => {
@@ -158,13 +184,16 @@ async function makeClient(): Promise<Client> {
 						params,
 						type: 'SubscribeRequest',
 					});
-					subscribeListeners.set(msgId, (msg) => {
-						setListeners.delete(msgId);
+					listeners.set(msgId, (msg) => {
 						if (msg.type === 'Reject') {
-							observer.error?.(msg.error);
-							subscribeListeners.delete(msgId);
-						} else {
+							reject(msg.error);
+						} else if (msg.type === 'SubscribeEvent') {
 							observer.next?.(msg.data);
+						} else {
+							console.error(
+								`unexpected message type in get listener`,
+								msg,
+							);
 						}
 					});
 					return {
@@ -173,7 +202,7 @@ async function makeClient(): Promise<Client> {
 								id: msgId,
 								type: 'unsubscribe',
 							});
-							subscribeListeners.delete(msgId);
+							listeners.delete(msgId);
 						},
 					};
 				},
@@ -185,9 +214,14 @@ async function makeClient(): Promise<Client> {
 const client = await makeClient();
 
 const result = await client['/resourceA'].get({
-	params: { id: '123' },
+	params: null,
 });
 console.log('result', result);
+
+const result2 = await client['/resourceB/:id'].get({
+	params: { id: '123' },
+});
+console.log('result2', result2);
 
 client['/resourceB/:id']
 	.subscribe({
@@ -198,3 +232,8 @@ client['/resourceB/:id']
 			console.log('received subscription val', val);
 		},
 	});
+
+await client['/resourceB/:id'].set({
+	request: { name: '321' },
+	params: { id: '123' },
+});

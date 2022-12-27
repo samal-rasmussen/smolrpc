@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type Types = 'get' | 'set' | 'subscribe';
 export type MessageTypes = Types | 'unsubscribe';
 
@@ -13,8 +15,8 @@ export type ResourceParams<T> =
 		: unknown;
 
 type AnyResource = {
-	request?: any;
-	response?: any;
+	request: z.AnyZodObject;
+	response: z.AnyZodObject;
 	type:
 		| 'get'
 		| 'set'
@@ -30,13 +32,13 @@ type AnyResources = {
 
 export const resources = {
 	'/resourceA': {
-		request: { aId: '123' },
-		response: { value: '321' },
+		request: z.NEVER,
+		response: z.object({ name: z.string() }),
 		type: 'get',
 	},
 	'/resourceB/:id': {
-		request: { bId: '123' },
-		response: { value: '321' },
+		request: z.object({ name: z.string() }),
+		response: z.object({ name: z.string() }),
 		type: 'get|set|subscribe',
 	},
 } as const satisfies AnyResources;

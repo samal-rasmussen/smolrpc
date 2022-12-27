@@ -2,7 +2,7 @@ import { Resources } from './shared';
 
 export type ResponseMessageType =
 	| 'GetResponse'
-	| 'SetResponse'
+	| 'SetSuccess'
 	| 'SubscribeAccept';
 export type RequestMessageType =
 	| 'GetRequest'
@@ -10,7 +10,7 @@ export type RequestMessageType =
 	| 'SubscribeRequest';
 
 export type Request = GetRequest | SetRequest | SubscribeRequest;
-export type Response = GetResponse | SetResponse | SubscribeAccept;
+export type Response = GetResponse | SetSuccess | SubscribeAccept;
 export type Reject = {
 	id: number;
 	type: 'Reject';
@@ -21,7 +21,7 @@ export type GetRequest = {
 	id: number;
 	type: 'GetRequest';
 	resource: keyof Resources;
-	params?: string[];
+	params?: Record<string, string>;
 };
 export type GetResponse = {
 	id: number;
@@ -33,17 +33,17 @@ export type SetRequest = {
 	type: 'SetRequest';
 	resource: keyof Resources;
 	data: any;
-	params?: string[];
+	params?: Record<string, string>;
 };
-export type SetResponse = {
+export type SetSuccess = {
 	id: number;
-	type: 'SetResponse';
+	type: 'SetSuccess';
 };
 export type SubscribeRequest = {
 	id: number;
 	type: 'SubscribeRequest';
 	resource: keyof Resources;
-	params?: string[];
+	params?: Record<string, string>;
 };
 export type SubscribeAccept = {
 	id: number;
