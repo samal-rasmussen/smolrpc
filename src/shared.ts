@@ -15,22 +15,29 @@ export type ResourceParams<T> =
 type AnyResource = {
 	request?: any;
 	response?: any;
-	type: 'get' | 'set' | 'subscribe' | 'get|set' | 'get|subscribe' | 'set|subscribe' | 'get|set|subscribe'
-}
+	type:
+		| 'get'
+		| 'set'
+		| 'subscribe'
+		| 'get|set'
+		| 'get|subscribe'
+		| 'set|subscribe'
+		| 'get|set|subscribe';
+};
 type AnyResources = {
-		[key: string]: AnyResource;
+	[key: string]: AnyResource;
 };
 
 export const resources = {
 	'/resourceA': {
 		request: { aId: '123' },
 		response: { value: '321' },
-		type: 'get'
+		type: 'get',
 	},
 	'/resourceB/:id': {
 		request: { bId: '123' },
 		response: { value: '321' },
-		type: 'get|set|subscribe'
+		type: 'get|set|subscribe',
 	},
 } as const satisfies AnyResources;
 export type Resources = typeof resources;
