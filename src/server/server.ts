@@ -1,6 +1,3 @@
-import { z } from 'zod';
-import { db } from './db.js';
-import type { Resources, ResourceParams, Subscribable } from './shared';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
 	GetResponse,
@@ -9,68 +6,9 @@ import {
 	SetSuccess,
 	SubscribeAccept,
 	SubscribeEvent,
-} from './shared.message-types.js';
-
-type Handlers<Resource extends keyof Resources> = {
-	get: (args: {
-		resource: Resource;
-		params?: ResourceParams<Resource>;
-	}) => Promise<z.infer<Resources[Resource]['response']>>;
-	set: (args: {
-		resource: Resource;
-		request: z.infer<Resources[Resource]['request']>;
-		params?: ResourceParams<Resource>;
-	}) => Promise<void>;
-	subscribe: (args: {
-		resource: Resource;
-		params?: ResourceParams<Resource>;
-	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
-};
-
-export type Router = {
-	[Resource in keyof Resources]: Resources[Resource]['type'] extends 'get'
-		? Pick<Handlers<Resource>, 'get'>
-		: Resources[Resource]['type'] extends 'set'
-		? Pick<Handlers<Resource>, 'set'>
-		: Resources[Resource]['type'] extends 'subscribe'
-		? Pick<Handlers<Resource>, 'subscribe'>
-		: Resources[Resource]['type'] extends 'get|set'
-		? Pick<Handlers<Resource>, 'get' | 'set'>
-		: Resources[Resource]['type'] extends 'get|subscribe'
-		? Pick<Handlers<Resource>, 'get' | 'subscribe'>
-		: Resources[Resource]['type'] extends 'set|subscribe'
-		? Pick<Handlers<Resource>, 'set' | 'subscribe'>
-		: Resources[Resource]['type'] extends 'get|set|subscribe'
-		? Pick<Handlers<Resource>, 'get' | 'set' | 'subscribe'>
-		: never;
-};
-
-const router = {
-	'/resourceA': {
-		async get({ params, resource }) {
-			console.log('get', resource, params);
-			const result = db.get(resource);
-			return result as z.infer<Resources['/resourceA']['response']>;
-		},
-	},
-	'/resourceB/:id': {
-		get: async ({ resource, params }) => {
-			console.log('get', resource, params);
-			const result = db.get(resource);
-			return result as z.infer<Resources['/resourceA']['response']>;
-		},
-		set: async ({ resource, params, request }) => {
-			console.log('set', resource, params, request);
-			const result = db.set(resource, request);
-			return result;
-		},
-		subscribe: ({ resource, params }) => {
-			console.log('subscribe', resource, params);
-			const result = db.subscribe(resource);
-			return result;
-		},
-	},
-} as const satisfies Router;
+} from '../shared.message-types.js';
+import { router } from './router.js';
+import { Handlers } from './server.types.js';
 
 const wss = new WebSocketServer({ port: 9200 });
 

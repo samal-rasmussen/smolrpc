@@ -1,4 +1,4 @@
-import { Subscribable } from './shared';
+import { Subscribable } from '../shared';
 
 const map = new Map<string, any>();
 const listeners = new Map<string, Set<(value: any) => void>>();

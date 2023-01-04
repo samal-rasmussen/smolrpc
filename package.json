@@ -1,5 +1,10 @@
 {
 	"type": "module",
+	"scripts": {
+		"build": "tsc -w",
+		"client-example": "node --watch dist/client/client.example.js",
+		"server": "node --watch dist/server/server.js"
+	},
 	"dependencies": {
 		"typescript": "4.9.4",
 		"ws": "^8.11.0",

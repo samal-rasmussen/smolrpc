@@ -1,45 +1,14 @@
-import type { Subscribable, Resources, ResourceParams } from './shared';
+import type { Subscribable, Resources } from '../shared';
 import type {
 	Reject,
 	Request,
 	Response,
 	SubscribeEvent,
-} from './shared.message-types';
+} from '../shared.message-types';
 import { WebSocket } from 'ws';
-import { z } from 'zod';
+import { Client } from './client.types';
 
-type Handlers<Resource extends keyof Resources> = {
-	get: (args: {
-		params?: ResourceParams<Resource>;
-	}) => Promise<z.infer<Resources[Resource]['response']>>;
-	set: (args: {
-		request: z.infer<Resources[Resource]['request']>;
-		params?: ResourceParams<Resource>;
-	}) => Promise<void>;
-	subscribe: (args: {
-		params?: ResourceParams<Resource>;
-	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
-};
-
-export type Client = {
-	[Resource in keyof Resources]: Resources[Resource]['type'] extends 'get'
-		? Pick<Handlers<Resource>, 'get'>
-		: Resources[Resource]['type'] extends 'set'
-		? Pick<Handlers<Resource>, 'set'>
-		: Resources[Resource]['type'] extends 'subscribe'
-		? Pick<Handlers<Resource>, 'subscribe'>
-		: Resources[Resource]['type'] extends 'get|set'
-		? Pick<Handlers<Resource>, 'get' | 'set'>
-		: Resources[Resource]['type'] extends 'get|subscribe'
-		? Pick<Handlers<Resource>, 'get' | 'subscribe'>
-		: Resources[Resource]['type'] extends 'set|subscribe'
-		? Pick<Handlers<Resource>, 'set' | 'subscribe'>
-		: Resources[Resource]['type'] extends 'get|set|subscribe'
-		? Pick<Handlers<Resource>, 'get' | 'set' | 'subscribe'>
-		: never;
-};
-
-async function makeClient(): Promise<Client> {
+export async function makeClient(): Promise<Client> {
 	return new Promise((resolve, reject) => {
 		const proxy = new Proxy({} as any, {
 			get(target, p: any, receiver) {
@@ -210,30 +179,3 @@ async function makeClient(): Promise<Client> {
 		}
 	});
 }
-
-const client = await makeClient();
-
-const result = await client['/resourceA'].get({
-	params: null,
-});
-console.log('result', result);
-
-const result2 = await client['/resourceB/:id'].get({
-	params: { id: '123' },
-});
-console.log('result2', result2);
-
-client['/resourceB/:id']
-	.subscribe({
-		params: { id: '123' },
-	})
-	.subscribe({
-		next: (val) => {
-			console.log('received subscription val', val);
-		},
-	});
-
-await client['/resourceB/:id'].set({
-	request: { name: '321' },
-	params: { id: '123' },
-});
