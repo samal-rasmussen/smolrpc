@@ -2,7 +2,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsc -w",
-		"client-example": "node --watch dist/client/client.example.js",
+		"client": "node --watch dist/client/client.example.js",
 		"server": "node --watch dist/server/server.js"
 	},
 	"dependencies": {
