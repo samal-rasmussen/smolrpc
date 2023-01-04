@@ -1,12 +1,13 @@
-import type { Subscribable, Resources } from '../shared';
+import type { Subscribable } from '../shared/types';
 import type {
 	Reject,
 	Request,
 	Response,
 	SubscribeEvent,
-} from '../shared.message-types';
+} from '../shared/message-types';
 import { WebSocket } from 'ws';
 import { Client } from './client.types';
+import { Resources } from '../shared/resources';
 
 export async function makeClient(): Promise<Client> {
 	return new Promise((resolve, reject) => {
@@ -33,7 +34,7 @@ export async function makeClient(): Promise<Client> {
 
 		const socket = new WebSocket('ws://localhost:9200');
 		socket.onopen = (event) => {
-			console.log('socket.onopen', event.type);
+			console.log('websocket connected');
 			resolve(proxy);
 		};
 		socket.onclose = (event) => {
@@ -49,12 +50,12 @@ export async function makeClient(): Promise<Client> {
 			);
 		};
 		socket.onmessage = (event) => {
-			console.log(
-				'socket.onmessage',
-				event.type,
-				typeof event.data,
-				event.data,
-			);
+			// console.log(
+			// 	'socket.onmessage',
+			// 	event.type,
+			// 	typeof event.data,
+			// 	event.data,
+			// );
 			const message = JSON.parse(event.data as string) as
 				| Response
 				| SubscribeEvent
@@ -158,6 +159,7 @@ export async function makeClient(): Promise<Client> {
 							reject(msg.error);
 						} else if (msg.type === 'SubscribeEvent') {
 							observer.next?.(msg.data);
+						} else if (msg.type === 'SubscribeAccept') {
 						} else {
 							console.error(
 								`unexpected message type in get listener`,

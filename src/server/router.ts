@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Resources } from '../shared';
+import { Resources } from '../shared/resources';
 import { db } from './db.js';
 import { Router } from './server.types';
 

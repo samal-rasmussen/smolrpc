@@ -23,6 +23,6 @@ client['/resourceB/:id']
 	});
 
 await client['/resourceB/:id'].set({
-	request: { name: '321' },
 	params: { id: '123' },
+	request: { name: '321' },
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { ResourceParams, Resources, Subscribable } from '../shared';
+import { Resources } from '../shared/resources';
+import { ResourceParams, Subscribable } from '../shared/types';
 
 type Handlers<Resource extends keyof Resources> = {
 	get: (args: {

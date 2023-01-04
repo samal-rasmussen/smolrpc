@@ -1,4 +1,4 @@
-import { Resources } from './shared';
+import { Resources } from './resources';
 
 export type ResponseMessageType =
 	| 'GetResponse'

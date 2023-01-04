@@ -6,7 +6,7 @@ import {
 	SetSuccess,
 	SubscribeAccept,
 	SubscribeEvent,
-} from '../shared.message-types.js';
+} from '../shared/message-types.js';
 import { router } from './router.js';
 import { Handlers } from './server.types.js';
 
@@ -39,7 +39,7 @@ function validateParams(
 
 wss.on('connection', function connection(ws) {
 	ws.on('message', async function message(rawData: any) {
-		console.log('received: %s', rawData);
+		// console.log('received: %s', rawData);
 		const message = JSON.parse(rawData) as Request;
 		if (typeof message.id !== 'number') {
 			console.error(`no id number on message`);
@@ -70,7 +70,7 @@ wss.on('connection', function connection(ws) {
 					data: result,
 					type: 'GetResponse',
 				};
-				console.log(response, JSON.stringify(response));
+				// console.log(response, JSON.stringify(response));
 				ws.send(JSON.stringify(response));
 			} catch (error) {
 				sendReject(ws, message.id, '500');
