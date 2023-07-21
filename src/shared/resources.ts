@@ -11,5 +11,10 @@ export const resources = {
 		response: z.object({ key: z.string() }),
 		type: 'get|set|subscribe',
 	},
+	'/resourceB/:id/resourceC/:key': {
+		request: z.object({ key: z.string() }),
+		response: z.object({ key: z.string() }),
+		type: 'set',
+	},
 } as const satisfies AnyResources;
 export type Resources = typeof resources;

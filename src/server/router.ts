@@ -17,19 +17,26 @@ export const router = {
 		},
 	},
 	'/resourceB/:id': {
-		get: async ({ resource, params }) => {
-			console.log('get', resource, params);
+		get: async ({ params, qualifiedResource, resource }) => {
+			console.log('get', resource, qualifiedResource, params);
 			const result = db.get(resource) as Result<typeof resource>;
 			return result;
 		},
-		set: async ({ resource, params, request }) => {
-			console.log('set', resource, params, request);
+		set: async ({ params, qualifiedResource, resource, request }) => {
+			console.log('set', resource, qualifiedResource, params, request);
 			const result = db.set(resource, request);
 			return result;
 		},
-		subscribe: ({ resource, params }) => {
-			console.log('subscribe', resource, params);
+		subscribe: ({ params, qualifiedResource, resource }) => {
+			console.log('subscribe', resource, qualifiedResource, params);
 			const result = db.subscribe(resource);
+			return result;
+		},
+	},
+	'/resourceB/:id/resourceC/:key': {
+		set: async ({ params, qualifiedResource, resource, request }) => {
+			console.log('set', resource, qualifiedResource, params, request);
+			const result = db.set(resource, request);
 			return result;
 		},
 	},

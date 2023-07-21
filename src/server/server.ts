@@ -10,13 +10,24 @@ import {
 } from '../mini-rpc/message-types.js';
 import {
 	GetHandler,
+	GetHandlerWithParams,
+	PickSetHandler,
+	PickSubscribeHandler,
 	SetHandler,
-	SubscribeHandler,
+	SetHandlerWithParams,
+	SubscribeHandlerWithParams,
 } from '../mini-rpc/server.types.js';
 import { Resources } from '../shared/resources.js';
 import { router } from './router.js';
 
 const wss = new WebSocketServer({ port: 9200 });
+
+function getQualifiedResource(resource: string, params: Params) {
+	Object.entries(params ?? {}).forEach(([key, value]) => {
+		resource = resource.replace(`:${key}`, value);
+	});
+	return resource;
+}
 
 function sendReject(ws: WebSocket, id: number, error: string) {
 	const reject: Reject = {
@@ -63,11 +74,19 @@ wss.on('connection', function connection(ws) {
 		}
 		if (message.type === 'GetRequest') {
 			try {
-				const get = (resource as any).get as GetHandler<any, any>;
-				const result = await get({
+				const args: Parameters<GetHandlerWithParams<any, any>>[0] = {
 					resource: message.resource,
-					params: message.params,
-				});
+				} as any;
+				if (message.params != null) {
+					const qualifiedResource = getQualifiedResource(
+						message.resource,
+						message.params,
+					);
+					args.params = message.params;
+					args.qualifiedResource = qualifiedResource;
+				}
+				const get = (resource as any).get as GetHandler<any, any>;
+				const result = await get(args);
 				const response: GetResponse = {
 					id: message.id,
 					data: result,
@@ -80,12 +99,20 @@ wss.on('connection', function connection(ws) {
 			}
 		} else if (message.type === 'SetRequest') {
 			try {
-				const set = (resource as any).set as SetHandler<any, any>;
-				await set({
+				const args: Parameters<SetHandlerWithParams<any, any>>[0] = {
 					resource: message.resource,
 					request: message.data,
-					params: message.params,
-				});
+				} as any;
+				if (message.params != null) {
+					const qualifiedResource = getQualifiedResource(
+						message.resource,
+						message.params,
+					);
+					args.params = message.params;
+					args.qualifiedResource = qualifiedResource;
+				}
+				const set = (resource as any).set as PickSetHandler<any, any>;
+				await set(args);
 				const response: SetSuccess = {
 					id: message.id,
 					type: 'SetSuccess',
@@ -97,12 +124,22 @@ wss.on('connection', function connection(ws) {
 			}
 		} else if (message.type === 'SubscribeRequest') {
 			try {
-				const subscribe = (resource as any)
-					.subscribe as SubscribeHandler<any, any>;
-				const observable = await subscribe({
+				const args: Parameters<
+					SubscribeHandlerWithParams<any, any>
+				>[0] = {
 					resource: message.resource,
-					params: message.params,
-				});
+				} as any;
+				if (message.params != null) {
+					const qualifiedResource = getQualifiedResource(
+						message.resource,
+						message.params,
+					);
+					args.params = message.params;
+					args.qualifiedResource = qualifiedResource;
+				}
+				const subscribe = (resource as any)
+					.subscribe as PickSubscribeHandler<any, any>;
+				const observable = await subscribe(args);
 				observable.subscribe({
 					next(val) {
 						const event: SubscribeEvent = {

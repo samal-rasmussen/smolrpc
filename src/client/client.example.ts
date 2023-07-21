@@ -25,3 +25,8 @@ await client['/resourceB/:id'].set({
 	params: { id: '123' },
 	request: { key: '321' },
 });
+
+await client['/resourceB/:id/resourceC/:key'].set({
+	params: { id: '123', key: '456' },
+	request: { key: '321' },
+});
