@@ -28,4 +28,4 @@ export const router = {
 			return result;
 		},
 	},
-} as const satisfies Router;
+} as const satisfies Router<Resources>;

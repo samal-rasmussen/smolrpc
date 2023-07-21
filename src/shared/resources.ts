@@ -7,8 +7,8 @@ export const resources = {
 		type: 'get',
 	},
 	'/resourceB/:id': {
-		request: z.object({ name: z.string() }),
-		response: z.object({ name: z.string() }),
+		request: z.object({ key: z.string() }),
+		response: z.object({ key: z.string() }),
 		type: 'get|set|subscribe',
 	},
 } as const satisfies AnyResources;

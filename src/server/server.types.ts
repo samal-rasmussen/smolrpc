@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { Resources } from '../shared/resources';
 import type {
 	AnyResources,
 	AnySettableResources,
@@ -7,7 +6,7 @@ import type {
 	Subscribable,
 } from '../shared/types';
 
-export type Handlers<Resource extends keyof Resources> = {
+export type Handlers<Resource extends keyof AnyResources> = {
 	get: (args: {
 		resource: Resource;
 		params?: ResourceParams<Resource>;
@@ -23,7 +22,7 @@ export type Handlers<Resource extends keyof Resources> = {
 	}) => Subscribable<z.infer<AnyResources[Resource]['response']>>;
 };
 
-export type Router = {
+export type Router<Resources extends AnyResources> = {
 	[R in keyof Resources]: Resources[R]['type'] extends 'get'
 		? Pick<Handlers<R>, 'get'>
 		: Resources[R]['type'] extends 'set'

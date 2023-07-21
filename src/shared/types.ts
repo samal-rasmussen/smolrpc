@@ -24,10 +24,10 @@ type AnySetttableResource = {
 	type: 'set' | 'get|set' | 'set|subscribe' | 'get|set|subscribe';
 };
 export type AnyResources = {
-	[key: string]: AnyResource | AnySetttableResource;
+	[key: string | number | symbol]: AnyResource | AnySetttableResource;
 };
 export type AnySettableResources = {
-	[key: string]: AnySetttableResource;
+	[key: string | number | symbol]: AnySetttableResource;
 };
 
 interface Observer<T> {
