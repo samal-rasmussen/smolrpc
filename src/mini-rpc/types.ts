@@ -12,7 +12,7 @@ export type ResourceParams<T> =
 		? { [k in Param | keyof ResourceParams<Rest>]: string }
 		: T extends `${infer _Start}:${infer Param}` // eslint-disable-line @typescript-eslint/no-unused-vars
 		? { [k in Param]: string }
-		: null;
+		: null | undefined;
 
 type AnyResource = {
 	response: z.AnyZodObject;

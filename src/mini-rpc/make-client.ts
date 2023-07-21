@@ -1,5 +1,6 @@
 import type { AnyResources, Subscribable } from './types';
 import type {
+	Params,
 	Reject,
 	Request,
 	Response,
@@ -15,18 +16,17 @@ export async function makeClient<Resources extends AnyResources>(): Promise<
 		const proxy = new Proxy({} as any, {
 			get(target, p: any, receiver) {
 				return {
-					get: (args: { params: Record<string, string> | null }) =>
+					get: (args: { params: Params } | undefined) =>
 						getHandler(p, args?.params),
 					set: ({
 						request,
 						params,
 					}: {
 						request: any;
-						params: Record<string, string> | null;
+						params: Params;
 					}) => setHandler(p, request, params),
-					subscribe: (args: {
-						params: Record<string, string> | null;
-					}) => subscribeHandler(p, args?.params),
+					subscribe: (args: { params: Params }) =>
+						subscribeHandler(p, args?.params),
 				};
 			},
 		});
@@ -86,7 +86,7 @@ export async function makeClient<Resources extends AnyResources>(): Promise<
 
 		function getHandler(
 			resource: keyof Resources,
-			params: Record<string, string> | null,
+			params: Params,
 		): Promise<unknown> {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
@@ -114,7 +114,7 @@ export async function makeClient<Resources extends AnyResources>(): Promise<
 		function setHandler(
 			resource: keyof Resources,
 			request: any,
-			params: Record<string, string> | null,
+			params: Params,
 		): Promise<unknown> {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
@@ -142,7 +142,7 @@ export async function makeClient<Resources extends AnyResources>(): Promise<
 		}
 		function subscribeHandler(
 			resource: keyof Resources,
-			params: Record<string, string> | null,
+			params: Params,
 		): Subscribable<unknown> {
 			return {
 				subscribe: (observer) => {

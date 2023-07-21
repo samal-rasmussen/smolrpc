@@ -1,6 +1,7 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import {
 	GetResponse,
+	Params,
 	Reject,
 	Request,
 	SetSuccess,
@@ -26,10 +27,7 @@ function sendReject(ws: WebSocket, id: number, error: string) {
 	ws.send(JSON.stringify(reject));
 }
 
-function validateParams(
-	resource: string,
-	params: Record<string, string> | null,
-): boolean {
+function validateParams(resource: string, params: Params): boolean {
 	const count = resource.split(':').length - 1;
 	if (count > 0) {
 		if (params == null) {
@@ -65,7 +63,7 @@ wss.on('connection', function connection(ws) {
 		}
 		if (message.type === 'GetRequest') {
 			try {
-				const get = resource.get as GetHandler<any, any>;
+				const get = (resource as any).get as GetHandler<any, any>;
 				const result = await get({
 					resource: message.resource,
 					params: message.params,

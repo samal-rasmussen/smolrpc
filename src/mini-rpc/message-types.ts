@@ -1,5 +1,7 @@
 import { AnyResources } from './types';
 
+export type Params = Record<string, string> | null | undefined;
+
 export type ResponseMessageType =
 	| 'GetResponse'
 	| 'SetSuccess'
@@ -24,7 +26,7 @@ export type GetRequest<Resources extends AnyResources> = {
 	id: number;
 	type: 'GetRequest';
 	resource: keyof Resources;
-	params: Record<string, string> | null;
+	params: Params;
 };
 export type GetResponse = {
 	id: number;
@@ -36,7 +38,7 @@ export type SetRequest<Resources extends AnyResources> = {
 	type: 'SetRequest';
 	resource: keyof Resources;
 	data: any;
-	params: Record<string, string> | null;
+	params: Params;
 };
 export type SetSuccess = {
 	id: number;
@@ -46,7 +48,7 @@ export type SubscribeRequest<Resources extends AnyResources> = {
 	id: number;
 	type: 'SubscribeRequest';
 	resource: keyof Resources;
-	params: Record<string, string> | null;
+	params: Params;
 };
 export type SubscribeAccept = {
 	id: number;

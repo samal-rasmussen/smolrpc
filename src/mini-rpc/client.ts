@@ -9,7 +9,7 @@ import {
 type GetHandler<
 	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
-> = ResourceParams<Resource> extends null
+> = ResourceParams<Resource> extends null | undefined
 	? () => Promise<z.infer<Resources[Resource]['response']>>
 	: (args: {
 			params: ResourceParams<Resource>;
@@ -18,7 +18,7 @@ type GetHandler<
 type SetHandler<
 	Resource extends keyof AnyResources,
 	Request extends AnySettableResource['request'],
-> = ResourceParams<Resource> extends null
+> = ResourceParams<Resource> extends null | undefined
 	? (args: { request: z.infer<Request> }) => Promise<void>
 	: (args: {
 			request: z.infer<Request>;
@@ -28,7 +28,7 @@ type SetHandler<
 type SubscribeHandler<
 	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
-> = ResourceParams<Resource> extends null
+> = ResourceParams<Resource> extends null | undefined
 	? () => Subscribable<z.infer<Resources[Resource]['response']>>
 	: (args: {
 			params: ResourceParams<Resource>;
