@@ -12,22 +12,22 @@ export type ResourceParams<T> =
 		? { [k in Param | keyof ResourceParams<Rest>]: string }
 		: T extends `${infer _Start}:${infer Param}` // eslint-disable-line @typescript-eslint/no-unused-vars
 		? { [k in Param]: string }
-		: unknown;
+		: null;
 
 type AnyResource = {
 	response: z.AnyZodObject;
 	type: 'get' | 'subscribe' | 'get|subscribe';
 };
-type AnySetttableResource = {
+export type AnySettableResource = {
 	request: z.AnyZodObject;
 	response: z.AnyZodObject;
 	type: 'set' | 'get|set' | 'set|subscribe' | 'get|set|subscribe';
 };
 export type AnyResources = {
-	[key: string | number | symbol]: AnyResource | AnySetttableResource;
+	[key: string | number | symbol]: AnyResource | AnySettableResource;
 };
 export type AnySettableResources = {
-	[key: string | number | symbol]: AnySetttableResource;
+	[key: string | number | symbol]: AnySettableResource;
 };
 
 interface Observer<T> {
@@ -43,3 +43,8 @@ interface Unsubscribable {
 export interface Subscribable<T> {
 	subscribe(observer: Partial<Observer<T>>): Unsubscribable;
 }
+
+export type Result<
+	Resources extends AnyResources,
+	Resource extends keyof Resources,
+> = z.infer<Resources[Resource]['response']>;

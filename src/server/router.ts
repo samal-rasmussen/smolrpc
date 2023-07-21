@@ -1,21 +1,26 @@
-import { z } from 'zod';
 import { Resources } from '../shared/resources';
 import { db } from './db.js';
-import { Router } from './server.types';
+import { Router } from '../mini-rpc/server.types';
+import { Result as MiniRpcResult } from '../mini-rpc/types';
+
+type Result<Resource extends keyof Resources> = MiniRpcResult<
+	Resources,
+	Resource
+>;
 
 export const router = {
 	'/resourceA': {
-		async get({ params, resource }) {
-			console.log('get', resource, params);
-			const result = db.get(resource);
-			return result as z.infer<Resources['/resourceA']['response']>;
+		async get({ resource }) {
+			console.log('get', resource);
+			const result = db.get(resource) as Result<typeof resource>;
+			return result;
 		},
 	},
 	'/resourceB/:id': {
 		get: async ({ resource, params }) => {
 			console.log('get', resource, params);
-			const result = db.get(resource);
-			return result as z.infer<Resources['/resourceA']['response']>;
+			const result = db.get(resource) as Result<typeof resource>;
+			return result;
 		},
 		set: async ({ resource, params, request }) => {
 			console.log('set', resource, params, request);

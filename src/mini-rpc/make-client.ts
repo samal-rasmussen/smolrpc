@@ -1,32 +1,32 @@
-import type { AnyResources, Subscribable } from '../shared/types';
+import type { AnyResources, Subscribable } from './types';
 import type {
 	Reject,
 	Request,
 	Response,
 	SubscribeEvent,
-} from '../shared/message-types';
+} from './message-types';
 import { WebSocket } from 'ws';
-import { Client } from './client.types';
+import { Client } from './client';
 
-export async function makeClient(): Promise<Client> {
+export async function makeClient<Resources extends AnyResources>(): Promise<
+	Client<Resources>
+> {
 	return new Promise((resolve, reject) => {
 		const proxy = new Proxy({} as any, {
 			get(target, p: any, receiver) {
 				return {
-					get: ({ params }: { params?: Record<string, string> }) =>
-						getHandler(p, params),
+					get: (args: { params: Record<string, string> | null }) =>
+						getHandler(p, args?.params),
 					set: ({
 						request,
 						params,
 					}: {
 						request: any;
-						params?: Record<string, string>;
+						params: Record<string, string> | null;
 					}) => setHandler(p, request, params),
-					subscribe: ({
-						params,
-					}: {
-						params?: Record<string, string>;
-					}) => subscribeHandler(p, params),
+					subscribe: (args: {
+						params: Record<string, string> | null;
+					}) => subscribeHandler(p, args?.params),
 				};
 			},
 		});
@@ -75,7 +75,7 @@ export async function makeClient(): Promise<Client> {
 
 		function sendMessage(
 			msg:
-				| Request<AnyResources>
+				| Request<Resources>
 				| {
 						id: number;
 						type: 'unsubscribe';
@@ -85,8 +85,8 @@ export async function makeClient(): Promise<Client> {
 		}
 
 		function getHandler(
-			resource: keyof AnyResources,
-			params?: Record<string, string>,
+			resource: keyof Resources,
+			params: Record<string, string> | null,
 		): Promise<unknown> {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
@@ -112,9 +112,9 @@ export async function makeClient(): Promise<Client> {
 			});
 		}
 		function setHandler(
-			resource: keyof AnyResources,
+			resource: keyof Resources,
 			request: any,
-			params?: Record<string, string>,
+			params: Record<string, string> | null,
 		): Promise<unknown> {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
@@ -141,8 +141,8 @@ export async function makeClient(): Promise<Client> {
 			});
 		}
 		function subscribeHandler(
-			resource: keyof AnyResources,
-			params?: Record<string, string>,
+			resource: keyof Resources,
+			params: Record<string, string> | null,
 		): Subscribable<unknown> {
 			return {
 				subscribe: (observer) => {

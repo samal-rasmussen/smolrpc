@@ -1,10 +1,9 @@
-import { makeClient } from './client.js';
+import { makeClient } from '../mini-rpc/make-client.js';
+import { Resources } from '../shared/resources.js';
 
-const client = await makeClient();
+const client = await makeClient<Resources>();
 
-const result1 = await client['/resourceA'].get({
-	params: null,
-});
+const result1 = await client['/resourceA'].get();
 console.log('get /resourceA', result1);
 
 const result2 = await client['/resourceB/:id'].get({
@@ -24,5 +23,5 @@ client['/resourceB/:id']
 
 await client['/resourceB/:id'].set({
 	params: { id: '123' },
-	request: { name: '321' },
+	request: { key: '321' },
 });

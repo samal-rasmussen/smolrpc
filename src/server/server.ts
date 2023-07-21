@@ -6,10 +6,14 @@ import {
 	SetSuccess,
 	SubscribeAccept,
 	SubscribeEvent,
-} from '../shared/message-types.js';
+} from '../mini-rpc/message-types.js';
+import {
+	GetHandler,
+	SetHandler,
+	SubscribeHandler,
+} from '../mini-rpc/server.types.js';
 import { Resources } from '../shared/resources.js';
 import { router } from './router.js';
-import { Handlers } from './server.types.js';
 
 const wss = new WebSocketServer({ port: 9200 });
 
@@ -24,7 +28,7 @@ function sendReject(ws: WebSocket, id: number, error: string) {
 
 function validateParams(
 	resource: string,
-	params?: Record<string, string>,
+	params: Record<string, string> | null,
 ): boolean {
 	const count = resource.split(':').length - 1;
 	if (count > 0) {
@@ -61,7 +65,7 @@ wss.on('connection', function connection(ws) {
 		}
 		if (message.type === 'GetRequest') {
 			try {
-				const get = resource.get as Handlers<any>['get'];
+				const get = resource.get as GetHandler<any, any>;
 				const result = await get({
 					resource: message.resource,
 					params: message.params,
@@ -78,7 +82,7 @@ wss.on('connection', function connection(ws) {
 			}
 		} else if (message.type === 'SetRequest') {
 			try {
-				const set = (resource as any).set as Handlers<any>['set'];
+				const set = (resource as any).set as SetHandler<any, any>;
 				await set({
 					resource: message.resource,
 					request: message.data,
@@ -96,7 +100,7 @@ wss.on('connection', function connection(ws) {
 		} else if (message.type === 'SubscribeRequest') {
 			try {
 				const subscribe = (resource as any)
-					.subscribe as Handlers<any>['subscribe'];
+					.subscribe as SubscribeHandler<any, any>;
 				const observable = await subscribe({
 					resource: message.resource,
 					params: message.params,
