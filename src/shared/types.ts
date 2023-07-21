@@ -15,19 +15,19 @@ export type ResourceParams<T> =
 		: unknown;
 
 type AnyResource = {
+	response: z.AnyZodObject;
+	type: 'get' | 'subscribe' | 'get|subscribe';
+};
+type AnySetttableResource = {
 	request: z.AnyZodObject;
 	response: z.AnyZodObject;
-	type:
-		| 'get'
-		| 'set'
-		| 'subscribe'
-		| 'get|set'
-		| 'get|subscribe'
-		| 'set|subscribe'
-		| 'get|set|subscribe';
+	type: 'set' | 'get|set' | 'set|subscribe' | 'get|set|subscribe';
 };
 export type AnyResources = {
-	[key: string]: AnyResource;
+	[key: string]: AnyResource | AnySetttableResource;
+};
+export type AnySettableResources = {
+	[key: string]: AnySetttableResource;
 };
 
 interface Observer<T> {

@@ -7,6 +7,7 @@ import {
 	SubscribeAccept,
 	SubscribeEvent,
 } from '../shared/message-types.js';
+import { Resources } from '../shared/resources.js';
 import { router } from './router.js';
 import { Handlers } from './server.types.js';
 
@@ -40,7 +41,7 @@ function validateParams(
 wss.on('connection', function connection(ws) {
 	ws.on('message', async function message(rawData: any) {
 		// console.log('received: %s', rawData);
-		const message = JSON.parse(rawData) as Request;
+		const message = JSON.parse(rawData) as Request<Resources>;
 		if (typeof message.id !== 'number') {
 			console.error(`no id number on message`);
 			return;

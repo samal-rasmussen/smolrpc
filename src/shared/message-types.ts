@@ -1,4 +1,4 @@
-import { Resources } from './resources';
+import { AnyResources } from './types';
 
 export type ResponseMessageType =
 	| 'GetResponse'
@@ -9,7 +9,10 @@ export type RequestMessageType =
 	| 'SetRequest'
 	| 'SubscribeRequest';
 
-export type Request = GetRequest | SetRequest | SubscribeRequest;
+export type Request<Resources extends AnyResources> =
+	| GetRequest<Resources>
+	| SetRequest<Resources>
+	| SubscribeRequest<Resources>;
 export type Response = GetResponse | SetSuccess | SubscribeAccept;
 export type Reject = {
 	id: number;
@@ -17,7 +20,7 @@ export type Reject = {
 	error: string;
 };
 
-export type GetRequest = {
+export type GetRequest<Resources extends AnyResources> = {
 	id: number;
 	type: 'GetRequest';
 	resource: keyof Resources;
@@ -28,7 +31,7 @@ export type GetResponse = {
 	type: 'GetResponse';
 	data: any;
 };
-export type SetRequest = {
+export type SetRequest<Resources extends AnyResources> = {
 	id: number;
 	type: 'SetRequest';
 	resource: keyof Resources;
@@ -39,7 +42,7 @@ export type SetSuccess = {
 	id: number;
 	type: 'SetSuccess';
 };
-export type SubscribeRequest = {
+export type SubscribeRequest<Resources extends AnyResources> = {
 	id: number;
 	type: 'SubscribeRequest';
 	resource: keyof Resources;

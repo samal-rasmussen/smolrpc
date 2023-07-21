@@ -1,37 +1,42 @@
 import { z } from 'zod';
 import { Resources } from '../shared/resources';
-import type { ResourceParams, Subscribable } from '../shared/types';
+import type {
+	AnyResources,
+	AnySettableResources,
+	ResourceParams,
+	Subscribable,
+} from '../shared/types';
 
 export type Handlers<Resource extends keyof Resources> = {
 	get: (args: {
 		resource: Resource;
 		params?: ResourceParams<Resource>;
-	}) => Promise<z.infer<Resources[Resource]['response']>>;
+	}) => Promise<z.infer<AnyResources[Resource]['response']>>;
 	set: (args: {
 		resource: Resource;
-		request: z.infer<Resources[Resource]['request']>;
+		request: z.infer<AnySettableResources[Resource]['request']>;
 		params?: ResourceParams<Resource>;
 	}) => Promise<void>;
 	subscribe: (args: {
 		resource: Resource;
 		params?: ResourceParams<Resource>;
-	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
+	}) => Subscribable<z.infer<AnyResources[Resource]['response']>>;
 };
 
 export type Router = {
-	[Resource in keyof Resources]: Resources[Resource]['type'] extends 'get'
-		? Pick<Handlers<Resource>, 'get'>
-		: Resources[Resource]['type'] extends 'set'
-		? Pick<Handlers<Resource>, 'set'>
-		: Resources[Resource]['type'] extends 'subscribe'
-		? Pick<Handlers<Resource>, 'subscribe'>
-		: Resources[Resource]['type'] extends 'get|set'
-		? Pick<Handlers<Resource>, 'get' | 'set'>
-		: Resources[Resource]['type'] extends 'get|subscribe'
-		? Pick<Handlers<Resource>, 'get' | 'subscribe'>
-		: Resources[Resource]['type'] extends 'set|subscribe'
-		? Pick<Handlers<Resource>, 'set' | 'subscribe'>
-		: Resources[Resource]['type'] extends 'get|set|subscribe'
-		? Pick<Handlers<Resource>, 'get' | 'set' | 'subscribe'>
+	[R in keyof Resources]: Resources[R]['type'] extends 'get'
+		? Pick<Handlers<R>, 'get'>
+		: Resources[R]['type'] extends 'set'
+		? Pick<Handlers<R>, 'set'>
+		: Resources[R]['type'] extends 'subscribe'
+		? Pick<Handlers<R>, 'subscribe'>
+		: Resources[R]['type'] extends 'get|set'
+		? Pick<Handlers<R>, 'get' | 'set'>
+		: Resources[R]['type'] extends 'get|subscribe'
+		? Pick<Handlers<R>, 'get' | 'subscribe'>
+		: Resources[R]['type'] extends 'set|subscribe'
+		? Pick<Handlers<R>, 'set' | 'subscribe'>
+		: Resources[R]['type'] extends 'get|set|subscribe'
+		? Pick<Handlers<R>, 'get' | 'set' | 'subscribe'>
 		: never;
 };

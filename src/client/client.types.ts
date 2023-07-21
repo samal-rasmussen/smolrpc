@@ -1,13 +1,17 @@
 import { z } from 'zod';
 import { Resources } from '../shared/resources';
-import { ResourceParams, Subscribable } from '../shared/types';
+import {
+	AnySettableResources,
+	ResourceParams,
+	Subscribable,
+} from '../shared/types';
 
 type Handlers<Resource extends keyof Resources> = {
 	get: (args: {
 		params?: ResourceParams<Resource>;
 	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	set: (args: {
-		request: z.infer<Resources[Resource]['request']>;
+		request: z.infer<AnySettableResources[Resource]['request']>;
 		params?: ResourceParams<Resource>;
 	}) => Promise<void>;
 	subscribe: (args: {

@@ -1,4 +1,4 @@
-import type { Subscribable } from '../shared/types';
+import type { AnyResources, Subscribable } from '../shared/types';
 import type {
 	Reject,
 	Request,
@@ -7,7 +7,6 @@ import type {
 } from '../shared/message-types';
 import { WebSocket } from 'ws';
 import { Client } from './client.types';
-import { Resources } from '../shared/resources';
 
 export async function makeClient(): Promise<Client> {
 	return new Promise((resolve, reject) => {
@@ -76,7 +75,7 @@ export async function makeClient(): Promise<Client> {
 
 		function sendMessage(
 			msg:
-				| Request
+				| Request<AnyResources>
 				| {
 						id: number;
 						type: 'unsubscribe';
@@ -86,7 +85,7 @@ export async function makeClient(): Promise<Client> {
 		}
 
 		function getHandler(
-			resource: keyof Resources,
+			resource: keyof AnyResources,
 			params?: Record<string, string>,
 		): Promise<unknown> {
 			return new Promise((resolve, reject) => {
@@ -113,7 +112,7 @@ export async function makeClient(): Promise<Client> {
 			});
 		}
 		function setHandler(
-			resource: keyof Resources,
+			resource: keyof AnyResources,
 			request: any,
 			params?: Record<string, string>,
 		): Promise<unknown> {
@@ -142,7 +141,7 @@ export async function makeClient(): Promise<Client> {
 			});
 		}
 		function subscribeHandler(
-			resource: keyof Resources,
+			resource: keyof AnyResources,
 			params?: Record<string, string>,
 		): Subscribable<unknown> {
 			return {

@@ -3,7 +3,6 @@ import { AnyResources } from './types';
 
 export const resources = {
 	'/resourceA': {
-		request: z.NEVER,
 		response: z.object({ name: z.string() }),
 		type: 'get',
 	},

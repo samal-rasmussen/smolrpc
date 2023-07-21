@@ -5,12 +5,12 @@ const client = await makeClient();
 const result1 = await client['/resourceA'].get({
 	params: null,
 });
-console.log('result 1', result1);
+console.log('get /resourceA', result1);
 
 const result2 = await client['/resourceB/:id'].get({
 	params: { id: '123' },
 });
-console.log('result 2', result2);
+console.log('get /resourceB/:id', result2);
 
 client['/resourceB/:id']
 	.subscribe({
@@ -18,7 +18,7 @@ client['/resourceB/:id']
 	})
 	.subscribe({
 		next: (val) => {
-			console.log('received subscription val', val);
+			console.log('subscription val /resourceB/:id', val);
 		},
 	});
 
