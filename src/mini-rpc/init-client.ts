@@ -9,7 +9,7 @@ import type {
 import { WebSocket } from 'ws';
 import { Client } from './client';
 
-export async function makeClient<Resources extends AnyResources>(): Promise<
+export async function initClient<Resources extends AnyResources>(): Promise<
 	Client<Resources>
 > {
 	return new Promise((resolve, reject) => {

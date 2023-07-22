@@ -1,7 +1,7 @@
-import { makeClient } from '../mini-rpc/make-client.js';
+import { initClient } from '../mini-rpc/init-client.js';
 import { Resources } from '../shared/resources.js';
 
-const client = await makeClient<Resources>();
+const client = await initClient<Resources>();
 
 const result1 = await client['/resourceA'].get();
 console.log('get /resourceA', result1);
