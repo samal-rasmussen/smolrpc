@@ -14,12 +14,18 @@ export type RequestMessageType =
 export type Request<Resources extends AnyResources> =
 	| GetRequest<Resources>
 	| SetRequest<Resources>
-	| SubscribeRequest<Resources>;
-export type Response = GetResponse | SetSuccess | SubscribeAccept;
-export type Reject = {
-	id: number;
-	type: 'Reject';
+	| SubscribeRequest<Resources>
+	| UnsubscribeRequest<Resources>;
+export type Response<Resources extends AnyResources> =
+	| GetResponse<Resources>
+	| SetSuccess<Resources>
+	| SubscribeAccept<Resources>;
+export type Reject<Resources extends AnyResources> = {
 	error: string;
+	id: number;
+	params?: Params;
+	resource: keyof Resources;
+	type: 'Reject';
 };
 
 export type GetRequest<Resources extends AnyResources> = {
@@ -28,20 +34,22 @@ export type GetRequest<Resources extends AnyResources> = {
 	resource: keyof Resources;
 	params: Params;
 };
-export type GetResponse = {
-	id: number;
-	type: 'GetResponse';
+export type GetResponse<Resources extends AnyResources> = {
 	data: any;
+	id: number;
+	resource: keyof Resources;
+	type: 'GetResponse';
 };
 export type SetRequest<Resources extends AnyResources> = {
-	id: number;
-	type: 'SetRequest';
-	resource: keyof Resources;
 	data: any;
-	params: Params;
-};
-export type SetSuccess = {
 	id: number;
+	params: Params;
+	resource: keyof Resources;
+	type: 'SetRequest';
+};
+export type SetSuccess<Resources extends AnyResources> = {
+	id: number;
+	resource: keyof Resources;
 	type: 'SetSuccess';
 };
 export type SubscribeRequest<Resources extends AnyResources> = {
@@ -50,12 +58,20 @@ export type SubscribeRequest<Resources extends AnyResources> = {
 	resource: keyof Resources;
 	params: Params;
 };
-export type SubscribeAccept = {
+export type UnsubscribeRequest<Resources extends AnyResources> = {
 	id: number;
+	resource: keyof Resources;
+	type: 'UnsubscribeRequest';
+	params: Params;
+};
+export type SubscribeAccept<Resources extends AnyResources> = {
+	id: number;
+	resource: keyof Resources;
 	type: 'SubscribeAccept';
 };
-export type SubscribeEvent = {
-	id: number;
-	type: 'SubscribeEvent';
+export type SubscribeEvent<Resources extends AnyResources> = {
 	data: any;
+	id: number;
+	resource: keyof Resources;
+	type: 'SubscribeEvent';
 };

@@ -56,9 +56,9 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 			// 	event.data,
 			// );
 			const message = JSON.parse(event.data as string) as
-				| Response
-				| SubscribeEvent
-				| Reject;
+				| Response<Resources>
+				| SubscribeEvent<Resources>
+				| Reject<Resources>;
 			const listener = listeners.get(message.id);
 			if (listener == null) {
 				console.error(`no listener found for message`, message);
@@ -69,18 +69,16 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 
 		const listeners = new Map<
 			Number,
-			(msg: Response | SubscribeEvent | Reject) => void
+			(
+				msg:
+					| Response<Resources>
+					| SubscribeEvent<Resources>
+					| Reject<Resources>,
+			) => void
 		>();
 		let id = 0;
 
-		function sendMessage(
-			msg:
-				| Request<Resources>
-				| {
-						id: number;
-						type: 'unsubscribe';
-				  },
-		): void {
+		function sendMessage(msg: Request<Resources>): void {
 			socket.send(JSON.stringify(msg));
 		}
 
@@ -170,7 +168,9 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 						unsubscribe: () => {
 							sendMessage({
 								id: msgId,
-								type: 'unsubscribe',
+								params,
+								resource,
+								type: 'UnsubscribeRequest',
 							});
 							listeners.delete(msgId);
 						},
