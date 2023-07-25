@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 
 export type Types = 'get' | 'set' | 'subscribe';
 export type MessageTypes = Types | 'unsubscribe';

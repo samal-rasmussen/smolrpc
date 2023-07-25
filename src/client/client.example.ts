@@ -1,7 +1,9 @@
+import { WebSocket as WS } from 'ws';
 import { initClient } from '../mini-rpc/init-client.js';
 import { Resources } from '../shared/resources.js';
 
-const client = await initClient<Resources>();
+const socket = new WS('ws://localhost:9200');
+const client = await initClient<Resources>(socket as any as WebSocket);
 
 const result1 = await client['/resourceA'].get();
 console.log('get /resourceA', result1);

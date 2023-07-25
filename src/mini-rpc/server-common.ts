@@ -1,4 +1,4 @@
-import {
+import type {
 	GetResponse,
 	Params,
 	Reject,
@@ -8,7 +8,7 @@ import {
 	SubscribeEvent,
 	UnsubscribeAccept,
 } from './message-types';
-import {
+import type {
 	GetHandler,
 	GetHandlerWithParams,
 	PickSetHandler,
@@ -17,59 +17,8 @@ import {
 	SetHandlerWithParams,
 	SubscribeHandlerWithParams,
 } from './server.types';
-import { AnyResources, Unsubscribable } from './types';
-
-type Data =
-	| string
-	| ArrayBufferLike
-	| Blob
-	| ArrayBufferView
-	| Buffer
-	| Buffer[];
-
-interface WSErrorEvent {
-	error: any;
-	message: string;
-	type: string;
-	target: WS;
-}
-
-interface WSCloseEvent {
-	wasClean: boolean;
-	code: number;
-	reason: string;
-	type: string;
-	target: WS;
-}
-
-interface WSMessageEvent {
-	data: Data;
-	type: string;
-	target: WS;
-}
-
-interface WSEventListenerOptions {
-	once?: boolean | undefined;
-}
-
-type WS = {
-	addEventListener(
-		method: 'message',
-		cb: (event: WSMessageEvent) => void,
-		options?: WSEventListenerOptions,
-	): void;
-	addEventListener(
-		method: 'close',
-		cb: (event: WSCloseEvent) => void,
-		options?: WSEventListenerOptions,
-	): void;
-	addEventListener(
-		method: 'error',
-		cb: (event: WSErrorEvent) => void,
-		options?: WSEventListenerOptions,
-	): void;
-	send: (data: Data) => void;
-};
+import type { AnyResources, Unsubscribable } from './types';
+import type { Data, WS } from './websocket.types';
 
 function getQualifiedResource(resource: string, params: Params) {
 	Object.entries(params ?? {}).forEach(([key, value]) => {

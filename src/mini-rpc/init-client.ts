@@ -6,12 +6,11 @@ import type {
 	Response,
 	SubscribeEvent,
 } from './message-types';
-import { WebSocket } from 'ws';
-import { Client } from './client';
+import type { Client } from './client.types';
 
-export async function initClient<Resources extends AnyResources>(): Promise<
-	Client<Resources>
-> {
+export async function initClient<Resources extends AnyResources>(
+	websocket: WebSocket,
+): Promise<Client<Resources>> {
 	return new Promise((resolve, reject) => {
 		const proxy = new Proxy({} as any, {
 			get(target, p: any, receiver) {
@@ -31,24 +30,23 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 			},
 		});
 
-		const socket = new WebSocket('ws://localhost:9200');
-		socket.onopen = (event) => {
+		websocket.onopen = (event) => {
 			console.log('websocket connected');
 			resolve(proxy);
 		};
-		socket.onclose = (event) => {
-			console.log('socket.onclose', event.type, event.code, event.reason);
+		websocket.onclose = (event) => {
+			console.log(
+				'websocket.onclose',
+				event.type,
+				event.code,
+				event.reason,
+			);
 			reject();
 		};
-		socket.onerror = (event) => {
-			console.log(
-				'socket.onerror',
-				event.type,
-				event.error,
-				event.message,
-			);
+		websocket.onerror = (event) => {
+			console.log('websocket.onerror', event.type, event);
 		};
-		socket.onmessage = (event) => {
+		websocket.onmessage = (event) => {
 			// console.log(
 			// 	'socket.onmessage',
 			// 	event.type,
@@ -81,7 +79,7 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 		let id = 0;
 
 		function sendMessage(msg: Request<Resources>): void {
-			socket.send(JSON.stringify(msg));
+			websocket.send(JSON.stringify(msg));
 		}
 
 		function getHandler(

@@ -1,4 +1,4 @@
-import { AnyResources } from './types';
+import type { AnyResources } from './types';
 
 export type Params = Record<string, string> | null | undefined;
 

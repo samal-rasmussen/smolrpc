@@ -5,6 +5,8 @@
 		"jsx": "preserve",
 		"module": "esnext",
 		"moduleResolution": "node",
+		"allowJs": true,
+		"checkJs": true,
 		"noErrorTruncation": true,
 		"outDir": "dist",
 		"resolveJsonModule": true,
