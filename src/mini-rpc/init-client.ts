@@ -55,16 +55,18 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 			// 	typeof event.data,
 			// 	event.data,
 			// );
-			const message = JSON.parse(event.data as string) as
+			const response = JSON.parse(event.data as string) as
 				| Response<Resources>
 				| SubscribeEvent<Resources>
 				| Reject<Resources>;
-			const listener = listeners.get(message.id);
+			const id =
+				response.type === 'Reject' ? response.request.id : response.id;
+			const listener = listeners.get(id);
 			if (listener == null) {
-				console.error(`no listener found for message`, message);
+				console.error(`No listener found for response/event`, response);
 				return;
 			}
-			listener(message);
+			listener(response);
 		};
 
 		const listeners = new Map<
@@ -102,7 +104,7 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 						resolve(msg.data);
 					} else {
 						console.error(
-							`unexpected message type in get listener`,
+							`Unexpected message type in get listener`,
 							msg,
 						);
 					}
@@ -131,7 +133,7 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 						resolve(undefined);
 					} else {
 						console.error(
-							`unexpected message type in set listener`,
+							`Unexpected message type in set listener`,
 							msg,
 						);
 					}
@@ -157,22 +159,36 @@ export async function initClient<Resources extends AnyResources>(): Promise<
 						} else if (msg.type === 'SubscribeEvent') {
 							observer.next?.(msg.data);
 						} else if (msg.type === 'SubscribeAccept') {
+							// Happy path. Nothing to do.
 						} else {
 							console.error(
-								`unexpected message type in get listener`,
+								`Unexpected message type in get listener`,
 								msg,
 							);
 						}
 					});
 					return {
 						unsubscribe: () => {
+							listeners.delete(msgId);
+							const unsubMsgId = ++id;
 							sendMessage({
-								id: msgId,
+								id: unsubMsgId,
 								params,
 								resource,
 								type: 'UnsubscribeRequest',
 							});
-							listeners.delete(msgId);
+							listeners.set(unsubMsgId, (msg) => {
+								if (msg.type === 'Reject') {
+									reject(msg.error);
+								} else if (msg.type === 'UnsubscribeAccept') {
+									// Happy path. Nothing to do.
+								} else {
+									console.error(
+										`Unexpected message type in get listener`,
+										msg,
+									);
+								}
+							});
 						},
 					};
 				},

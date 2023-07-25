@@ -7,7 +7,5 @@ const miniRpcServer = initServer<Resources>(router);
 const wss = new WebSocketServer({ port: 9200 });
 
 wss.on('connection', function connection(ws) {
-	ws.addEventListener('message', async (event) => {
-		await miniRpcServer.onMessage(event.data, ws);
-	});
+	miniRpcServer.addConnection(ws);
 });

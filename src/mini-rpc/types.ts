@@ -36,7 +36,7 @@ interface Observer<T> {
 	complete: () => void;
 }
 
-interface Unsubscribable {
+export interface Unsubscribable {
 	unsubscribe(): void;
 }
 

@@ -11,7 +11,7 @@ const result2 = await client['/resourceB/:id'].get({
 });
 console.log('get /resourceB/:id', result2);
 
-client['/resourceB/:id']
+const subscription = client['/resourceB/:id']
 	.subscribe({
 		params: { id: '123' },
 	})
@@ -25,8 +25,22 @@ await client['/resourceB/:id'].set({
 	params: { id: '123' },
 	request: { key: '321' },
 });
+await sleep(1000);
+subscription.unsubscribe();
+await client['/resourceB/:id'].set({
+	params: { id: '123' },
+	request: { key: '999' },
+});
 
 await client['/resourceB/:id/resourceC/:key'].set({
 	params: { id: '123', key: '456' },
-	request: { key: '321' },
+	request: { key: '888' },
 });
+const result3 = await client['/resourceB/:id/resourceC/:key'].get({
+	params: { id: '123', key: '456' },
+});
+console.log('get /resourceB/:id/resourceC/:key', result3);
+
+function sleep(timeout: number) {
+	new Promise<void>((res) => setTimeout(() => res(), timeout));
+}

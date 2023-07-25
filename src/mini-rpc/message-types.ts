@@ -19,12 +19,11 @@ export type Request<Resources extends AnyResources> =
 export type Response<Resources extends AnyResources> =
 	| GetResponse<Resources>
 	| SetSuccess<Resources>
-	| SubscribeAccept<Resources>;
+	| SubscribeAccept<Resources>
+	| UnsubscribeAccept<Resources>;
 export type Reject<Resources extends AnyResources> = {
 	error: string;
-	id: number;
-	params?: Params;
-	resource: keyof Resources;
+	request: Request<Resources>;
 	type: 'Reject';
 };
 
@@ -58,12 +57,6 @@ export type SubscribeRequest<Resources extends AnyResources> = {
 	resource: keyof Resources;
 	params: Params;
 };
-export type UnsubscribeRequest<Resources extends AnyResources> = {
-	id: number;
-	resource: keyof Resources;
-	type: 'UnsubscribeRequest';
-	params: Params;
-};
 export type SubscribeAccept<Resources extends AnyResources> = {
 	id: number;
 	resource: keyof Resources;
@@ -74,4 +67,15 @@ export type SubscribeEvent<Resources extends AnyResources> = {
 	id: number;
 	resource: keyof Resources;
 	type: 'SubscribeEvent';
+};
+export type UnsubscribeRequest<Resources extends AnyResources> = {
+	id: number;
+	resource: keyof Resources;
+	type: 'UnsubscribeRequest';
+	params: Params;
+};
+export type UnsubscribeAccept<Resources extends AnyResources> = {
+	id: number;
+	resource: keyof Resources;
+	type: 'UnsubscribeAccept';
 };
