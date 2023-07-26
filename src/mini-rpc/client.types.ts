@@ -79,3 +79,7 @@ export type Client<Resources extends AnyResources> = {
 		  }
 		: never;
 };
+
+export declare function initClient<Resources extends AnyResources>(
+	websocket: WebSocket,
+): Promise<Client<Resources>>;

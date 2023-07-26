@@ -1,34 +1,41 @@
-import type { AnyResources, Subscribable } from './types';
-import type {
-	Params,
-	Reject,
-	Request,
-	Response,
-	SubscribeEvent,
-} from './message-types';
-import type { Client } from './client.types';
+/**
+ * @typedef {import("./types").AnyResources} AnyResources
+ * @typedef {import("./types").Subscribable<any>} Subscribable
+ * @typedef {import("./message-types").Params} Params
+ * @typedef {import("./message-types").Reject<any>} Reject
+ * @typedef {import("./message-types").Request<any>} Request
+ * @typedef {import("./message-types").Response<any>} Response
+ * @typedef {import("./message-types").SubscribeEvent<any>} SubscribeEvent
+ * @typedef {import("./client.types").Client<any>} Client
+ */
 
-export async function initClient<Resources extends AnyResources>(
-	websocket: WebSocket,
-): Promise<Client<Resources>> {
+/**
+ * @type {typeof import("./client.types").initClient}
+ */
+export async function initClient(websocket) {
 	return new Promise((resolve, reject) => {
-		const proxy = new Proxy({} as any, {
-			get(target, p: any, receiver) {
-				return {
-					get: (args: { params: Params } | undefined) =>
-						getHandler(p, args?.params),
-					set: ({
-						request,
-						params,
-					}: {
-						request: any;
-						params: Params;
-					}) => setHandler(p, request, params),
-					subscribe: (args: { params: Params }) =>
-						subscribeHandler(p, args?.params),
-				};
+		/** @type {any} */
+		const proxy = new Proxy(
+			{},
+			{
+				get(target, /** @type {any} */ p, receiver) {
+					return {
+						get: (
+							/** @type {{ params: import("./message-types").Params; }} */ args,
+						) => getHandler(p, args?.params),
+						set: (
+							/** @type {{ params: import("./message-types").Params; request: any }} */ {
+								request,
+								params,
+							},
+						) => setHandler(p, request, params),
+						subscribe: (
+							/** @type {{ params: import("./message-types").Params; }} */ args,
+						) => subscribeHandler(p, args?.params),
+					};
+				},
 			},
-		});
+		);
 
 		websocket.onopen = (event) => {
 			console.log('websocket connected');
@@ -53,10 +60,8 @@ export async function initClient<Resources extends AnyResources>(
 			// 	typeof event.data,
 			// 	event.data,
 			// );
-			const response = JSON.parse(event.data as string) as
-				| Response<Resources>
-				| SubscribeEvent<Resources>
-				| Reject<Resources>;
+			/** @type { Response | SubscribeEvent | Reject} */
+			const response = JSON.parse(event.data);
 			const id =
 				response.type === 'Reject' ? response.request.id : response.id;
 			const listener = listeners.get(id);
@@ -67,25 +72,25 @@ export async function initClient<Resources extends AnyResources>(
 			listener(response);
 		};
 
-		const listeners = new Map<
-			Number,
-			(
-				msg:
-					| Response<Resources>
-					| SubscribeEvent<Resources>
-					| Reject<Resources>,
-			) => void
-		>();
+		/**
+		 * @type {Map<number, (msg: Response | SubscribeEvent | Reject) => void>}
+		 */
+		const listeners = new Map();
 		let id = 0;
 
-		function sendMessage(msg: Request<Resources>): void {
+		/**
+		 * @param {Request} msg
+		 */
+		function sendMessage(msg) {
 			websocket.send(JSON.stringify(msg));
 		}
 
-		function getHandler(
-			resource: keyof Resources,
-			params: Params,
-		): Promise<unknown> {
+		/**
+		 * @param {PropertyKey} resource
+		 * @param {Params} params
+		 * @returns {Promise<unknown>}
+		 */
+		function getHandler(resource, params) {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
 				sendMessage({
@@ -109,11 +114,13 @@ export async function initClient<Resources extends AnyResources>(
 				});
 			});
 		}
-		function setHandler(
-			resource: keyof Resources,
-			request: any,
-			params: Params,
-		): Promise<unknown> {
+		/**
+		 * @param {PropertyKey} resource
+		 * @param {any} request
+		 * @param {Params} params
+		 * @returns {Promise<unknown>}
+		 */
+		function setHandler(resource, request, params) {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
 				sendMessage({
@@ -138,10 +145,13 @@ export async function initClient<Resources extends AnyResources>(
 				});
 			});
 		}
-		function subscribeHandler(
-			resource: keyof Resources,
-			params: Params,
-		): Subscribable<unknown> {
+		/**
+		 *
+		 * @param {PropertyKey} resource
+		 * @param {Params} params
+		 * @returns {Subscribable}
+		 */
+		function subscribeHandler(resource, params) {
 			return {
 				subscribe: (observer) => {
 					const msgId = ++id;

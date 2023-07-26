@@ -5,6 +5,7 @@ import type {
 	ResourceParams,
 	Subscribable,
 } from './types';
+import { WS } from './websocket.types';
 
 export type GetHandler<
 	Resources extends AnyResources,
@@ -119,3 +120,7 @@ export type Router<Resources extends AnyResources> = {
 		  }
 		: never;
 };
+
+export declare function initServer<Resources extends AnyResources>(
+	router: Router<Resources>,
+): { addConnection: (ws: WS) => void };

@@ -1,38 +1,42 @@
-import type {
-	GetResponse,
-	Params,
-	Reject,
-	Request,
-	SetSuccess,
-	SubscribeAccept,
-	SubscribeEvent,
-	UnsubscribeAccept,
-} from './message-types';
-import type {
-	GetHandler,
-	GetHandlerWithParams,
-	PickSetHandler,
-	PickSubscribeHandler,
-	Router,
-	SetHandlerWithParams,
-	SubscribeHandlerWithParams,
-} from './server.types';
-import type { AnyResources, Unsubscribable } from './types';
-import type { Data, WS } from './websocket.types';
+/**
+ * @typedef {import("./types").AnyResources} AnyResources
+ * @typedef {import("./types").Unsubscribable} Unsubscribable
+ * @typedef {import("./message-types").Params} Params
+ * @typedef {import("./message-types").GetResponse<any>} GetResponse
+ * @typedef {import("./message-types").Reject<any>} Reject
+ * @typedef {import("./message-types").Request<any>} Request
+ * @typedef {import("./message-types").Response<any>} Response
+ * @typedef {import("./message-types").SetSuccess<any>} SetSuccess
+ * @typedef {import("./message-types").SubscribeAccept<any>} SubscribeAccept
+ * @typedef {import("./message-types").SubscribeEvent<any>} SubscribeEvent
+ * @typedef {import("./message-types").UnsubscribeAccept<any>} UnsubscribeAccept
+ * @typedef {import("./server.types").GetHandler<any, any>} GetHandler
+ * @typedef {import("./server.types").GetHandlerWithParams<any, any>} GetHandlerWithParams
+ * @typedef {import("./server.types").PickSetHandler<any, any>} PickSetHandler
+ * @typedef {import("./server.types").PickSubscribeHandler<any, any>} PickSubscribeHandler
+ * @typedef {import("./server.types").Router<any>} Router
+ * @typedef {import("./server.types").SetHandlerWithParams<any, any>} SetHandlerWithParams
+ * @typedef {import("./server.types").SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
+ * @typedef {import("./websocket.types").Data} Data
+ * @typedef {import("./websocket.types").WS} WS
+ */
 
-function getQualifiedResource(resource: string, params: Params) {
+/**
+ * @type {(resource: string, params: Params) => string}
+ */
+function getQualifiedResource(resource, params) {
 	Object.entries(params ?? {}).forEach(([key, value]) => {
 		resource = resource.replace(`:${key}`, value);
 	});
 	return resource;
 }
 
-function sendReject<Resources extends AnyResources>(
-	ws: WS,
-	error: string,
-	request: Request<Resources>,
-) {
-	const reject: Reject<Resources> = {
+/**
+ * @type {(ws: WS, error: string, request: Request) => void}
+ */
+function sendReject(ws, error, request) {
+	/** @type {Reject} */
+	const reject = {
 		error,
 		type: 'Reject',
 		request,
@@ -40,7 +44,12 @@ function sendReject<Resources extends AnyResources>(
 	ws.send(JSON.stringify(reject));
 }
 
-function validateParams(resource: string, params: Params): boolean {
+/**
+ * @param {string} resource
+ * @param {Params} params
+ * @returns {boolean}
+ */
+function validateParams(resource, params) {
 	const count = resource.split(':').length - 1;
 	if (count > 0) {
 		if (params == null) {
@@ -53,12 +62,21 @@ function validateParams(resource: string, params: Params): boolean {
 	return true;
 }
 
-export function initServer<Resources extends AnyResources>(
-	router: Router<Resources>,
-) {
-	const listeners = new Map<WS, Map<string, Unsubscribable>>();
+/**
+ * @type {typeof import("./server.types").initServer}
+ */
+export function initServer(router) {
+	/**
+	 * @type {Map<WS, Map<string, Unsubscribable>>}
+	 */
+	const listeners = new Map();
 
-	function getWebSocketListeners(ws: WS) {
+	/**
+	 *
+	 * @param {WS} ws
+	 * @returns {Map<string, Unsubscribable>}
+	 */
+	function getWebSocketListeners(ws) {
 		const websocketListeners = listeners.get(ws);
 		if (websocketListeners == null) {
 			throw new Error(
@@ -68,7 +86,10 @@ export function initServer<Resources extends AnyResources>(
 		return websocketListeners;
 	}
 
-	function addConnection(ws: WS) {
+	/**
+	 * @param {WS} ws
+	 */
+	function addConnection(ws) {
 		const existing = listeners.get(ws);
 		if (existing != null) {
 			throw new Error(
@@ -93,7 +114,11 @@ export function initServer<Resources extends AnyResources>(
 		});
 	}
 
-	async function handleWSMessage(data: Data, ws: WS) {
+	/**
+	 * @param {Data} data
+	 * @param {WS} ws
+	 */
+	async function handleWSMessage(data, ws) {
 		if (typeof data != 'string') {
 			console.error(
 				`only string data supported. typeof event.data = ${typeof data}`,
@@ -101,7 +126,8 @@ export function initServer<Resources extends AnyResources>(
 			return;
 		}
 		// console.log('received: %s', data);
-		const request = JSON.parse(data) as Request<Resources>;
+		/** @type {Request} */
+		const request = JSON.parse(data);
 		if (typeof request.id !== 'number') {
 			console.error(`no id number on message`);
 			return;
@@ -121,9 +147,10 @@ export function initServer<Resources extends AnyResources>(
 		}
 		if (request.type === 'GetRequest') {
 			try {
-				const args: Parameters<GetHandlerWithParams<any, any>>[0] = {
+				/** @type {Parameters<GetHandlerWithParams>[0]} */
+				const args = /** @type {any} */ ({
 					resource: request.resource,
-				} as any;
+				});
 				if (request.params != null) {
 					const qualifiedResource = getQualifiedResource(
 						request.resource,
@@ -132,9 +159,11 @@ export function initServer<Resources extends AnyResources>(
 					args.params = request.params;
 					args.qualifiedResource = qualifiedResource;
 				}
-				const get = (routerResource as any).get as GetHandler<any, any>;
+				/** @type {GetHandler} */
+				const get = /** @type {any} */ (routerResource).get;
 				const result = await get(args);
-				const response: GetResponse<Resources> = {
+				/** @type {GetResponse} */
+				const response = {
 					id: request.id,
 					data: result,
 					type: 'GetResponse',
@@ -148,10 +177,11 @@ export function initServer<Resources extends AnyResources>(
 			}
 		} else if (request.type === 'SetRequest') {
 			try {
-				const args: Parameters<SetHandlerWithParams<any, any>>[0] = {
+				/** @type {Parameters<SetHandlerWithParams>[0]} */
+				const args = /** @type {any} */ ({
 					resource: request.resource,
 					request: request.data,
-				} as any;
+				});
 				if (request.params != null) {
 					const qualifiedResource = getQualifiedResource(
 						request.resource,
@@ -160,12 +190,11 @@ export function initServer<Resources extends AnyResources>(
 					args.params = request.params;
 					args.qualifiedResource = qualifiedResource;
 				}
-				const set = (routerResource as any).set as PickSetHandler<
-					any,
-					any
-				>;
+				/** @type {PickSetHandler} */
+				const set = /** @type {any} */ (routerResource).set;
 				await set(args);
-				const response: SetSuccess<Resources> = {
+				/** @type {SetSuccess} */
+				const response = {
 					id: request.id,
 					resource: request.resource,
 					type: 'SetSuccess',
@@ -177,11 +206,10 @@ export function initServer<Resources extends AnyResources>(
 			}
 		} else if (request.type === 'SubscribeRequest') {
 			try {
-				const args: Parameters<
-					SubscribeHandlerWithParams<any, any>
-				>[0] = {
+				/** @type {Parameters<SubscribeHandlerWithParams>[0]} */
+				const args = /** @type {any} */ ({
 					resource: request.resource,
-				} as any;
+				});
 				if (request.params != null) {
 					const qualifiedResource = getQualifiedResource(
 						request.resource,
@@ -198,12 +226,13 @@ export function initServer<Resources extends AnyResources>(
 					sendReject(ws, 'Already subscribed', request);
 					return;
 				}
-				const subscribe = (routerResource as any)
-					.subscribe as PickSubscribeHandler<any, any>;
+				/** @type {PickSubscribeHandler} */
+				const subscribe = /** @type {any}*/ (routerResource).subscribe;
 				const observable = await subscribe(args);
 				const subscription = observable.subscribe({
-					next(val: any) {
-						const event: SubscribeEvent<Resources> = {
+					next(val) {
+						/** @type {SubscribeEvent} */
+						const event = {
 							data: val,
 							id: request.id,
 							resource: request.resource,
@@ -216,7 +245,8 @@ export function initServer<Resources extends AnyResources>(
 					args.qualifiedResource ?? args.resource,
 					subscription,
 				);
-				const response: SubscribeAccept<Resources> = {
+				/** @type {SubscribeAccept} */
+				const response = {
 					id: request.id,
 					resource: request.resource,
 					type: 'SubscribeAccept',
@@ -240,7 +270,8 @@ export function initServer<Resources extends AnyResources>(
 				}
 				subscription.unsubscribe();
 				websocketListeners.delete(resource);
-				const response: UnsubscribeAccept<Resources> = {
+				/** @type {UnsubscribeAccept} */
+				const response = {
 					id: request.id,
 					resource: request.resource,
 					type: 'UnsubscribeAccept',
@@ -264,6 +295,7 @@ export function initServer<Resources extends AnyResources>(
 	};
 }
 
-function exhaustive(arg: never): never {
+/** @type {(arg: never) => never} */
+function exhaustive(arg) {
 	throw new Error(`Failed exhaustive check. Expected never but got ${arg}`);
 }
