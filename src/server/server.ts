@@ -1,5 +1,5 @@
 import { WebSocketServer } from 'ws';
-import { initServer } from '../mini-rpc/server-common.js';
+import { initServer } from '../mini-rpc/init-server.js';
 import { Resources } from '../shared/resources.js';
 import { router } from './router.js';
 
