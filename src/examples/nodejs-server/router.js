@@ -1,13 +1,13 @@
 import { db } from './db.js';
 
 /**
- * @typedef {import("../shared/resources.ts").Resources} Resources
- * @typedef {import("../mini-rpc/server.types.ts").Router<Resources>} Router
+ * @typedef {import("../resources.ts").Resources} Resources
+ * @typedef {import("../../mini-rpc/server.types.ts").Router<Resources>} Router
  */
 
 /**
  * @template {keyof Resources} Resource
- * @typedef {import("../mini-rpc/types.ts").Result<Resources, Resource>} Result
+ * @typedef {import("../../mini-rpc/types.ts").Result<Resources, Resource>} Result
  */
 
 /**

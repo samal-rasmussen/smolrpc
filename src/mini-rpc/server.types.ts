@@ -4,8 +4,8 @@ import type {
 	AnySettableResource,
 	ResourceParams,
 	Subscribable,
-} from './types';
-import { WS } from './websocket.types';
+} from './types.ts';
+import { WS } from './websocket.types.ts';
 
 export type GetHandler<
 	Resources extends AnyResources,

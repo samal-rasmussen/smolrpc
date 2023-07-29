@@ -2,8 +2,8 @@
 	"type": "module",
 	"scripts": {
 		"check": "tsc -w --noEmit",
-		"client": "node --watch src/client/client.example.js",
-		"server": "node --watch src/server/server.js"
+		"client": "node --watch src/examples/nodejs-client/index.js",
+		"server": "node --watch src/examples/nodejs-server/index.js"
 	},
 	"dependencies": {
 		"typescript": "5.1.6",
