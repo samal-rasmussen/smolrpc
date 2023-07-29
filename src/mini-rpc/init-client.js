@@ -1,11 +1,11 @@
 /**
  * @typedef {import("./types").AnyResources} AnyResources
  * @typedef {import("./types").Subscribable<any>} Subscribable
- * @typedef {import("./message-types").Params} Params
- * @typedef {import("./message-types").Reject<any>} Reject
- * @typedef {import("./message-types").Request<any>} Request
- * @typedef {import("./message-types").Response<any>} Response
- * @typedef {import("./message-types").SubscribeEvent<any>} SubscribeEvent
+ * @typedef {import("./message.types").Params} Params
+ * @typedef {import("./message.types").Reject<any>} Reject
+ * @typedef {import("./message.types").Request<any>} Request
+ * @typedef {import("./message.types").Response<any>} Response
+ * @typedef {import("./message.types").SubscribeEvent<any>} SubscribeEvent
  * @typedef {import("./client.types").Client<any>} Client
  */
 
@@ -20,18 +20,16 @@ export async function initClient(websocket) {
 			{
 				get(target, /** @type {any} */ p, receiver) {
 					return {
-						get: (
-							/** @type {{ params: import("./message-types").Params; }} */ args,
-						) => getHandler(p, args?.params),
+						get: (/** @type {{ params: Params; }} */ args) =>
+							getHandler(p, args?.params),
 						set: (
-							/** @type {{ params: import("./message-types").Params; request: any }} */ {
+							/** @type {{ params: Params; request: any }} */ {
 								request,
 								params,
 							},
 						) => setHandler(p, request, params),
-						subscribe: (
-							/** @type {{ params: import("./message-types").Params; }} */ args,
-						) => subscribeHandler(p, args?.params),
+						subscribe: (/** @type {{ params: Params; }} */ args) =>
+							subscribeHandler(p, args?.params),
 					};
 				},
 			},
