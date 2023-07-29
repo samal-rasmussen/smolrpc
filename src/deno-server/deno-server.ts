@@ -1,5 +1,5 @@
-import { initServer } from '../mini-rpc/init-server.ts';
-import { router } from './router.ts';
+import { initServer } from '../mini-rpc/init-server.js';
+import { router } from '../server/router.ts';
 
 const miniRpcServer = initServer(router);
 
@@ -10,14 +10,6 @@ Deno.serve({ port: 9200, hostname: 'localhost' }, (req) => {
 
 	const { socket, response } = Deno.upgradeWebSocket(req);
 
-	socket.addEventListener('open', () => {
-		console.log('a client connected!');
-		miniRpcServer.onConnect(socket);
-	});
-
-	socket.addEventListener('message', async (event) => {
-		await miniRpcServer.onMessage(event.data, socket);
-	});
-
+	miniRpcServer.addConnection(123);
 	return response;
 });

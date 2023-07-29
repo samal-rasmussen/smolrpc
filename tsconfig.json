@@ -1,12 +1,13 @@
 {
 	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"allowJs": true,
+		"checkJs": true,
 		"esModuleInterop": true,
 		"isolatedModules": true,
 		"jsx": "preserve",
 		"module": "esnext",
 		"moduleResolution": "node",
-		"allowJs": true,
-		"checkJs": true,
 		"noErrorTruncation": true,
 		"outDir": "dist",
 		"resolveJsonModule": true,

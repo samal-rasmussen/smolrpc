@@ -1,12 +1,12 @@
 {
 	"type": "module",
 	"scripts": {
-		"build": "tsc -w",
-		"client": "node --watch dist/client/client.example.js",
-		"server": "node --watch dist/server/server.js"
+		"check": "tsc -w --noEmit",
+		"client": "node --watch src/client/client.example.js",
+		"server": "node --watch src/server/server.js"
 	},
 	"dependencies": {
-		"typescript": "4.9.4",
+		"typescript": "5.1.6",
 		"ws": "^8.11.0",
 		"zod": "3.20.2"
 	},

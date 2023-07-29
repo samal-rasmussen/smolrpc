@@ -1,13 +1,19 @@
-import { Subscribable } from '../mini-rpc/types';
+/**
+ * @typedef {import("../mini-rpc/types.ts").Subscribable<any>} Subscribable
+ */
 
-const map = new Map<string, any>();
-const listeners = new Map<string, Set<(value: any) => void>>();
+/** @type {Map<string, any>} */
+const map = new Map();
+/** @type {Map<string, Set<(value: any) => void>>} */
+const listeners = new Map();
 
 export const db = {
-	get(resource: string): unknown {
+	/** @type {(resource: string) => unknown} */
+	get(resource) {
 		return map.get(resource);
 	},
-	set(resource: string, value: any): void {
+	/** @type {(resource: string, value: any) => void} */
+	set(resource, value) {
 		if (value === undefined) {
 			map.delete(resource);
 		} else {
@@ -18,10 +24,12 @@ export const db = {
 			l(value);
 		});
 	},
-	subscribe(resource: string): Subscribable<any> {
+	/** @type {(resource: string) => Subscribable} */
+	subscribe(resource) {
 		return {
 			subscribe: (observer) => {
-				const listener = (value: any) => {
+				/** @type {(value: any) => void} */
+				const listener = (value) => {
 					observer.next?.(value);
 				};
 				let resourceListeners = listeners.get(resource);

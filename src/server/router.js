@@ -1,26 +1,32 @@
-import { Resources } from '../shared/resources';
 import { db } from './db.js';
-import { Router } from '../mini-rpc/server.types';
-import { Result as MiniRpcResult } from '../mini-rpc/types';
 
-type Result<Resource extends keyof Resources> = MiniRpcResult<
-	Resources,
-	Resource
->;
+/**
+ * @typedef {import("../shared/resources.ts").Resources} Resources
+ * @typedef {import("../mini-rpc/server.types.ts").Router<Resources>} Router
+ */
 
+/**
+ * @template {keyof Resources} Resource
+ * @typedef {import("../mini-rpc/types.ts").Result<Resources, Resource>} Result
+ */
+
+/**
+ * @const
+ * @satisfies {Router}
+ */
 export const router = {
 	'/resourceA': {
 		async get({ resource }) {
 			console.log('get', resource);
-			const result = db.get(resource) as Result<typeof resource>;
-			return result;
+			const result = db.get(resource);
+			return /** @type {Result<typeof resource>} */ (result);
 		},
 	},
 	'/resourceB/:id': {
 		get: async ({ params, qualifiedResource, resource }) => {
 			console.log('get', resource, qualifiedResource, params);
-			const result = db.get(qualifiedResource) as Result<typeof resource>;
-			return result;
+			const result = db.get(qualifiedResource);
+			return /** @type {Result<typeof resource>} */ (result);
 		},
 		set: async ({ params, qualifiedResource, resource, request }) => {
 			console.log('set', resource, qualifiedResource, params, request);
@@ -35,12 +41,12 @@ export const router = {
 	'/resourceB/:id/resourceC/:key': {
 		get: async ({ params, qualifiedResource, resource }) => {
 			console.log('get', resource, qualifiedResource, params);
-			const result = db.get(qualifiedResource) as Result<typeof resource>;
-			return result;
+			const result = db.get(qualifiedResource);
+			return /** @type {Result<typeof resource>} */ (result);
 		},
 		set: async ({ params, qualifiedResource, resource, request }) => {
 			console.log('set', resource, qualifiedResource, params, request);
 			db.set(qualifiedResource, request);
 		},
 	},
-} as const satisfies Router<Resources>;
+};

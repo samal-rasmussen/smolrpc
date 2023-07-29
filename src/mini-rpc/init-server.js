@@ -1,24 +1,21 @@
 /**
- * @typedef {import("./types").AnyResources} AnyResources
- * @typedef {import("./types").Unsubscribable} Unsubscribable
- * @typedef {import("./message-types").Params} Params
- * @typedef {import("./message-types").GetResponse<any>} GetResponse
- * @typedef {import("./message-types").Reject<any>} Reject
- * @typedef {import("./message-types").Request<any>} Request
- * @typedef {import("./message-types").Response<any>} Response
- * @typedef {import("./message-types").SetSuccess<any>} SetSuccess
- * @typedef {import("./message-types").SubscribeAccept<any>} SubscribeAccept
- * @typedef {import("./message-types").SubscribeEvent<any>} SubscribeEvent
- * @typedef {import("./message-types").UnsubscribeAccept<any>} UnsubscribeAccept
- * @typedef {import("./server.types").GetHandler<any, any>} GetHandler
- * @typedef {import("./server.types").GetHandlerWithParams<any, any>} GetHandlerWithParams
- * @typedef {import("./server.types").PickSetHandler<any, any>} PickSetHandler
- * @typedef {import("./server.types").PickSubscribeHandler<any, any>} PickSubscribeHandler
- * @typedef {import("./server.types").Router<any>} Router
- * @typedef {import("./server.types").SetHandlerWithParams<any, any>} SetHandlerWithParams
- * @typedef {import("./server.types").SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
- * @typedef {import("./websocket.types").Data} Data
- * @typedef {import("./websocket.types").WS} WS
+ * @typedef {import("./types.ts").Unsubscribable} Unsubscribable
+ * @typedef {import("./message-types.ts").Params} Params
+ * @typedef {import("./message-types.ts").GetResponse<any>} GetResponse
+ * @typedef {import("./message-types.ts").Reject<any>} Reject
+ * @typedef {import("./message-types.ts").Request<any>} Request
+ * @typedef {import("./message-types.ts").SetSuccess<any>} SetSuccess
+ * @typedef {import("./message-types.ts").SubscribeAccept<any>} SubscribeAccept
+ * @typedef {import("./message-types.ts").SubscribeEvent<any>} SubscribeEvent
+ * @typedef {import("./message-types.ts").UnsubscribeAccept<any>} UnsubscribeAccept
+ * @typedef {import("./server.types.ts").GetHandler<any, any>} GetHandler
+ * @typedef {import("./server.types.ts").GetHandlerWithParams<any, any>} GetHandlerWithParams
+ * @typedef {import("./server.types.ts").PickSetHandler<any, any>} PickSetHandler
+ * @typedef {import("./server.types.ts").PickSubscribeHandler<any, any>} PickSubscribeHandler
+ * @typedef {import("./server.types.ts").SetHandlerWithParams<any, any>} SetHandlerWithParams
+ * @typedef {import("./server.types.ts").SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
+ * @typedef {import("./websocket.types.ts").Data} Data
+ * @typedef {import("./websocket.types.ts").WS} WS
  */
 
 /**
@@ -63,7 +60,7 @@ function validateParams(resource, params) {
 }
 
 /**
- * @type {typeof import("./server.types").initServer}
+ * @type {typeof import("./server.types.ts").initServer}
  */
 export function initServer(router) {
 	/**

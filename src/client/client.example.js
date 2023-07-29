@@ -1,9 +1,15 @@
 import { WebSocket as WS } from 'ws';
 import { initClient } from '../mini-rpc/init-client.js';
-import { Resources } from '../shared/resources.js';
+
+/**
+ * @typedef {import("../shared/resources.ts").Resources} Resources
+ * @typedef {import("../mini-rpc/client.types.ts").Client<Resources>} Client
+ */
 
 const socket = new WS('ws://localhost:9200');
-const client = await initClient<Resources>(socket as any as WebSocket);
+const client = /** @type {Client} */ (
+	await initClient(/** @type {any} */ (socket))
+);
 
 const result1 = await client['/resourceA'].get();
 console.log('get /resourceA', result1);
@@ -43,6 +49,12 @@ const result3 = await client['/resourceB/:id/resourceC/:key'].get({
 });
 console.log('get /resourceB/:id/resourceC/:key', result3);
 
-function sleep(timeout: number) {
-	new Promise<void>((res) => setTimeout(() => res(), timeout));
+/**
+ * @param {number} timeout
+ * @return {void}
+ */
+function sleep(timeout) {
+	/** @type {Promise<void>} */ (
+		new Promise((res) => setTimeout(() => res(), timeout))
+	);
 }
