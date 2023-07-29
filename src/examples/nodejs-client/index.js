@@ -1,9 +1,9 @@
 import { WebSocket as WS } from 'ws';
-import { initClient } from '../../mini-rpc/init-client.js';
+import { initClient } from '../../init-client.js';
 
 /**
  * @typedef {import("../resources.ts").Resources} Resources
- * @typedef {import("../../mini-rpc/client.types.ts").Client<Resources>} Client
+ * @typedef {import("../../client.types.ts").Client<Resources>} Client
  */
 
 const socket = new WS('ws://localhost:9200');

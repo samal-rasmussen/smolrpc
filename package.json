@@ -2,8 +2,9 @@
 	"type": "module",
 	"scripts": {
 		"check": "tsc -w --noEmit",
-		"client": "node --watch src/examples/nodejs-client/index.js",
-		"server": "node --watch src/examples/nodejs-server/index.js"
+		"nodejs-client": "node --watch src/examples/nodejs-client/index.js",
+		"nodejs-server": "node --watch src/examples/nodejs-server/index.js",
+		"deno-server": "deno run --watch --allow-net src/examples/deno-server/index.ts"
 	},
 	"dependencies": {
 		"typescript": "5.1.6",

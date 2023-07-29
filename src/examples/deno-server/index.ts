@@ -1,4 +1,4 @@
-import { initServer } from '../../mini-rpc/init-server.js';
+import { initServer } from '../../init-server.js';
 import { router } from '../nodejs-server/router.js';
 import type { Resources } from '../resources.ts';
 

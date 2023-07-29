@@ -1,10 +1,10 @@
 import { WebSocketServer } from 'ws';
-import { initServer as uncontrainedInitServer } from '../../mini-rpc/init-server.js';
+import { initServer as uncontrainedInitServer } from '../../init-server.js';
 import { router } from './router.js';
 
 /**
  * @typedef {import("../resources.ts").Resources} Resources
- * @typedef {import("../../mini-rpc/server.types.ts").Router<Resources>} Router
+ * @typedef {import("../../server.types.ts").Router<Resources>} Router
  */
 
 const initServer =

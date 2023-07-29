@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AnyResources } from '../mini-rpc/types';
+import { AnyResources } from '../types.ts';
 
 export const resources = {
 	'/resourceA': {

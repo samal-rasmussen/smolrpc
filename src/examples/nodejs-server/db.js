@@ -1,5 +1,5 @@
 /**
- * @typedef {import("../../mini-rpc/types.ts").Subscribable<any>} Subscribable
+ * @typedef {import("../../types.ts").Subscribable<any>} Subscribable
  */
 
 /** @type {Map<string, any>} */
