@@ -2,12 +2,12 @@ import { db } from './db.js';
 
 /**
  * @typedef {import("../resources.js").Resources} Resources
- * @typedef {import("../../src/server.types.js").Router<Resources>} Router
+ * @typedef {import("smolrpc").Router<Resources>} Router
  */
 
 /**
  * @template {keyof Resources} Resource
- * @typedef {import("../../src/types.js").Result<Resources, Resource>} Result
+ * @typedef {import("smolrpc").Result<Resources, Resource>} Result
  */
 
 /**

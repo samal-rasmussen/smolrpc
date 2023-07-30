@@ -1,6 +1,6 @@
-import { initServer } from '../../src/init-server.js';
+import { initServer } from 'npm:smolrpc';
 import { router } from '../nodejs-server/router.js';
-import type { Resources } from '../resources.js';
+import type { Resources } from '../resources.ts';
 
 const server = initServer<Resources>(router);
 

@@ -3,13 +3,12 @@ import { initClient } from '../../src/init-client.js';
 
 /**
  * @typedef {import("../resources.ts").Resources} Resources
- * @typedef {import("../../src/client.types.ts").Client<Resources>} Client
- * @typedef {import("../../src/websocket.types.ts").WS} WS
+ * @typedef {import("smolrpc").Client<Resources>} Client
  */
 
 const socket = new ws('ws://localhost:9200');
 const client = /** @type {Client} */ (
-	await initClient(/** @type {any} */ (socket))
+	/** @type {any} */ (await initClient(/** @type {any} */ (socket)))
 );
 
 const result1 = await client['/resourceA'].get();

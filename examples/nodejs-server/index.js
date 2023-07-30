@@ -1,11 +1,11 @@
 import { WebSocketServer } from 'ws';
-import { initServer as uncontrainedInitServer } from '../../src/init-server.js';
+import { initServer as uncontrainedInitServer } from 'smolrpc';
 import { router } from './router.js';
 
 /**
  * @typedef {import("../resources.ts").Resources} Resources
- * @typedef {import("../../src/server.types.ts").Router<Resources>} Router
- * @typedef {import("../../src/websocket.types.ts").WS} WS
+ * @typedef {import("smolrpc").Router<Resources>} Router
+ * @typedef {import("smolrpc").WS} WS
  */
 
 const initServer =

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AnyResources } from '../src/types.js';
+import { AnyResources } from 'smolrpc';
 
 export const resources = {
 	'/resourceA': {

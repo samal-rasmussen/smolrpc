@@ -1,6 +1,6 @@
 {
 	"name": "smolrpc",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": "samal-rasmussen/smolrpc",
 	"license": "MIT",
@@ -34,6 +34,7 @@
 		"@types/ws": "8.5.5",
 		"dts-buddy": "0.1.9",
 		"publint": "0.2.0",
+		"smolrpc": "0.0.1",
 		"typescript": "5.1.6",
 		"ws": "8.13.0"
 	}
