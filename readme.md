@@ -1,4 +1,4 @@
-# mini-rpc
+# smolrpc
 
 A tiny typesafe rpc implementation that relies on only three npm packages - Zod, Typescript, and ws - to get the job done.
 

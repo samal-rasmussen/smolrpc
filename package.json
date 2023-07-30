@@ -2,7 +2,7 @@
 	"name": "smolrpc",
 	"version": "0.0.0",
 	"description": "A smol typesafe rpc implementation over websockets",
-	"repository": "samal-rasmussen/mini-rpc",
+	"repository": "samal-rasmussen/smolrpc",
 	"license": "MIT",
 	"type": "module",
 	"exports": {
@@ -24,8 +24,8 @@
 		"nodejs-client": "node --watch examples/nodejs-client/index.js",
 		"nodejs-server": "node --watch examples/nodejs-server/index.js",
 		"prepublish": "tsc --noEmit && publint",
-		"publish-dry-run": "prepublish && npm publish --registry https://registry.npmjs.org/ --access public --dry-run",
-		"publish-for-real": "prepublish && npm publish --registry https://registry.npmjs.org/ --access public"
+		"publish-dry-run": "npm run prepublish && npm publish --registry https://registry.npmjs.org/ --access public --dry-run",
+		"publish-for-real": "npm run prepublish && npm publish --registry https://registry.npmjs.org/ --access public"
 	},
 	"dependencies": {
 		"zod": "3.21.4"

@@ -13,9 +13,9 @@ const initServer =
 		uncontrainedInitServer
 	);
 
-const miniRpcServer = initServer(router);
+const server = initServer(router);
 const wss = new WebSocketServer({ port: 9200 });
 
 wss.on('connection', function connection(/** @type {WS} */ ws) {
-	miniRpcServer.addConnection(ws);
+	server.addConnection(ws);
 });

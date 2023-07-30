@@ -1,4 +1,4 @@
-declare module 'mini-rpc' {
+declare module 'smolrpc' {
 	import type { z } from 'zod';
 	export function initClient<Resources extends AnyResources>(websocket: WebSocket): Promise<Client<Resources>>;
 	type Client_1 = Client<any>;
