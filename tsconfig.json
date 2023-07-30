@@ -15,6 +15,6 @@
 		"strict": true,
 		"target": "esnext"
 	},
-	"include": ["src"],
-	"exclude": ["src/examples/deno-server/index.ts"]
+	"include": ["src", "examples"],
+	"exclude": ["examples/deno-server/index.ts"]
 }

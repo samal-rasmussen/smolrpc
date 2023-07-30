@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AnyResources } from '../types.ts';
+import { AnyResources } from '../src/types.js';
 
 export const resources = {
 	'/resourceA': {

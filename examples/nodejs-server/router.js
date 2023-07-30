@@ -1,13 +1,13 @@
 import { db } from './db.js';
 
 /**
- * @typedef {import("../resources.ts").Resources} Resources
- * @typedef {import("../../server.types.ts").Router<Resources>} Router
+ * @typedef {import("../resources.js").Resources} Resources
+ * @typedef {import("../../src/server.types.js").Router<Resources>} Router
  */
 
 /**
  * @template {keyof Resources} Resource
- * @typedef {import("../../types.ts").Result<Resources, Resource>} Result
+ * @typedef {import("../../src/types.js").Result<Resources, Resource>} Result
  */
 
 /**

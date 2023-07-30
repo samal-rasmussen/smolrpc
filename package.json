@@ -1,17 +1,40 @@
 {
+	"name": "smolrpc",
+	"version": "0.0.0",
+	"description": "A smol typesafe rpc implementation over websockets",
+	"repository": "samal-rasmussen/mini-rpc",
+	"license": "MIT",
 	"type": "module",
+	"exports": {
+		".": {
+			"types": "./types/index.d.ts",
+			"import": "./index.js"
+		}
+	},
+	"files": [
+		"index.js",
+		"src",
+		"types"
+	],
+	"types": "./types/index.d.ts",
 	"scripts": {
+		"build": "dts-buddy",
 		"check": "tsc -w --noEmit",
-		"nodejs-client": "node --watch src/examples/nodejs-client/index.js",
-		"nodejs-server": "node --watch src/examples/nodejs-server/index.js",
-		"deno-server": "deno run --watch --allow-net src/examples/deno-server/index.ts"
+		"deno-server": "deno run --watch --allow-net examples/deno-server/index.ts",
+		"nodejs-client": "node --watch examples/nodejs-client/index.js",
+		"nodejs-server": "node --watch examples/nodejs-server/index.js",
+		"prepublish": "tsc --noEmit && publint",
+		"publish-dry-run": "prepublish && npm publish --registry https://registry.npmjs.org/ --access public --dry-run",
+		"publish-for-real": "prepublish && npm publish --registry https://registry.npmjs.org/ --access public"
 	},
 	"dependencies": {
-		"typescript": "5.1.6",
-		"ws": "^8.11.0",
-		"zod": "3.20.2"
+		"zod": "3.21.4"
 	},
 	"devDependencies": {
-		"@types/ws": "^8.5.3"
+		"@types/ws": "8.5.5",
+		"dts-buddy": "0.1.9",
+		"publint": "0.2.0",
+		"typescript": "5.1.6",
+		"ws": "8.13.0"
 	}
 }

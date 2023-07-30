@@ -1,0 +1,38 @@
+{
+	"version": 3,
+	"file": "index.d.ts",
+	"names": [
+		"ResourceParams",
+		"AnySettableResource",
+		"AnyResources",
+		"Unsubscribable",
+		"Subscribable",
+		"Result",
+		"GetHandlerWithParams",
+		"PickGetHandler",
+		"SetHandlerWithParams",
+		"PickSetHandler",
+		"SubscribeHandlerWithParams",
+		"PickSubscribeHandler",
+		"Router",
+		"GetHandler",
+		"SetHandler",
+		"SubscribeHandler",
+		"Client",
+		"Data",
+		"WS"
+	],
+	"sources": [
+		"../src/types.ts",
+		"../src/server.types.ts",
+		"../src/client.types.ts",
+		"../src/websocket.types.ts"
+	],
+	"sourcesContent": [
+		null,
+		null,
+		null,
+		null
+	],
+	"mappings": ";;;;;;;;MASYA,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;;;;;;WAaPC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;;;;;;;MC9BNC,oBAAoBA;;;;;MASpBC,cAAcA;;;;;MAYdC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;MAcdC,0BAA0BA;;;;;MAS1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;MApENC,UAAUA;;;MAuBVC,UAAUA;;;;;;MAsBVC,gBAAgBA;;;aClBhBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;MCpCNC,IAAIA;;;;;;;;;;;;;;;;;;;;;;MAiCJC,EAAEA"
+}

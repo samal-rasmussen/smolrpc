@@ -1,12 +1,13 @@
-import { WebSocket as WS } from 'ws';
-import { initClient } from '../../init-client.js';
+import { WebSocket as ws } from 'ws';
+import { initClient } from '../../src/init-client.js';
 
 /**
  * @typedef {import("../resources.ts").Resources} Resources
- * @typedef {import("../../client.types.ts").Client<Resources>} Client
+ * @typedef {import("../../src/client.types.ts").Client<Resources>} Client
+ * @typedef {import("../../src/websocket.types.ts").WS} WS
  */
 
-const socket = new WS('ws://localhost:9200');
+const socket = new ws('ws://localhost:9200');
 const client = /** @type {Client} */ (
 	await initClient(/** @type {any} */ (socket))
 );

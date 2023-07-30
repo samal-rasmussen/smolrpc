@@ -1,5 +1,5 @@
 /**
- * @typedef {import("../../types.ts").Subscribable<any>} Subscribable
+ * @typedef {import("../../src/types.js").Subscribable<any>} Subscribable
  */
 
 /** @type {Map<string, any>} */
