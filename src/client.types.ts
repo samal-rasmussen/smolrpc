@@ -16,14 +16,17 @@ type GetHandler<
 	  }) => Promise<z.infer<Resources[Resource]['response']>>;
 
 type SetHandler<
+	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
 	Request extends AnySettableResource['request'],
 > = ResourceParams<Resource> extends null | undefined
-	? (args: { request: z.infer<Request> }) => Promise<void>
+	? (args: {
+			request: z.infer<Request>;
+	  }) => Promise<z.infer<Resources[Resource]['response']> | void>
 	: (args: {
 			request: z.infer<Request>;
 			params: ResourceParams<Resource>;
-	  }) => Promise<void>;
+	  }) => Promise<z.infer<Resources[Resource]['response']> | void>;
 
 type SubscribeHandler<
 	Resources extends AnyResources,
@@ -43,7 +46,7 @@ export type Client<Resources extends AnyResources> = {
 				type: 'set';
 				request: infer Request extends z.ZodTypeAny;
 		  }
-		? { set: SetHandler<R, Request> }
+		? { set: SetHandler<Resources, R, Request> }
 		: Resources[R] extends {
 				type: 'subscribe';
 		  }
@@ -52,7 +55,10 @@ export type Client<Resources extends AnyResources> = {
 				type: 'get|set';
 				request: infer Request extends z.ZodTypeAny;
 		  }
-		? { get: GetHandler<Resources, R>; set: SetHandler<R, Request> }
+		? {
+				get: GetHandler<Resources, R>;
+				set: SetHandler<Resources, R, Request>;
+		  }
 		: Resources[R] extends {
 				type: 'get|subscribe';
 		  }
@@ -65,7 +71,7 @@ export type Client<Resources extends AnyResources> = {
 				request: infer Request extends z.ZodTypeAny;
 		  }
 		? {
-				set: SetHandler<R, Request>;
+				set: SetHandler<Resources, R, Request>;
 				subscribe: SubscribeHandler<Resources, R>;
 		  }
 		: Resources[R] extends {
@@ -74,7 +80,7 @@ export type Client<Resources extends AnyResources> = {
 		  }
 		? {
 				get: GetHandler<Resources, R>;
-				set: SetHandler<R, Request>;
+				set: SetHandler<Resources, R, Request>;
 				subscribe: SubscribeHandler<Resources, R>;
 		  }
 		: never;

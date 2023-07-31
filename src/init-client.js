@@ -97,6 +97,7 @@ export async function initClient(websocket) {
 					params,
 					type: 'GetRequest',
 				});
+				// TODO: Handle request timeout
 				listeners.set(msgId, (msg) => {
 					listeners.delete(msgId);
 					if (msg.type === 'Reject') {
@@ -128,6 +129,7 @@ export async function initClient(websocket) {
 					params,
 					type: 'SetRequest',
 				});
+				// TODO: Handle request timeout
 				listeners.set(msgId, (msg) => {
 					listeners.delete(msgId);
 					if (msg.type === 'Reject') {
@@ -159,6 +161,7 @@ export async function initClient(websocket) {
 						params,
 						type: 'SubscribeRequest',
 					});
+					// TODO: Handle request timeout
 					listeners.set(msgId, (msg) => {
 						if (msg.type === 'Reject') {
 							reject(msg.error);

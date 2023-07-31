@@ -110,12 +110,12 @@ declare module 'smolrpc' {
 	type GetHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null | undefined ? () => Promise<z.infer<Resources[Resource]['response']>> : (args: {
 		params: ResourceParams<Resource>;
 	}) => Promise<z.infer<Resources[Resource]['response']>>;
-	type SetHandler<Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = ResourceParams<Resource> extends null | undefined ? (args: {
+	type SetHandler<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = ResourceParams<Resource> extends null | undefined ? (args: {
 		request: z.infer<Request>;
-	}) => Promise<void> : (args: {
+	}) => Promise<z.infer<Resources[Resource]['response']> | void> : (args: {
 		request: z.infer<Request>;
 		params: ResourceParams<Resource>;
-	}) => Promise<void>;
+	}) => Promise<z.infer<Resources[Resource]['response']> | void>;
 	type SubscribeHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null | undefined ? () => Subscribable<z.infer<Resources[Resource]['response']>> : (args: {
 		params: ResourceParams<Resource>;
 	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
@@ -128,7 +128,7 @@ declare module 'smolrpc' {
 			type: 'set';
 			request: infer Request extends z.ZodTypeAny;
 		} ? {
-			set: SetHandler<R, Request>;
+			set: SetHandler<Resources, R, Request>;
 		} : Resources[R] extends {
 			type: 'subscribe';
 		} ? {
@@ -138,7 +138,7 @@ declare module 'smolrpc' {
 			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			get: GetHandler<Resources, R>;
-			set: SetHandler<R, Request>;
+			set: SetHandler<Resources, R, Request>;
 		} : Resources[R] extends {
 			type: 'get|subscribe';
 		} ? {
@@ -148,14 +148,14 @@ declare module 'smolrpc' {
 			type: 'set|subscribe';
 			request: infer Request extends z.ZodTypeAny;
 		} ? {
-			set: SetHandler<R, Request>;
+			set: SetHandler<Resources, R, Request>;
 			subscribe: SubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'get|set|subscribe';
 			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			get: GetHandler<Resources, R>;
-			set: SetHandler<R, Request>;
+			set: SetHandler<Resources, R, Request>;
 			subscribe: SubscribeHandler<Resources, R>;
 		} : never;
 	};
