@@ -10,9 +10,9 @@
  * @typedef {import("./message.types.ts").UnsubscribeAccept<any>} UnsubscribeAccept
  * @typedef {import("./server.types.ts").GetHandler<any, any>} GetHandler
  * @typedef {import("./server.types.ts").GetHandlerWithParams<any, any>} GetHandlerWithParams
- * @typedef {import("./server.types.ts").PickSetHandler<any, any>} PickSetHandler
+ * @typedef {import("./server.types.ts").PickSetHandler<any, any, any>} PickSetHandler
  * @typedef {import("./server.types.ts").PickSubscribeHandler<any, any>} PickSubscribeHandler
- * @typedef {import("./server.types.ts").SetHandlerWithParams<any, any>} SetHandlerWithParams
+ * @typedef {import("./server.types.ts").SetHandlerWithParams<any, any, any>} SetHandlerWithParams
  * @typedef {import("./server.types.ts").SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
  * @typedef {import("./websocket.types.ts").Data} Data
  * @typedef {import("./websocket.types.ts").WS} WS

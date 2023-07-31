@@ -31,11 +31,16 @@ export type PickGetHandler<
 	: GetHandlerWithParams<Resources, Resource>;
 
 export type SetHandler<
+	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
 	Request extends AnySettableResource['request'],
-> = (args: { resource: Resource; request: z.infer<Request> }) => Promise<void>;
+> = (args: {
+	resource: Resource;
+	request: z.infer<Request>;
+}) => Promise<z.infer<Resources[Resource]['response']> | void>;
 
 export type SetHandlerWithParams<
+	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
 	Request extends AnySettableResource['request'],
 > = (args: {
@@ -43,14 +48,15 @@ export type SetHandlerWithParams<
 	qualifiedResource: string;
 	resource: Resource;
 	request: z.infer<Request>;
-}) => Promise<void>;
+}) => Promise<z.infer<Resources[Resource]['response']> | void>;
 
 export type PickSetHandler<
+	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
 	Request extends AnySettableResource['request'],
 > = ResourceParams<Resource> extends null
-	? SetHandler<Resource, Request>
-	: SetHandlerWithParams<Resource, Request>;
+	? SetHandler<Resources, Resource, Request>
+	: SetHandlerWithParams<Resources, Resource, Request>;
 
 export type SubscribeHandler<
 	Resources extends AnyResources,
@@ -84,7 +90,7 @@ export type Router<Resources extends AnyResources> = {
 				type: 'set';
 				request: infer Request extends z.AnyZodObject;
 		  }
-		? { set: PickSetHandler<R, Request> }
+		? { set: PickSetHandler<Resources, R, Request> }
 		: Resources[R] extends {
 				type: 'subscribe';
 		  }
@@ -93,7 +99,10 @@ export type Router<Resources extends AnyResources> = {
 				type: 'get|set';
 				request: infer Request extends z.AnyZodObject;
 		  }
-		? { get: PickGetHandler<Resources, R>; set: PickSetHandler<R, Request> }
+		? {
+				get: PickGetHandler<Resources, R>;
+				set: PickSetHandler<Resources, R, Request>;
+		  }
 		: Resources[R] extends {
 				type: 'get|subscribe';
 		  }
@@ -106,7 +115,7 @@ export type Router<Resources extends AnyResources> = {
 				request: infer Request extends z.AnyZodObject;
 		  }
 		? {
-				set: PickSetHandler<R, Request>;
+				set: PickSetHandler<Resources, R, Request>;
 				subscribe: PickSubscribeHandler<Resources, R>;
 		  }
 		: Resources[R] extends {
@@ -115,7 +124,7 @@ export type Router<Resources extends AnyResources> = {
 		  }
 		? {
 				get: PickGetHandler<Resources, R>;
-				set: PickSetHandler<R, Request>;
+				set: PickSetHandler<Resources, R, Request>;
 				subscribe: PickSubscribeHandler<Resources, R>;
 		  }
 		: never;
