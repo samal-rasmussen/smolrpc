@@ -88,7 +88,7 @@ export type Router<Resources extends AnyResources> = {
 		? { get: PickGetHandler<Resources, R> }
 		: Resources[R] extends {
 				type: 'set';
-				request: infer Request extends z.AnyZodObject;
+				request: infer Request extends z.ZodTypeAny;
 		  }
 		? { set: PickSetHandler<Resources, R, Request> }
 		: Resources[R] extends {
@@ -97,7 +97,7 @@ export type Router<Resources extends AnyResources> = {
 		? { subscribe: PickSubscribeHandler<Resources, R> }
 		: Resources[R] extends {
 				type: 'get|set';
-				request: infer Request extends z.AnyZodObject;
+				request: infer Request extends z.ZodTypeAny;
 		  }
 		? {
 				get: PickGetHandler<Resources, R>;
@@ -112,7 +112,7 @@ export type Router<Resources extends AnyResources> = {
 		  }
 		: Resources[R] extends {
 				type: 'set|subscribe';
-				request: infer Request extends z.AnyZodObject;
+				request: infer Request extends z.ZodTypeAny;
 		  }
 		? {
 				set: PickSetHandler<Resources, R, Request>;
@@ -120,7 +120,7 @@ export type Router<Resources extends AnyResources> = {
 		  }
 		: Resources[R] extends {
 				type: 'get|set|subscribe';
-				request: infer Request extends z.AnyZodObject;
+				request: infer Request extends z.ZodTypeAny;
 		  }
 		? {
 				get: PickGetHandler<Resources, R>;

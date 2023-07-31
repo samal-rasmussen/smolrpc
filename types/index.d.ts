@@ -12,12 +12,12 @@ declare module 'smolrpc' {
 		[k in Param]: string;
 	} : null | undefined;
 	type AnyResource = {
-		response: z.AnyZodObject;
+		response: z.ZodTypeAny;
 		type: 'get' | 'subscribe' | 'get|subscribe';
 	};
 	type AnySettableResource = {
-		request: z.AnyZodObject;
-		response: z.AnyZodObject;
+		request: z.ZodTypeAny;
+		response: z.ZodTypeAny;
 		type: 'set' | 'get|set' | 'set|subscribe' | 'get|set|subscribe';
 	};
 	type AnyResources = {
@@ -74,7 +74,7 @@ declare module 'smolrpc' {
 			get: PickGetHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'set';
-			request: infer Request extends z.AnyZodObject;
+			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			set: PickSetHandler<Resources, R, Request>;
 		} : Resources[R] extends {
@@ -83,7 +83,7 @@ declare module 'smolrpc' {
 			subscribe: PickSubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'get|set';
-			request: infer Request extends z.AnyZodObject;
+			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			get: PickGetHandler<Resources, R>;
 			set: PickSetHandler<Resources, R, Request>;
@@ -94,13 +94,13 @@ declare module 'smolrpc' {
 			subscribe: PickSubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'set|subscribe';
-			request: infer Request extends z.AnyZodObject;
+			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			set: PickSetHandler<Resources, R, Request>;
 			subscribe: PickSubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'get|set|subscribe';
-			request: infer Request extends z.AnyZodObject;
+			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			get: PickGetHandler<Resources, R>;
 			set: PickSetHandler<Resources, R, Request>;
@@ -126,7 +126,7 @@ declare module 'smolrpc' {
 			get: GetHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'set';
-			request: infer Request extends z.AnyZodObject;
+			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			set: SetHandler<R, Request>;
 		} : Resources[R] extends {
@@ -135,7 +135,7 @@ declare module 'smolrpc' {
 			subscribe: SubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'get|set';
-			request: infer Request extends z.AnyZodObject;
+			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			get: GetHandler<Resources, R>;
 			set: SetHandler<R, Request>;
@@ -146,13 +146,13 @@ declare module 'smolrpc' {
 			subscribe: SubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'set|subscribe';
-			request: infer Request extends z.AnyZodObject;
+			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			set: SetHandler<R, Request>;
 			subscribe: SubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'get|set|subscribe';
-			request: infer Request extends z.AnyZodObject;
+			request: infer Request extends z.ZodTypeAny;
 		} ? {
 			get: GetHandler<Resources, R>;
 			set: SetHandler<R, Request>;

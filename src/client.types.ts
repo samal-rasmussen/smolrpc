@@ -41,7 +41,7 @@ export type Client<Resources extends AnyResources> = {
 		? { get: GetHandler<Resources, R> }
 		: Resources[R] extends {
 				type: 'set';
-				request: infer Request extends z.AnyZodObject;
+				request: infer Request extends z.ZodTypeAny;
 		  }
 		? { set: SetHandler<R, Request> }
 		: Resources[R] extends {
@@ -50,7 +50,7 @@ export type Client<Resources extends AnyResources> = {
 		? { subscribe: SubscribeHandler<Resources, R> }
 		: Resources[R] extends {
 				type: 'get|set';
-				request: infer Request extends z.AnyZodObject;
+				request: infer Request extends z.ZodTypeAny;
 		  }
 		? { get: GetHandler<Resources, R>; set: SetHandler<R, Request> }
 		: Resources[R] extends {
@@ -62,7 +62,7 @@ export type Client<Resources extends AnyResources> = {
 		  }
 		: Resources[R] extends {
 				type: 'set|subscribe';
-				request: infer Request extends z.AnyZodObject;
+				request: infer Request extends z.ZodTypeAny;
 		  }
 		? {
 				set: SetHandler<R, Request>;
@@ -70,7 +70,7 @@ export type Client<Resources extends AnyResources> = {
 		  }
 		: Resources[R] extends {
 				type: 'get|set|subscribe';
-				request: infer Request extends z.AnyZodObject;
+				request: infer Request extends z.ZodTypeAny;
 		  }
 		? {
 				get: GetHandler<Resources, R>;

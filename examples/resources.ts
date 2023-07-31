@@ -13,7 +13,10 @@ export const resources = {
 	},
 	'/resourceB/:id/resourceC/:key': {
 		request: z.object({ key: z.string() }),
-		response: z.object({ key: z.string() }),
+		response: z.discriminatedUnion('ok', [
+			z.object({ ok: z.literal(true) }),
+			z.object({ ok: z.literal(false) }),
+		]),
 		type: 'get|set',
 	},
 } as const satisfies AnyResources;

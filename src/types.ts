@@ -15,12 +15,12 @@ export type ResourceParams<T> =
 		: null | undefined;
 
 type AnyResource = {
-	response: z.AnyZodObject;
+	response: z.ZodTypeAny;
 	type: 'get' | 'subscribe' | 'get|subscribe';
 };
 export type AnySettableResource = {
-	request: z.AnyZodObject;
-	response: z.AnyZodObject;
+	request: z.ZodTypeAny;
+	response: z.ZodTypeAny;
 	type: 'set' | 'get|set' | 'set|subscribe' | 'get|set|subscribe';
 };
 export type AnyResources = {

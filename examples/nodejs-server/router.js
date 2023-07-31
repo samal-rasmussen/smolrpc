@@ -43,8 +43,10 @@ export const router = {
 	'/resourceB/:id/resourceC/:key': {
 		get: async ({ params, qualifiedResource, resource }) => {
 			console.log('get', resource, qualifiedResource, params);
-			const result = db.get(qualifiedResource);
-			return /** @type {Result<typeof resource>} */ (result);
+			const result = /** @type {Result<typeof resource>} */ (
+				db.get(qualifiedResource)
+			);
+			return result;
 		},
 		set: async ({ params, qualifiedResource, resource, request }) => {
 			console.log('set', resource, qualifiedResource, params, request);
