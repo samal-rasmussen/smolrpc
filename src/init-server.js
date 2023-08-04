@@ -21,7 +21,7 @@
 /**
  * @type {(resource: string, params: Params) => string}
  */
-function getQualifiedResource(resource, params) {
+function getResourceWithParams(resource, params) {
 	Object.entries(params ?? {}).forEach(([key, value]) => {
 		resource = resource.replace(`:${key}`, value);
 	});
@@ -149,12 +149,12 @@ export function initServer(router) {
 					resource: request.resource,
 				});
 				if (request.params != null) {
-					const qualifiedResource = getQualifiedResource(
+					const resourceWithParams = getResourceWithParams(
 						request.resource,
 						request.params,
 					);
 					args.params = request.params;
-					args.qualifiedResource = qualifiedResource;
+					args.resourceWithParams = resourceWithParams;
 				}
 				/** @type {GetHandler} */
 				const get = /** @type {any} */ (routerResource).get;
@@ -180,12 +180,12 @@ export function initServer(router) {
 					request: request.data,
 				});
 				if (request.params != null) {
-					const qualifiedResource = getQualifiedResource(
+					const resourceWithParams = getResourceWithParams(
 						request.resource,
 						request.params,
 					);
 					args.params = request.params;
-					args.qualifiedResource = qualifiedResource;
+					args.resourceWithParams = resourceWithParams;
 				}
 				/** @type {PickSetHandler} */
 				const set = /** @type {any} */ (routerResource).set;
@@ -208,16 +208,16 @@ export function initServer(router) {
 					resource: request.resource,
 				});
 				if (request.params != null) {
-					const qualifiedResource = getQualifiedResource(
+					const resourceWithParams = getResourceWithParams(
 						request.resource,
 						request.params,
 					);
 					args.params = request.params;
-					args.qualifiedResource = qualifiedResource;
+					args.resourceWithParams = resourceWithParams;
 				}
 				const websocketListeners = getWebSocketListeners(ws);
 				const existingSubscription = websocketListeners.get(
-					args.qualifiedResource ?? args.resource,
+					args.resourceWithParams ?? args.resource,
 				);
 				if (existingSubscription != null) {
 					sendReject(ws, 'Already subscribed', request);
@@ -239,7 +239,7 @@ export function initServer(router) {
 					},
 				});
 				websocketListeners.set(
-					args.qualifiedResource ?? args.resource,
+					args.resourceWithParams ?? args.resource,
 					subscription,
 				);
 				/** @type {SubscribeAccept} */
@@ -257,7 +257,10 @@ export function initServer(router) {
 			try {
 				const resource =
 					request.params != null
-						? getQualifiedResource(request.resource, request.params)
+						? getResourceWithParams(
+								request.resource,
+								request.params,
+						  )
 						: request.resource;
 				const websocketListeners = getWebSocketListeners(ws);
 				const subscription = websocketListeners.get(resource);

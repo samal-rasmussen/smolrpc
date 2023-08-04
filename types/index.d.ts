@@ -1,6 +1,6 @@
 declare module 'smolrpc' {
 	import type { z } from 'zod';
-	export function initClient<Resources extends AnyResources>(websocket: WebSocket): Promise<Client<Resources>>;
+	export function initClient<Resources extends AnyResources>(url: string, connectionStateCb: (connectionState: ConnectionState) => void): Promise<Client<Resources>>;
 	type Client_1 = Client<any>;
 	/**
 	 * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
@@ -43,7 +43,7 @@ declare module 'smolrpc' {
 	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	type GetHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
 		params: ResourceParams<Resource>;
-		qualifiedResource: string;
+		resourceWithParams: string;
 		resource: Resource;
 	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	type PickGetHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null ? GetHandler_1<Resources, Resource> : GetHandlerWithParams<Resources, Resource>;
@@ -53,7 +53,7 @@ declare module 'smolrpc' {
 	}) => Promise<z.infer<Resources[Resource]['response']> | void>;
 	type SetHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = (args: {
 		params: ResourceParams<Resource>;
-		qualifiedResource: string;
+		resourceWithParams: string;
 		resource: Resource;
 		request: z.infer<Request>;
 	}) => Promise<z.infer<Resources[Resource]['response']> | void>;
@@ -63,7 +63,7 @@ declare module 'smolrpc' {
 	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
 	type SubscribeHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
 		params: ResourceParams<Resource>;
-		qualifiedResource: string;
+		resourceWithParams: string;
 		resource: Resource;
 	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
 	type PickSubscribeHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null ? SubscribeHandler_1<Resources, Resource> : SubscribeHandlerWithParams<Resources, Resource>;
@@ -159,6 +159,7 @@ declare module 'smolrpc' {
 			subscribe: SubscribeHandler<Resources, R>;
 		} : never;
 	};
+	type ConnectionState = 'offline' | 'connecting' | 'reconnecting' | 'online';
 	/// <reference types="node" />
 	type Data = string | ArrayBufferLike | Blob | ArrayBufferView | Buffer | Buffer[];
 	interface WSErrorEvent {

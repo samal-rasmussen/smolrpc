@@ -19,7 +19,7 @@ export type GetHandlerWithParams<
 	Resource extends keyof AnyResources,
 > = (args: {
 	params: ResourceParams<Resource>;
-	qualifiedResource: string;
+	resourceWithParams: string;
 	resource: Resource;
 }) => Promise<z.infer<Resources[Resource]['response']>>;
 
@@ -45,7 +45,7 @@ export type SetHandlerWithParams<
 	Request extends AnySettableResource['request'],
 > = (args: {
 	params: ResourceParams<Resource>;
-	qualifiedResource: string;
+	resourceWithParams: string;
 	resource: Resource;
 	request: z.infer<Request>;
 }) => Promise<z.infer<Resources[Resource]['response']> | void>;
@@ -70,7 +70,7 @@ export type SubscribeHandlerWithParams<
 	Resource extends keyof AnyResources,
 > = (args: {
 	params: ResourceParams<Resource>;
-	qualifiedResource: string;
+	resourceWithParams: string;
 	resource: Resource;
 }) => Subscribable<z.infer<Resources[Resource]['response']>>;
 

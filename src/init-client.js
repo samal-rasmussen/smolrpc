@@ -10,6 +10,18 @@
  */
 
 /**
+ * @param {number} number
+ * @param {number} jitterPercentage
+ * @returns {number}
+ */
+function addRandomJitter(number, jitterPercentage) {
+	var jitter =
+		Math.random() * (jitterPercentage / 100) * 2 * number -
+		(jitterPercentage / 100) * number;
+	return number + jitter;
+}
+
+/**
  * @type {typeof import("./client.types").initClient}
  */
 export async function initClient(url, connectionStateCb) {
@@ -33,12 +45,21 @@ export async function initClient(url, connectionStateCb) {
 			}
 		}
 
+		/**
+		 * @returns {number}
+		 */
 		function getWaitTime() {
 			const n = reopenCount;
 			reopenCount++;
-			return reopenTimeouts[
-				n >= reopenTimeouts.length - 1 ? reopenTimeouts.length - 1 : n
-			];
+
+			const timeout =
+				reopenTimeouts[
+					n >= reopenTimeouts.length - 1
+						? reopenTimeouts.length - 1
+						: n
+				];
+			const withJitter = addRandomJitter(timeout, 20);
+			return withJitter;
 		}
 
 		function open() {
@@ -52,17 +73,17 @@ export async function initClient(url, connectionStateCb) {
 			}
 			websocket = new WebSocket(url);
 			websocket.addEventListener('open', () => {
-				console.log('initClient: websocket connected');
+				// console.log('initClient: websocket connected');
 				reopenCount = 0;
 				connectionStateCb('online');
 			});
 			websocket.addEventListener('close', (event) => {
-				console.log(
-					'initClient: websocket closed',
-					event.type,
-					event.code,
-					event.reason,
-				);
+				// console.log(
+				// 	'initClient: websocket closed',
+				// 	event.type,
+				// 	event.code,
+				// 	event.reason,
+				// );
 				close();
 				reopenTimeoutHandler = setTimeout(() => {
 					connectionStateCb('reconnecting');
@@ -71,7 +92,7 @@ export async function initClient(url, connectionStateCb) {
 				connectionStateCb('offline');
 			});
 			websocket.addEventListener('error', (event) => {
-				console.log('initClient: websocket error', event.type, event);
+				// console.log('initClient: websocket error', event);
 			});
 			websocket.addEventListener('message', (event) => {
 				// console.log(

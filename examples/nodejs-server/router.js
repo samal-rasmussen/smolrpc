@@ -23,34 +23,34 @@ export const router = {
 		},
 	},
 	'/resourceB/:id': {
-		get: async ({ params, qualifiedResource, resource }) => {
-			console.log('get', resource, qualifiedResource, params);
+		get: async ({ params, resourceWithParams, resource }) => {
+			console.log('get', resource, resourceWithParams, params);
 			const result = /** @type {Result<typeof resource>} */ (
-				db.get(qualifiedResource)
+				db.get(resourceWithParams)
 			);
 			return result;
 		},
-		set: async ({ params, qualifiedResource, resource, request }) => {
-			console.log('set', resource, qualifiedResource, params, request);
-			db.set(qualifiedResource, request);
+		set: async ({ params, resourceWithParams, resource, request }) => {
+			console.log('set', resource, resourceWithParams, params, request);
+			db.set(resourceWithParams, request);
 		},
-		subscribe: ({ params, qualifiedResource, resource }) => {
-			console.log('subscribe', resource, qualifiedResource, params);
-			const result = db.subscribe(qualifiedResource);
+		subscribe: ({ params, resourceWithParams, resource }) => {
+			console.log('subscribe', resource, resourceWithParams, params);
+			const result = db.subscribe(resourceWithParams);
 			return result;
 		},
 	},
 	'/resourceB/:id/resourceC/:key': {
-		get: async ({ params, qualifiedResource, resource }) => {
-			console.log('get', resource, qualifiedResource, params);
+		get: async ({ params, resourceWithParams, resource }) => {
+			console.log('get', resource, resourceWithParams, params);
 			const result = /** @type {Result<typeof resource>} */ (
-				db.get(qualifiedResource)
+				db.get(resourceWithParams)
 			);
 			return result;
 		},
-		set: async ({ params, qualifiedResource, resource, request }) => {
-			console.log('set', resource, qualifiedResource, params, request);
-			db.set(qualifiedResource, request);
+		set: async ({ params, resourceWithParams, resource, request }) => {
+			console.log('set', resource, resourceWithParams, params, request);
+			db.set(resourceWithParams, request);
 		},
 	},
 };
