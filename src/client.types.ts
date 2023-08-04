@@ -86,6 +86,13 @@ export type Client<Resources extends AnyResources> = {
 		: never;
 };
 
+export type ConnectionState =
+	| 'offline'
+	| 'connecting'
+	| 'reconnecting'
+	| 'online';
+
 export declare function initClient<Resources extends AnyResources>(
-	websocket: WebSocket,
+	url: string,
+	connectionStateCb: (connectionState: ConnectionState) => void,
 ): Promise<Client<Resources>>;
