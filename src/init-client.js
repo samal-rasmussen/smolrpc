@@ -6,7 +6,6 @@
  * @typedef {import("./message.types").Request<any>} Request
  * @typedef {import("./message.types").Response<any>} Response
  * @typedef {import("./message.types").SubscribeEvent<any>} SubscribeEvent
- * @typedef {import("./client.types").Client<any>} Client
  */
 
 /**
@@ -22,14 +21,24 @@ function addRandomJitter(number, jitterPercentage) {
 }
 
 /**
- * @type {typeof import("./client.types").initClient}
+ * @template {AnyResources} Resources
+ * @param {{
+ * 	url: string,
+ * 	connectionStateCb?: (connectionState: import("./client.types").ConnectionState) => void}
+ * } args
+ * @return {Promise<import("./client.types").Client<Resources>>}
  */
-export async function initClient(url, connectionStateCb) {
+export async function initClient({ url, connectionStateCb }) {
+	if (globalThis.WebSocket == null) {
+		throw new Error(
+			`initClient: globalThis.WebScoket not found. On nodejs you will need to polyfill globalThis.WebSocket.`,
+		);
+	}
 	return new Promise((resolve) => {
 		/** @type {WebSocket | undefined} */
 		let websocket;
 		let reopenCount = 0;
-		/** @type {number | undefined} */
+		/** @type {NodeJS.Timeout | undefined} */
 		let reopenTimeoutHandler;
 		const reopenTimeouts = [2000, 5000, 10000, 15000];
 
@@ -74,8 +83,14 @@ export async function initClient(url, connectionStateCb) {
 			websocket = new WebSocket(url);
 			websocket.addEventListener('open', () => {
 				// console.log('initClient: websocket connected');
+				if (sendQueue.length > 0) {
+					for (const request of sendQueue) {
+						sendRequest(request);
+					}
+					sendQueue.length = 0;
+				}
 				reopenCount = 0;
-				connectionStateCb('online');
+				connectionStateCb?.('online');
 			});
 			websocket.addEventListener('close', (event) => {
 				// console.log(
@@ -86,10 +101,10 @@ export async function initClient(url, connectionStateCb) {
 				// );
 				close();
 				reopenTimeoutHandler = setTimeout(() => {
-					connectionStateCb('reconnecting');
+					connectionStateCb?.('reconnecting');
 					open();
 				}, getWaitTime());
-				connectionStateCb('offline');
+				connectionStateCb?.('offline');
 			});
 			websocket.addEventListener('error', (event) => {
 				// console.log('initClient: websocket error', event);
@@ -125,19 +140,19 @@ export async function initClient(url, connectionStateCb) {
 		const listeners = new Map();
 		let id = 0;
 
+		/** @type {Request[]} */
+		const sendQueue = [];
+
 		/**
-		 * @param {Request} msg
+		 * @param {Request} request
 		 */
-		function sendMessage(msg) {
-			if (websocket == null) {
-				console.error(
-					'initClient.sendMessage: Trying to send while websocket is undefined',
-					msg,
-				);
+		function sendRequest(request) {
+			if (websocket == null || websocket.readyState !== WebSocket.OPEN) {
+				sendQueue.push(request);
 				return;
 			}
 			// TODO: Add timeout that will console log error after 30s
-			websocket.send(JSON.stringify(msg));
+			websocket.send(JSON.stringify(request));
 		}
 
 		/**
@@ -148,7 +163,7 @@ export async function initClient(url, connectionStateCb) {
 		function getHandler(resource, params) {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
-				sendMessage({
+				sendRequest({
 					id: msgId,
 					resource,
 					params,
@@ -179,7 +194,7 @@ export async function initClient(url, connectionStateCb) {
 		function setHandler(resource, request, params) {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
-				sendMessage({
+				sendRequest({
 					id: msgId,
 					resource,
 					data: request,
@@ -212,7 +227,7 @@ export async function initClient(url, connectionStateCb) {
 			return {
 				subscribe: (observer) => {
 					const msgId = ++id;
-					sendMessage({
+					sendRequest({
 						id: msgId,
 						resource,
 						params,
@@ -237,7 +252,7 @@ export async function initClient(url, connectionStateCb) {
 						unsubscribe: () => {
 							listeners.delete(msgId);
 							const unsubMsgId = ++id;
-							sendMessage({
+							sendRequest({
 								id: unsubMsgId,
 								params,
 								resource,
@@ -282,7 +297,7 @@ export async function initClient(url, connectionStateCb) {
 			},
 		);
 
-		resolve(proxy);
 		open();
+		resolve(proxy);
 	});
 }

@@ -91,8 +91,3 @@ export type ConnectionState =
 	| 'connecting'
 	| 'reconnecting'
 	| 'online';
-
-export declare function initClient<Resources extends AnyResources>(
-	url: string,
-	connectionStateCb: (connectionState: ConnectionState) => void,
-): Promise<Client<Resources>>;
