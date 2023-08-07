@@ -85,13 +85,52 @@ export async function initClient({ url, connectionStateCb }) {
 			websocket = new WebSocket(url);
 			websocket.addEventListener('open', () => {
 				// console.log('initClient: websocket connected');
+
+				// The server clears all pending requests and subscriptions on disconnect,
+				// so we need to start from scratch on the client.
+				id = 0;
+				// Don't overwrite existing listeners map yet, because we reuse listeners for
+				// sendQueue and resubscribe below.
+				const newListeners = new Map();
+				reopenCount = 0;
+
+				// All requests are queued while the websocket isn't connected. These are sent now.
 				if (sendQueue.length > 0) {
 					for (const request of sendQueue) {
+						const requestId = ++id;
+						const listener = listeners.get(request.id);
+						newListeners.set(requestId, listener);
+						request.id = requestId;
 						sendRequest(request);
 					}
 					sendQueue.length = 0;
 				}
-				reopenCount = 0;
+
+				// Resubscribe old existing subscriptions
+				for (const subscriptionData of subscriptions.values()) {
+					if (subscriptionData.requestId == null) {
+						return;
+					}
+					const oldListener = listeners.get(
+						subscriptionData.requestId,
+					);
+					if (oldListener == null) {
+						throw new Error(
+							`initClient: on open resubscript did not find old listener. requestId: ${subscriptionData.requestId}`,
+						);
+					}
+					const newRequestId = ++id;
+					subscriptionData.requestId = newRequestId;
+					newListeners.set(newRequestId, oldListener);
+					sendRequest({
+						id: newRequestId,
+						resource: oldListener.resource,
+						params: oldListener.params,
+						type: 'SubscribeRequest',
+					});
+				}
+				listeners = newListeners;
+
 				connectionStateCb?.('online');
 			});
 			websocket.addEventListener('close', (event) => {
@@ -132,6 +171,9 @@ export async function initClient({ url, connectionStateCb }) {
 					);
 					return;
 				}
+				if (listener.type !== 'subscribe') {
+					listeners.delete(id);
+				}
 				listener.listener(response);
 			});
 		}
@@ -144,7 +186,7 @@ export async function initClient({ url, connectionStateCb }) {
 		 *  type: 'get' | 'set' | 'subscribe' | 'unsubscribe'
 		 * }>}
 		 */
-		const listeners = new Map();
+		let listeners = new Map();
 
 		/** @type {number} */
 		let id = 0;
@@ -152,7 +194,10 @@ export async function initClient({ url, connectionStateCb }) {
 		/** @type {Request[]} */
 		const sendQueue = [];
 
-		/** @type {Map<string, Subscribable>} */
+		/** @type {Map<string, {
+		 * 	subscribable: Subscribable,
+		 * 	requestId: number | undefined
+		 * }>} */
 		const subscriptions = new Map();
 
 		/**
@@ -174,11 +219,10 @@ export async function initClient({ url, connectionStateCb }) {
 		 */
 		function getHandler(resource, params) {
 			return new Promise((resolve, reject) => {
-				const msgId = ++id;
+				const requestId = ++id;
 				// TODO: Handle request timeout
-				listeners.set(msgId, {
+				listeners.set(requestId, {
 					listener: (msg) => {
-						listeners.delete(msgId);
 						if (msg.type === 'Reject') {
 							reject(msg.error);
 						} else if (msg.type === 'GetResponse') {
@@ -195,7 +239,7 @@ export async function initClient({ url, connectionStateCb }) {
 					type: 'get',
 				});
 				sendRequest({
-					id: msgId,
+					id: requestId,
 					resource,
 					params,
 					type: 'GetRequest',
@@ -210,11 +254,10 @@ export async function initClient({ url, connectionStateCb }) {
 		 */
 		function setHandler(resource, request, params) {
 			return new Promise((resolve, reject) => {
-				const msgId = ++id;
+				const requestId = ++id;
 				// TODO: Handle request timeout
-				listeners.set(msgId, {
+				listeners.set(requestId, {
 					listener: (msg) => {
-						listeners.delete(msgId);
 						if (msg.type === 'Reject') {
 							reject(msg.error);
 						} else if (msg.type === 'SetSuccess') {
@@ -231,7 +274,7 @@ export async function initClient({ url, connectionStateCb }) {
 					type: 'set',
 				});
 				sendRequest({
-					id: msgId,
+					id: requestId,
 					resource,
 					data: request,
 					params,
@@ -249,7 +292,7 @@ export async function initClient({ url, connectionStateCb }) {
 			const resourceWithParams = getResourceWithParams(resource, params);
 			const existing = subscriptions.get(resourceWithParams);
 			if (existing) {
-				return existing;
+				return existing.subscribable;
 			}
 			/** @type {Set<Partial<import("./types").Observer<any>>>} */
 			const observers = new Set();
@@ -267,21 +310,26 @@ export async function initClient({ url, connectionStateCb }) {
 							},
 						};
 					}
+					subscriptionData.requestId = ++id;
 					observers.add(observer);
-					const msgId = ++id;
 					unsubscribeFn = () => {
 						if (observers.size > 1) {
 							return;
 						}
-						listeners.delete(msgId);
-						const unsubMsgId = ++id;
+						if (typeof subscriptionData.requestId !== 'number') {
+							throw new Error(
+								`initClient: Unsubscribe error. No requestId found. requestId was${subscriptionData.requestId}`,
+							);
+						}
+						listeners.delete(subscriptionData.requestId);
+						const unsubRequestId = ++id;
 						sendRequest({
-							id: unsubMsgId,
+							id: unsubRequestId,
 							params,
 							resource,
 							type: 'UnsubscribeRequest',
 						});
-						listeners.set(unsubMsgId, {
+						listeners.set(unsubRequestId, {
 							listener: (msg) => {
 								if (msg.type === 'Reject') {
 									for (const obs of observers) {
@@ -302,7 +350,7 @@ export async function initClient({ url, connectionStateCb }) {
 						});
 					};
 					// TODO: Handle request timeout
-					listeners.set(msgId, {
+					listeners.set(subscriptionData.requestId, {
 						listener: (msg) => {
 							if (msg.type === 'Reject') {
 								for (const obs of observers) {
@@ -325,8 +373,13 @@ export async function initClient({ url, connectionStateCb }) {
 						resource,
 						type: 'subscribe',
 					});
+					if (typeof subscriptionData.requestId !== 'number') {
+						throw new Error(
+							`initClient: Send subscription request error. No requestId found. requestId was ${subscriptionData.requestId}`,
+						);
+					}
 					sendRequest({
-						id: msgId,
+						id: subscriptionData.requestId,
 						resource,
 						params,
 						type: 'SubscribeRequest',
@@ -339,7 +392,12 @@ export async function initClient({ url, connectionStateCb }) {
 					};
 				},
 			};
-			subscriptions.set(resourceWithParams, subscribable);
+			/** @type {{subscribable: Subscribable, requestId: number | undefined}} */
+			const subscriptionData = {
+				subscribable,
+				requestId: undefined,
+			};
+			subscriptions.set(resourceWithParams, subscriptionData);
 			return subscribable;
 		}
 

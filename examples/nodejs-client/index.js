@@ -35,8 +35,8 @@ await client['/resourceB/:id'].set({
 	params: { id: '123' },
 	request: { key: '321' },
 });
-await sleep(1000);
-subscription.unsubscribe();
+// await sleep(1000);
+// subscription.unsubscribe();
 await client['/resourceB/:id'].set({
 	params: { id: '123' },
 	request: { key: '999' },

@@ -38,6 +38,7 @@ export const db = {
 					listeners.set(resource, resourceListeners);
 				}
 				resourceListeners.add(listener);
+				observer.next?.(map.get(resource));
 				return {
 					unsubscribe: () => {
 						const resourceListeners = listeners.get(resource);
