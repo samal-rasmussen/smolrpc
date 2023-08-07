@@ -43,17 +43,4 @@ export const router = {
 			return result;
 		},
 	},
-	'/resourceB/:id/resourceC/:key': {
-		get: async ({ params, resourceWithParams, resource }) => {
-			console.log('get', resource, resourceWithParams, params);
-			const result = /** @type {Result<typeof resource>} */ (
-				db.get(resourceWithParams)
-			);
-			return result;
-		},
-		set: async ({ params, resourceWithParams, resource, request }) => {
-			console.log('set', resource, resourceWithParams, params, request);
-			db.set(resourceWithParams, request);
-		},
-	},
 };

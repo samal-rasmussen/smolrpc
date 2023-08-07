@@ -7,17 +7,9 @@ export const resources = {
 		type: 'get',
 	},
 	'/resourceB/:id': {
-		request: z.object({ key: z.string() }),
-		response: z.object({ key: z.string() }),
+		request: z.object({ value: z.string() }),
+		response: z.object({ value: z.string() }),
 		type: 'get|set|subscribe',
-	},
-	'/resourceB/:id/resourceC/:key': {
-		request: z.object({ key: z.string() }),
-		response: z.discriminatedUnion('ok', [
-			z.object({ ok: z.literal(true) }),
-			z.object({ ok: z.literal(false) }),
-		]),
-		type: 'get|set',
 	},
 } as const satisfies AnyResources;
 export type Resources = typeof resources;
