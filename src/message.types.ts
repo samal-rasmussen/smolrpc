@@ -2,15 +2,6 @@ import type { AnyResources } from './types';
 
 export type Params = Record<string, string> | null | undefined;
 
-export type ResponseMessageType =
-	| 'GetResponse'
-	| 'SetSuccess'
-	| 'SubscribeAccept';
-export type RequestMessageType =
-	| 'GetRequest'
-	| 'SetRequest'
-	| 'SubscribeRequest';
-
 export type Request<Resources extends AnyResources> =
 	| GetRequest<Resources>
 	| SetRequest<Resources>

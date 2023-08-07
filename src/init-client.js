@@ -8,6 +8,8 @@
  * @typedef {import("./message.types").SubscribeEvent<any>} SubscribeEvent
  */
 
+import { getResourceWithParams } from './shared.js';
+
 /**
  * @param {number} number
  * @param {number} jitterPercentage
@@ -130,18 +132,28 @@ export async function initClient({ url, connectionStateCb }) {
 					);
 					return;
 				}
-				listener(response);
+				listener.listener(response);
 			});
 		}
 
 		/**
-		 * @type {Map<number, (msg: Response | SubscribeEvent | Reject) => void>}
+		 * @type {Map<number, {
+		 * 	listener: (msg: Response | SubscribeEvent | Reject) => void,
+		 * 	params: Params,
+		 * 	resource: string,
+		 *  type: 'get' | 'set' | 'subscribe' | 'unsubscribe'
+		 * }>}
 		 */
 		const listeners = new Map();
+
+		/** @type {number} */
 		let id = 0;
 
 		/** @type {Request[]} */
 		const sendQueue = [];
+
+		/** @type {Map<string, Subscribable>} */
+		const subscriptions = new Map();
 
 		/**
 		 * @param {Request} request
@@ -156,37 +168,42 @@ export async function initClient({ url, connectionStateCb }) {
 		}
 
 		/**
-		 * @param {PropertyKey} resource
+		 * @param {string} resource
 		 * @param {Params} params
 		 * @returns {Promise<unknown>}
 		 */
 		function getHandler(resource, params) {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
+				// TODO: Handle request timeout
+				listeners.set(msgId, {
+					listener: (msg) => {
+						listeners.delete(msgId);
+						if (msg.type === 'Reject') {
+							reject(msg.error);
+						} else if (msg.type === 'GetResponse') {
+							resolve(msg.data);
+						} else {
+							console.error(
+								`Unexpected message type in get listener`,
+								msg,
+							);
+						}
+					},
+					params,
+					resource,
+					type: 'get',
+				});
 				sendRequest({
 					id: msgId,
 					resource,
 					params,
 					type: 'GetRequest',
 				});
-				// TODO: Handle request timeout
-				listeners.set(msgId, (msg) => {
-					listeners.delete(msgId);
-					if (msg.type === 'Reject') {
-						reject(msg.error);
-					} else if (msg.type === 'GetResponse') {
-						resolve(msg.data);
-					} else {
-						console.error(
-							`Unexpected message type in get listener`,
-							msg,
-						);
-					}
-				});
 			});
 		}
 		/**
-		 * @param {PropertyKey} resource
+		 * @param {string} resource
 		 * @param {any} request
 		 * @param {Params} params
 		 * @returns {Promise<unknown>}
@@ -194,6 +211,25 @@ export async function initClient({ url, connectionStateCb }) {
 		function setHandler(resource, request, params) {
 			return new Promise((resolve, reject) => {
 				const msgId = ++id;
+				// TODO: Handle request timeout
+				listeners.set(msgId, {
+					listener: (msg) => {
+						listeners.delete(msgId);
+						if (msg.type === 'Reject') {
+							reject(msg.error);
+						} else if (msg.type === 'SetSuccess') {
+							resolve(undefined);
+						} else {
+							console.error(
+								`Unexpected message type in set listener`,
+								msg,
+							);
+						}
+					},
+					params,
+					resource,
+					type: 'set',
+				});
 				sendRequest({
 					id: msgId,
 					resource,
@@ -201,79 +237,110 @@ export async function initClient({ url, connectionStateCb }) {
 					params,
 					type: 'SetRequest',
 				});
-				// TODO: Handle request timeout
-				listeners.set(msgId, (msg) => {
-					listeners.delete(msgId);
-					if (msg.type === 'Reject') {
-						reject(msg.error);
-					} else if (msg.type === 'SetSuccess') {
-						resolve(undefined);
-					} else {
-						console.error(
-							`Unexpected message type in set listener`,
-							msg,
-						);
-					}
-				});
 			});
 		}
 		/**
 		 *
-		 * @param {PropertyKey} resource
+		 * @param {string} resource
 		 * @param {Params} params
 		 * @returns {Subscribable}
 		 */
 		function subscribeHandler(resource, params) {
-			return {
+			const resourceWithParams = getResourceWithParams(resource, params);
+			const existing = subscriptions.get(resourceWithParams);
+			if (existing) {
+				return existing;
+			}
+			/** @type {Set<Partial<import("./types").Observer<any>>>} */
+			const observers = new Set();
+			/** @type {(() => void) | undefined} */
+			let unsubscribeFn = undefined;
+			/** @type {Subscribable} */
+			const subscribable = {
 				subscribe: (observer) => {
+					if (observers.size > 0) {
+						observers.add(observer);
+						return {
+							unsubscribe: () => {
+								observers.delete(observer);
+								unsubscribeFn?.();
+							},
+						};
+					}
+					observers.add(observer);
 					const msgId = ++id;
-					sendRequest({
-						id: msgId,
-						resource,
-						params,
-						type: 'SubscribeRequest',
-					});
-					// TODO: Handle request timeout
-					listeners.set(msgId, (msg) => {
-						if (msg.type === 'Reject') {
-							observer.error?.(msg.error);
-						} else if (msg.type === 'SubscribeEvent') {
-							observer.next?.(msg.data);
-						} else if (msg.type === 'SubscribeAccept') {
-							// Happy path. Nothing to do.
-						} else {
-							console.error(
-								`Unexpected message type in get listener`,
-								msg,
-							);
+					unsubscribeFn = () => {
+						if (observers.size > 1) {
+							return;
 						}
-					});
-					return {
-						unsubscribe: () => {
-							listeners.delete(msgId);
-							const unsubMsgId = ++id;
-							sendRequest({
-								id: unsubMsgId,
-								params,
-								resource,
-								type: 'UnsubscribeRequest',
-							});
-							listeners.set(unsubMsgId, (msg) => {
+						listeners.delete(msgId);
+						const unsubMsgId = ++id;
+						sendRequest({
+							id: unsubMsgId,
+							params,
+							resource,
+							type: 'UnsubscribeRequest',
+						});
+						listeners.set(unsubMsgId, {
+							listener: (msg) => {
 								if (msg.type === 'Reject') {
-									observer.error?.(msg.error);
+									for (const obs of observers) {
+										obs.error?.(msg.error);
+									}
 								} else if (msg.type === 'UnsubscribeAccept') {
-									// Happy path. Nothing to do.
+									observers.clear();
 								} else {
 									console.error(
 										`Unexpected message type in get listener`,
 										msg,
 									);
 								}
-							});
+							},
+							params,
+							resource,
+							type: 'unsubscribe',
+						});
+					};
+					// TODO: Handle request timeout
+					listeners.set(msgId, {
+						listener: (msg) => {
+							if (msg.type === 'Reject') {
+								for (const obs of observers) {
+									obs.error?.(msg.error);
+								}
+							} else if (msg.type === 'SubscribeEvent') {
+								for (const obs of observers) {
+									obs.next?.(msg.data);
+								}
+							} else if (msg.type === 'SubscribeAccept') {
+								// Happy path. Nothing to do.
+							} else {
+								console.error(
+									`Unexpected message type in get listener`,
+									msg,
+								);
+							}
+						},
+						params,
+						resource,
+						type: 'subscribe',
+					});
+					sendRequest({
+						id: msgId,
+						resource,
+						params,
+						type: 'SubscribeRequest',
+					});
+					return {
+						unsubscribe: () => {
+							observers.delete(observer);
+							unsubscribeFn?.();
 						},
 					};
 				},
 			};
+			subscriptions.set(resourceWithParams, subscribable);
+			return subscribable;
 		}
 
 		/** @type {any} */

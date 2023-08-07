@@ -18,15 +18,7 @@
  * @typedef {import("./websocket.types.ts").WS} WS
  */
 
-/**
- * @type {(resource: string, params: Params) => string}
- */
-function getResourceWithParams(resource, params) {
-	Object.entries(params ?? {}).forEach(([key, value]) => {
-		resource = resource.replace(`:${key}`, value);
-	});
-	return resource;
-}
+import { getResourceWithParams } from './shared.js';
 
 /**
  * @type {(ws: WS, error: string, request: Request) => void}
@@ -100,6 +92,9 @@ export function initServer(router) {
 				throw new Error(
 					'initServer.onClose: Map of listeners for websocket connection not found',
 				);
+			}
+			for (const unsubscribable of existing.values()) {
+				unsubscribable.unsubscribe();
 			}
 			listeners.delete(ws);
 		});

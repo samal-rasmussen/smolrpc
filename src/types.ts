@@ -30,7 +30,7 @@ export type AnySettableResources = {
 	[key: string | number | symbol]: AnySettableResource;
 };
 
-interface Observer<T> {
+export interface Observer<T> {
 	next: (value: T) => void;
 	error: (err: any) => void;
 	complete: () => void;

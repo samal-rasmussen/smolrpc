@@ -36,7 +36,10 @@ export const router = {
 		},
 		subscribe: ({ params, resourceWithParams, resource }) => {
 			console.log('subscribe', resource, resourceWithParams, params);
-			const result = db.subscribe(resourceWithParams);
+			const result =
+				/** @type {import("smolrpc").Subscribable<Result<typeof resource>>} */ (
+					db.subscribe(resourceWithParams)
+				);
 			return result;
 		},
 	},
