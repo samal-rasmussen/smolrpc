@@ -1,20 +1,14 @@
 /**
  * @typedef {import("./types.ts").Unsubscribable} Unsubscribable
  * @typedef {import("./message.types.ts").Params} Params
- * @typedef {import("./message.types.ts").GetResponse<any>} GetResponse
  * @typedef {import("./message.types.ts").Reject<any>} Reject
  * @typedef {import("./message.types.ts").Request<any>} Request
- * @typedef {import("./message.types.ts").SetSuccess<any>} SetSuccess
- * @typedef {import("./message.types.ts").SubscribeAccept<any>} SubscribeAccept
- * @typedef {import("./message.types.ts").SubscribeEvent<any>} SubscribeEvent
- * @typedef {import("./message.types.ts").UnsubscribeAccept<any>} UnsubscribeAccept
  * @typedef {import("./server.types.ts").GetHandler<any, any>} GetHandler
  * @typedef {import("./server.types.ts").GetHandlerWithParams<any, any>} GetHandlerWithParams
  * @typedef {import("./server.types.ts").PickSetHandler<any, any, any>} PickSetHandler
  * @typedef {import("./server.types.ts").PickSubscribeHandler<any, any>} PickSubscribeHandler
  * @typedef {import("./server.types.ts").SetHandlerWithParams<any, any, any>} SetHandlerWithParams
  * @typedef {import("./server.types.ts").SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
- * @typedef {import("./websocket.types.ts").Data} Data
  * @typedef {import("./websocket.types.ts").WS} WS
  */
 
@@ -52,7 +46,9 @@ function validateParams(resource, params) {
 }
 
 /**
- * @type {typeof import("./server.types.ts").initServer}
+ * @template {import("./types").AnyResources} Resources
+ * @param {import("./server.types.ts").Router<Resources>} router
+ * @returns {{ addConnection: (ws: WS) => void }}
  */
 export function initServer(router) {
 	/**
@@ -107,7 +103,7 @@ export function initServer(router) {
 	}
 
 	/**
-	 * @param {Data} data
+	 * @param {import("./websocket.types.ts").Data} data
 	 * @param {WS} ws
 	 */
 	async function handleWSMessage(data, ws) {
@@ -154,7 +150,7 @@ export function initServer(router) {
 				/** @type {GetHandler} */
 				const get = /** @type {any} */ (routerResource).get;
 				const result = await get(args);
-				/** @type {GetResponse} */
+				/** @type {import("./message.types.ts").GetResponse<any>} */
 				const response = {
 					id: request.id,
 					data: result,
@@ -185,7 +181,7 @@ export function initServer(router) {
 				/** @type {PickSetHandler} */
 				const set = /** @type {any} */ (routerResource).set;
 				await set(args);
-				/** @type {SetSuccess} */
+				/** @type {import("./message.types.ts").SetSuccess<any>} */
 				const response = {
 					id: request.id,
 					resource: request.resource,
@@ -223,7 +219,7 @@ export function initServer(router) {
 				const observable = await subscribe(args);
 				const subscription = observable.subscribe({
 					next(val) {
-						/** @type {SubscribeEvent} */
+						/** @type {import("./message.types.ts").SubscribeEvent<any>} */
 						const event = {
 							data: val,
 							id: request.id,
@@ -237,7 +233,7 @@ export function initServer(router) {
 					args.resourceWithParams ?? args.resource,
 					subscription,
 				);
-				/** @type {SubscribeAccept} */
+				/** @type {import("./message.types.ts").SubscribeAccept<any>} */
 				const response = {
 					id: request.id,
 					resource: request.resource,
@@ -265,7 +261,7 @@ export function initServer(router) {
 				}
 				subscription.unsubscribe();
 				websocketListeners.delete(resource);
-				/** @type {UnsubscribeAccept} */
+				/** @type {import("./message.types.ts").UnsubscribeAccept<any>} */
 				const response = {
 					id: request.id,
 					resource: request.resource,

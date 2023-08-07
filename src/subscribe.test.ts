@@ -1,6 +1,8 @@
 const msg = `
 When subscribing a resource a single subscribe request request is sent and a single subscribe accept response is received.
 When subscribing a resource a single listener is created on the server
+When a resource is subscribed multiple times on the client then only one subscribe request is sent to the server
+Client only sends unsubscribe request when last client subscriber unsubscribes
 When unsubscribing a resource the listener is deleted on the server
 When a resource is set then it produces an event for each listener
 

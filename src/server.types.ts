@@ -129,7 +129,3 @@ export type Router<Resources extends AnyResources> = {
 		  }
 		: never;
 };
-
-export declare function initServer<Resources extends AnyResources>(
-	router: Router<Resources>,
-): { addConnection: (ws: WS) => void };
