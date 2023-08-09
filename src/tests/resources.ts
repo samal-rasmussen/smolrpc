@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AnyResources } from '../src/types';
+import { AnyResources } from '../types';
 
 const post = z.object({ content: z.string(), id: z.number() });
 const comment = z.object({ content: z.string(), id: z.number() });

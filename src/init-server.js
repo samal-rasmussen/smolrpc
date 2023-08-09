@@ -149,6 +149,7 @@ export function initServer(router) {
 				}
 				/** @type {GetHandler} */
 				const get = /** @type {any} */ (routerResource).get;
+				console.log('get', args);
 				const result = await get(args);
 				/** @type {import("./message.types.ts").GetResponse<any>} */
 				const response = {
@@ -180,6 +181,7 @@ export function initServer(router) {
 				}
 				/** @type {PickSetHandler} */
 				const set = /** @type {any} */ (routerResource).set;
+				console.log('set', args);
 				await set(args);
 				/** @type {import("./message.types.ts").SetSuccess<any>} */
 				const response = {
@@ -216,6 +218,7 @@ export function initServer(router) {
 				}
 				/** @type {PickSubscribeHandler} */
 				const subscribe = /** @type {any}*/ (routerResource).subscribe;
+				console.log('subscribe', args);
 				const observable = await subscribe(args);
 				const subscription = observable.subscribe({
 					next(val) {

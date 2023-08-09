@@ -11,7 +11,7 @@ export type ResourceParams<T> =
 	T extends `${infer _Start}:${infer Param}/${infer Rest}` // eslint-disable-line @typescript-eslint/no-unused-vars
 		? { [k in Param | keyof ResourceParams<Rest>]: string }
 		: T extends `${infer _Start}:${infer Param}` // eslint-disable-line @typescript-eslint/no-unused-vars
-		? { [k in Param]: string }
+		? { [k in Param]: string | number }
 		: null | undefined;
 
 type AnyResource = {

@@ -1,19 +1,12 @@
-/**
- * @typedef {import("smolrpc").Subscribable<any>} Subscribable
- */
-
-/** @type {Map<string, any>} */
-const map = new Map();
-/** @type {Map<string, Set<(value: any) => void>>} */
-const listeners = new Map();
+const map = new Map<string, any>();
+const listeners = new Map<string, Set<(value: any) => void>>();
 
 export const db = {
 	/** @type {(resource: string) => unknown} */
-	get(resource) {
+	get(resource: any) {
 		return map.get(resource);
 	},
-	/** @type {(resource: string, value: any) => void} */
-	set(resource, value) {
+	set<T>(resource: any, value: T) {
 		if (value === undefined) {
 			map.delete(resource);
 		} else {
@@ -23,13 +16,14 @@ export const db = {
 		resourceListeners?.forEach((l) => {
 			l(value);
 		});
+		return value;
 	},
 	/** @type {(resource: string) => Subscribable} */
-	subscribe(resource) {
+	subscribe(resource: any) {
 		return {
-			subscribe: (observer) => {
+			subscribe: (observer: any) => {
 				/** @type {(value: any) => void} */
-				const listener = (value) => {
+				const listener = (value: any) => {
 					observer.next?.(value);
 				};
 				let resourceListeners = listeners.get(resource);
