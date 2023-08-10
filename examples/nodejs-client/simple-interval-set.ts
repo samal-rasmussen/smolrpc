@@ -8,12 +8,6 @@ const client = await initClient<SimpleResources>({
 	url: 'ws://localhost:9200',
 });
 
-// type: { content: string; id: string; }[]
-const posts = await client['/posts'].get();
-// type: { content: string; id: string; }
-const post123 = await client['/posts/:postId'].get({
-	params: { postId: 123 },
-});
 client['/posts/:postId']
 	.subscribe({
 		params: { postId: 123 },
@@ -23,11 +17,10 @@ client['/posts/:postId']
 			console.log('event', post);
 		},
 	});
-await client['/posts/:postId'].set({
-	params: { postId: 123 },
-	request: { content: 'sick post' },
-});
 
-const post2 = await client['/posts/:postId'].get({
-	params: { postId: 123 },
-});
+setInterval(async () => {
+	await client['/posts/:postId'].set({
+		params: { postId: 123 },
+		request: { content: 'sick post ' + Date.now() },
+	});
+}, 5347);
