@@ -22,11 +22,11 @@ type SetHandler<
 > = ResourceParams<Resource> extends null | undefined
 	? (args: {
 			request: z.infer<Request>;
-	  }) => Promise<z.infer<Resources[Resource]['response']> | void>
+	  }) => Promise<z.infer<Resources[Resource]['response']>>
 	: (args: {
 			request: z.infer<Request>;
 			params: ResourceParams<Resource>;
-	  }) => Promise<z.infer<Resources[Resource]['response']> | void>;
+	  }) => Promise<z.infer<Resources[Resource]['response']>>;
 
 type SubscribeHandler<
 	Resources extends AnyResources,
@@ -38,7 +38,7 @@ type SubscribeHandler<
 	  }) => Subscribable<z.infer<Resources[Resource]['response']>>;
 
 export type Client<Resources extends AnyResources> = {
-	[R in keyof Resources]: Resources[R] extends {
+	[R in keyof Resources & string]: Resources[R] extends {
 		type: 'get';
 	}
 		? { get: GetHandler<Resources, R> }

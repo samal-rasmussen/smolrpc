@@ -27,7 +27,7 @@ export const router = {
 	'/posts/new': {
 		set: async ({ request }) => {
 			const id = postId++;
-			const result = db.set(id, { ...request, id });
+			const result = db.set(String(id), { ...request, id });
 			return result;
 		},
 	},
@@ -66,7 +66,7 @@ export const router = {
 	'/posts/:postId/comments/new': {
 		set: async ({ request }) => {
 			const id = commendId++;
-			const result = db.set(id, { ...request, id });
+			const result = db.set(String(id), { ...request, id });
 			return result;
 		},
 	},

@@ -6,18 +6,22 @@ const comment = z.object({ content: z.string(), id: z.number() });
 
 // Resources for handling posts
 export const posts = {
+	'/wat': {
+		response: z.object({ wat: z.string() }),
+		type: 'get',
+	},
 	'/posts': {
 		response: z.array(post),
 		type: 'get|subscribe',
 	},
 	'/posts/new': {
 		request: post.omit({ id: true }),
-		response: post,
+		response: z.object({ id: z.number() }),
 		type: 'set',
 	},
 	'/posts/:postId': {
 		request: post.omit({ id: true }),
-		response: post,
+		response: post.or(z.undefined()),
 		type: 'get|set|subscribe',
 	},
 } as const satisfies AnyResources;
@@ -31,12 +35,12 @@ export const comments = {
 	},
 	'/posts/:postId/comments/new': {
 		request: comment.omit({ id: true }),
-		response: comment,
+		response: z.object({ id: z.number() }),
 		type: 'set',
 	},
 	'/posts/:postId/comments/:commentId': {
 		request: comment.omit({ id: true }),
-		response: comment,
+		response: comment.or(z.undefined()),
 		type: 'get|set|subscribe',
 	},
 } as const satisfies AnyResources;

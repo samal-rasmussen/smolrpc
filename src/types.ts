@@ -9,7 +9,7 @@ export type MessageTypes = Types | 'unsubscribe';
  */
 export type ResourceParams<T> =
 	T extends `${infer _Start}:${infer Param}/${infer Rest}` // eslint-disable-line @typescript-eslint/no-unused-vars
-		? { [k in Param | keyof ResourceParams<Rest>]: string }
+		? { [k in Param | keyof ResourceParams<Rest>]: string | number }
 		: T extends `${infer _Start}:${infer Param}` // eslint-disable-line @typescript-eslint/no-unused-vars
 		? { [k in Param]: string | number }
 		: null | undefined;
@@ -24,10 +24,10 @@ export type AnySettableResource = {
 	type: 'set' | 'get|set' | 'set|subscribe' | 'get|set|subscribe';
 };
 export type AnyResources = {
-	[key: string | number | symbol]: AnyResource | AnySettableResource;
+	[key: string]: AnyResource | AnySettableResource;
 };
 export type AnySettableResources = {
-	[key: string | number | symbol]: AnySettableResource;
+	[key: string]: AnySettableResource;
 };
 
 export interface Observer<T> {

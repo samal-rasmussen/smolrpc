@@ -5,7 +5,6 @@ import type {
 	ResourceParams,
 	Subscribable,
 } from './types.ts';
-import { WS } from './websocket.types.ts';
 
 export type GetHandler<
 	Resources extends AnyResources,
@@ -37,7 +36,7 @@ export type SetHandler<
 > = (args: {
 	resource: Resource;
 	request: z.infer<Request>;
-}) => Promise<z.infer<Resources[Resource]['response']> | void>;
+}) => Promise<z.infer<Resources[Resource]['response']>>;
 
 export type SetHandlerWithParams<
 	Resources extends AnyResources,
@@ -48,7 +47,7 @@ export type SetHandlerWithParams<
 	resourceWithParams: string;
 	resource: Resource;
 	request: z.infer<Request>;
-}) => Promise<z.infer<Resources[Resource]['response']> | void>;
+}) => Promise<z.infer<Resources[Resource]['response']>>;
 
 export type PickSetHandler<
 	Resources extends AnyResources,
@@ -82,7 +81,7 @@ export type PickSubscribeHandler<
 	: SubscribeHandlerWithParams<Resources, Resource>;
 
 export type Router<Resources extends AnyResources> = {
-	[R in keyof Resources]: Resources[R] extends {
+	[R in keyof Resources & string]: Resources[R] extends {
 		type: 'get';
 	}
 		? { get: PickGetHandler<Resources, R> }

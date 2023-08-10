@@ -6,29 +6,36 @@ global.WebSocket = ws as any;
 
 const client = await initClient<Resources>({
 	url: 'ws://localhost:9200',
+	connectionStateCb: (state) => console.log(`connection state ${state}`),
 });
 
+const wat = await client['/wat'].get();
+console.log('get wat', wat);
+
+const setResult = await client['/posts/new'].set({
+	request: { content: 'sick post' },
+});
+console.log('set', setResult);
 const posts = await client['/posts'].get();
 console.log('get posts', posts);
-
-const post123 = await client['/posts/:postId'].get({
-	params: { postId: '123' },
+const post = await client['/posts/:postId'].get({
+	params: { postId: setResult.id },
 });
-console.log('get post123', post123);
+console.log('get post', post);
 
 client['/posts/:postId']
 	.subscribe({
-		params: { postId: '123' },
+		params: { postId: setResult.id },
 	})
 	.subscribe({
-		next: (val) => {
-			console.log('received subscription val', val);
+		next: (post) => {
+			console.log('post event', post);
 		},
 	});
 
 await client['/posts/:postId'].set({
-	params: { postId: '123' },
-	request: { content: '321' },
+	params: { postId: setResult.id },
+	request: { content: 'more sick post' },
 });
 
 // await sleep(1000);
@@ -39,11 +46,11 @@ await client['/posts/:postId'].set({
 });
 
 await client['/posts/:postId/comments/:commentId'].set({
-	params: { postId: '123', commentId: '456' },
-	request: { content: '888' },
+	params: { postId: 123, commentId: 456 },
+	request: { content: 'sick comment' },
 });
 const post123comments = await client['/posts/:postId/comments'].get({
-	params: { postId: '123' },
+	params: { postId: 123 },
 });
 console.log('get /posts/123/comments', post123comments);
 

@@ -261,7 +261,7 @@ export async function initClient({ url, connectionStateCb }) {
 						if (msg.type === 'Reject') {
 							reject(msg.error);
 						} else if (msg.type === 'SetSuccess') {
-							resolve(undefined);
+							resolve(msg.data);
 						} else {
 							console.error(
 								`Unexpected message type in set listener`,

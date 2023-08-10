@@ -46,11 +46,27 @@ function validateParams(resource, params) {
 }
 
 /**
+ *
+ * @param {any} result
+ * @param {import('zod').ZodTypeAny} parser
+ * @param {string} resource
+ * @returns
+ */
+function parseResult(result, parser, resource) {
+	const parsed = parser.safeParse(result);
+	if (!parsed.success) {
+		console.error(`invalid route response for ${resource}`, result);
+		return;
+	}
+}
+
+/**
  * @template {import("./types").AnyResources} Resources
  * @param {import("./server.types.ts").Router<Resources>} router
+ *  @param {import("./types.ts").AnyResources} resources
  * @returns {{ addConnection: (ws: WS) => void }}
  */
-export function initServer(router) {
+export function initServer(router, resources) {
 	/**
 	 * @type {Map<WS, Map<string, Unsubscribable>>}
 	 */
@@ -124,8 +140,18 @@ export function initServer(router) {
 			console.error(`no resource string on message`);
 			return;
 		}
-		const routerResource = router[request.resource];
-		if (routerResource == null) {
+		const routerHandlers = router[request.resource];
+		if (routerHandlers == null) {
+			console.error(`router handler for resource not found`, request);
+			sendReject(ws, `resource not found`, request);
+			return;
+		}
+		const resourceDefinition = resources[request.resource];
+		if (resourceDefinition == null) {
+			console.error(
+				`resource definition for resource not found`,
+				request,
+			);
 			sendReject(ws, `resource not found`, request);
 			return;
 		}
@@ -147,14 +173,23 @@ export function initServer(router) {
 					args.params = request.params;
 					args.resourceWithParams = resourceWithParams;
 				}
-				/** @type {GetHandler} */
-				const get = /** @type {any} */ (routerResource).get;
+				const routeHandler = /** @type {{get: GetHandlerWithParams}}*/ (
+					/** @type {any}*/ (routerHandlers)
+				).get;
 				console.log('get', args);
-				const result = await get(args);
+				const result = await routeHandler(args);
+				const parsed = resourceDefinition.response.safeParse(result);
+				if (!parsed.success) {
+					console.error(
+						`invalid route response for ${request.resource}`,
+						result,
+					);
+					return;
+				}
 				/** @type {import("./message.types.ts").GetResponse<any>} */
 				const response = {
 					id: request.id,
-					data: result,
+					data: parsed.data,
 					type: 'GetResponse',
 					resource: request.resource,
 				};
@@ -180,13 +215,24 @@ export function initServer(router) {
 					args.resourceWithParams = resourceWithParams;
 				}
 				/** @type {PickSetHandler} */
-				const set = /** @type {any} */ (routerResource).set;
+				const routeHandler = /** @type {{set: SetHandlerWithParams}}*/ (
+					/** @type {any}*/ (routerHandlers)
+				).set;
 				console.log('set', args);
-				await set(args);
+				const result = await routeHandler(args);
+				const parsed = resourceDefinition.response.safeParse(result);
+				if (!parsed.success) {
+					console.error(
+						`invalid route response for ${request.resource}`,
+						result,
+					);
+					return;
+				}
 				/** @type {import("./message.types.ts").SetSuccess<any>} */
 				const response = {
 					id: request.id,
 					resource: request.resource,
+					data: parsed.data,
 					type: 'SetSuccess',
 				};
 				ws.send(JSON.stringify(response));
@@ -217,11 +263,23 @@ export function initServer(router) {
 					return;
 				}
 				/** @type {PickSubscribeHandler} */
-				const subscribe = /** @type {any}*/ (routerResource).subscribe;
+				const routerHandler =
+					/** @type {{subscribe: SubscribeHandlerWithParams}}*/ (
+						/** @type {any}*/ (routerHandlers)
+					).subscribe;
 				console.log('subscribe', args);
-				const observable = await subscribe(args);
+				const observable = await routerHandler(args);
 				const subscription = observable.subscribe({
 					next(val) {
+						const parsed =
+							resourceDefinition.response.safeParse(val);
+						if (!parsed.success) {
+							console.error(
+								`invalid route response for ${request.resource}`,
+								val,
+							);
+							return;
+						}
 						/** @type {import("./message.types.ts").SubscribeEvent<any>} */
 						const event = {
 							data: val,

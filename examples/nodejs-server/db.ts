@@ -1,12 +1,18 @@
+import { Subscribable } from '../../src/types';
+
 const map = new Map<string, any>();
 const listeners = new Map<string, Set<(value: any) => void>>();
 
 export const db = {
-	/** @type {(resource: string) => unknown} */
-	get(resource: any) {
+	get(resource: string): unknown {
 		return map.get(resource);
 	},
-	set<T>(resource: any, value: T) {
+	getAll(resource: string) {
+		return Array.from(map.entries())
+			.filter(([key]) => key.startsWith(resource))
+			.map(([_, value]) => value);
+	},
+	set<T>(resource: string, value: T) {
 		if (value === undefined) {
 			map.delete(resource);
 		} else {
@@ -18,8 +24,7 @@ export const db = {
 		});
 		return value;
 	},
-	/** @type {(resource: string) => Subscribable} */
-	subscribe(resource: any) {
+	subscribe(resource: string): Subscribable<unknown> {
 		return {
 			subscribe: (observer: any) => {
 				/** @type {(value: any) => void} */

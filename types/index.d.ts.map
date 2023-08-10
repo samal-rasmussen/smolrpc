@@ -2,13 +2,21 @@
 	"version": 3,
 	"file": "index.d.ts",
 	"names": [
+		"GetHandler",
+		"SetHandler",
+		"SubscribeHandler",
+		"Client",
+		"ConnectionState",
 		"initClient",
 		"ResourceParams",
 		"AnySettableResource",
 		"AnyResources",
+		"Observer",
 		"Unsubscribable",
 		"Subscribable",
 		"Result",
+		"initServer",
+		"WS",
 		"GetHandlerWithParams",
 		"PickGetHandler",
 		"SetHandlerWithParams",
@@ -16,19 +24,14 @@
 		"SubscribeHandlerWithParams",
 		"PickSubscribeHandler",
 		"Router",
-		"GetHandler",
-		"SetHandler",
-		"SubscribeHandler",
-		"Client",
-		"ConnectionState",
-		"Data",
-		"WS"
+		"Data"
 	],
 	"sources": [
-		"../src/init-client.js",
-		"../src/types.ts",
 		"../src/server.types.ts",
 		"../src/client.types.ts",
+		"../src/init-client.js",
+		"../src/types.ts",
+		"../src/init-server.js",
 		"../src/websocket.types.ts"
 	],
 	"sourcesContent": [
@@ -36,7 +39,8 @@
 		null,
 		null,
 		null,
+		null,
 		null
 	],
-	"mappings": ";;iBA8FoBA,UAAUA;;;;;;MCrFlBC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;;;;;;WAaPC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;;;;;;;MC9BNC,oBAAoBA;;;;;MASpBC,cAAcA;;;;;MAgBdC,oBAAoBA;;;;;;MAWpBC,cAAcA;;;;MAedC,0BAA0BA;;;;;MAS1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;MA1ENC,UAAUA;;;MAuBVC,UAAUA;;;;;;MA4BVC,gBAAgBA;;;aCrBhBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;MAiDNC,eAAeA;;MCxFfC,IAAIA;;;;;;;;;;;;;;;;;;;;;;MAiCJC,EAAEA"
+	"mappings": ";;MAQYA,UAAUA;;;MAuBVC,UAAUA;;;;;;MA4BVC,gBAAgBA;;;aCpBhBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;MAiDNC,eAAeA;iBCxDLC,UAAUA;;;;;;;;MCvBpBC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCsBFC,UAAUA;;;MCnCdC,EAAEA;;;;MLlBFC,oBAAoBA;;;;;MASpBC,cAAcA;;;;;MAgBdC,oBAAoBA;;;;;;MAWpBC,cAAcA;;;;MAedC,0BAA0BA;;;;;MAS1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;MKlFNC,IAAIA"
 }

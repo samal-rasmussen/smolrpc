@@ -12,9 +12,14 @@ let postId = 0;
 let commendId = 0;
 
 export const router = {
+	'/wat': {
+		get: async () => {
+			return { wat: 'wat', watman: 123 };
+		},
+	},
 	'/posts': {
 		get: async ({ resource }) => {
-			const result = db.get(resource) as Result<typeof resource>;
+			const result = db.getAll(resource) as Result<typeof resource>;
 			return result;
 		},
 		subscribe: ({ resourceWithParams, resource }) => {
@@ -27,8 +32,8 @@ export const router = {
 	'/posts/new': {
 		set: async ({ request }) => {
 			const id = postId++;
-			const result = db.set(id, { ...request, id });
-			return result;
+			const result = db.set(String(id), { ...request, id });
+			return { id: result.id, wat: 'wat' };
 		},
 	},
 	'/posts/:postId': {
@@ -53,7 +58,7 @@ export const router = {
 	},
 	'/posts/:postId/comments': {
 		get: async ({ resource }) => {
-			const result = db.get(resource) as Result<typeof resource>;
+			const result = db.getAll(resource) as Result<typeof resource>;
 			return result;
 		},
 		subscribe: ({ resourceWithParams, resource }) => {
@@ -66,8 +71,8 @@ export const router = {
 	'/posts/:postId/comments/new': {
 		set: async ({ request }) => {
 			const id = commendId++;
-			const result = db.set(id, { ...request, id });
-			return result;
+			const result = db.set(String(id), { ...request, id });
+			return { id: result.id };
 		},
 	},
 	'/posts/:postId/comments/:commentId': {
