@@ -1,15 +1,17 @@
 /**
- * @typedef {import("./types.ts").Unsubscribable} Unsubscribable
- * @typedef {import("./message.types.ts").Params} Params
- * @typedef {import("./message.types.ts").Reject<any>} Reject
- * @typedef {import("./message.types.ts").Request<any>} Request
- * @typedef {import("./server.types.ts").GetHandler<any, any>} GetHandler
- * @typedef {import("./server.types.ts").GetHandlerWithParams<any, any>} GetHandlerWithParams
- * @typedef {import("./server.types.ts").PickSetHandler<any, any, any>} PickSetHandler
- * @typedef {import("./server.types.ts").PickSubscribeHandler<any, any>} PickSubscribeHandler
- * @typedef {import("./server.types.ts").SetHandlerWithParams<any, any, any>} SetHandlerWithParams
- * @typedef {import("./server.types.ts").SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
- * @typedef {import("./websocket.types.ts").WS} WS
+ * @typedef {import('./types.ts').Unsubscribable} Unsubscribable
+ * @typedef {import('./message.types.ts').Params} Params
+ * @typedef {import('./message.types.ts').Reject<any>} Reject
+ * @typedef {import('./message.types.ts').Request<any>} Request
+ * @typedef {import('./server.types.ts').GetHandler<any, any>} GetHandler
+ * @typedef {import('./server.types.ts').GetHandlerWithParams<any, any>} GetHandlerWithParams
+ * @typedef {import('./server.types.ts').PickSetHandler<any, any, any>} PickSetHandler
+ * @typedef {import('./server.types.ts').PickSubscribeHandler<any, any>} PickSubscribeHandler
+ * @typedef {import('./server.types.ts').SetHandlerWithParams<any, any, any>} SetHandlerWithParams
+ * @typedef {import('./server.types.ts').SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
+ * @typedef {import('./websocket.types.ts').WS} WS
+ * @typedef {import('http').IncomingMessage} IncomingMessage
+ *
  */
 
 import { getResourceWithParams } from './shared.js';
@@ -46,15 +48,41 @@ function validateParams(resource, params) {
 }
 
 /**
+ *
+ * @param {IncomingMessage} req
+ * @returns {string | undefined}
+ */
+function getRemoteAddress(req) {
+	const remoteAddress = req.socket.remoteAddress;
+	if (remoteAddress == null) {
+		return undefined;
+	}
+	const remotePort = req.socket.remotePort;
+	if (remotePort == null) {
+		return remoteAddress;
+	}
+	if (req.socket.remoteFamily === 'IPv6') {
+		return `[${remoteAddress}]:${remotePort}`;
+	}
+	return `${remoteAddress}:${remotePort}`;
+}
+
+/**
  * @template {import("./types").AnyResources} Resources
  * @param {import("./server.types.ts").Router<Resources>} router
  * @param {import("./types.ts").AnyResources} resources
  * @param {{serverLogger?: import('./server.types.ts').ServerLogger}} [options]
- * @returns {{ addConnection: (ws: WS) => void }}
+ * @returns {{ addConnection: (ws: WS, req: IncomingMessage) => void }}
  */
 export function initServer(router, resources, options) {
+	let clientId = 0;
+
 	/**
-	 * @type {Map<WS, Map<string, Unsubscribable>>}
+	 * @type {Map<WS, {
+	 *  clientId: number,
+	 *  remoteAddress: string | undefined,
+	 *  listeners: Map<string, Unsubscribable>
+	 * }>}
 	 */
 	const listeners = new Map();
 
@@ -70,20 +98,26 @@ export function initServer(router, resources, options) {
 				'Did not find map of listeners for websocket connection',
 			);
 		}
-		return websocketListeners;
+		return websocketListeners.listeners;
 	}
 
 	/**
 	 * @param {WS} ws
+	 * @param {IncomingMessage} req
 	 */
-	function addConnection(ws) {
+	function addConnection(ws, req) {
 		const existing = listeners.get(ws);
 		if (existing != null) {
 			throw new Error(
 				'initServer.onOpen: Found unexpected existing map of listeners for websocket connection',
 			);
 		}
-		listeners.set(ws, new Map());
+		const listenerData = {
+			clientId: clientId++,
+			listeners: new Map(),
+			remoteAddress: getRemoteAddress(req),
+		};
+		listeners.set(ws, listenerData);
 		ws.addEventListener('close', () => {
 			const existing = listeners.get(ws);
 			if (existing == null) {
@@ -91,7 +125,7 @@ export function initServer(router, resources, options) {
 					'initServer.onClose: Map of listeners for websocket connection not found',
 				);
 			}
-			for (const unsubscribable of existing.values()) {
+			for (const unsubscribable of existing.listeners.values()) {
 				unsubscribable.unsubscribe();
 			}
 			listeners.delete(ws);
@@ -100,15 +134,22 @@ export function initServer(router, resources, options) {
 			console.error(`initServer.onError: ${event}`);
 		});
 		ws.addEventListener('message', async (event) => {
-			await handleWSMessage(event.data, ws);
+			await handleWSMessage(
+				event.data,
+				ws,
+				listenerData.clientId,
+				listenerData.remoteAddress,
+			);
 		});
 	}
 
 	/**
 	 * @param {import("./websocket.types.ts").Data} data
 	 * @param {WS} ws
+	 * @param {number}cliendId
+	 * @param {string | undefined} remoteAddress
 	 */
-	async function handleWSMessage(data, ws) {
+	async function handleWSMessage(data, ws, cliendId, remoteAddress) {
 		if (typeof data != 'string') {
 			console.error(
 				`only string data supported. typeof event.data = ${typeof data}`,
@@ -122,7 +163,11 @@ export function initServer(router, resources, options) {
 			console.error(`no id number on message`);
 			return;
 		}
-		options?.serverLogger?.receivedRequest(request);
+		options?.serverLogger?.receivedRequest(
+			request,
+			clientId,
+			remoteAddress,
+		);
 		if (typeof request.resource !== 'string') {
 			console.error(`no resource string on message`);
 			return;
@@ -142,6 +187,7 @@ export function initServer(router, resources, options) {
 			sendReject(ws, `resource not found`, request);
 			return;
 		}
+		const responseSchema = resourceDefinition.response;
 		if (!validateParams(request.resource, request.params)) {
 			sendReject(ws, `invalid params`, request);
 			return;
@@ -164,7 +210,7 @@ export function initServer(router, resources, options) {
 					/** @type {any}*/ (routerHandlers)
 				).get;
 				const result = await routeHandler(args);
-				const parsed = resourceDefinition.response.safeParse(result);
+				const parsed = responseSchema.safeParse(result);
 				if (!parsed.success) {
 					console.error(
 						`invalid route response for ${request.resource}`,
@@ -204,7 +250,7 @@ export function initServer(router, resources, options) {
 					/** @type {any}*/ (routerHandlers)
 				).set;
 				const result = await routeHandler(args);
-				const parsed = resourceDefinition.response.safeParse(result);
+				const parsed = responseSchema.safeParse(result);
 				if (!parsed.success) {
 					console.error(
 						`invalid route response for ${request.resource}`,
@@ -254,8 +300,7 @@ export function initServer(router, resources, options) {
 				const observable = await routerHandler(args);
 				const subscription = observable.subscribe({
 					next(val) {
-						const parsed =
-							resourceDefinition.response.safeParse(val);
+						const parsed = responseSchema.safeParse(val);
 						if (!parsed.success) {
 							console.error(
 								`invalid route response for ${request.resource}`,

@@ -42,7 +42,7 @@ export async function initClient({ url, connectionStateCb }) {
 		let reopenCount = 0;
 		/** @type {NodeJS.Timeout | undefined} */
 		let reopenTimeoutHandler;
-		const reopenTimeouts = [2000, 5000, 10000, 15000];
+		const reopenTimeouts = [1000, 2000, 5000, 10000];
 
 		function close() {
 			if (reopenTimeoutHandler) {

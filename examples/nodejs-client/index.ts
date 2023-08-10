@@ -9,9 +9,6 @@ const client = await initClient<Resources>({
 	connectionStateCb: (state) => console.log(`connection state ${state}`),
 });
 
-const wat = await client['/wat'].get();
-console.log('get wat', wat);
-
 const setResult = await client['/posts/new'].set({
 	request: { content: 'sick post' },
 });

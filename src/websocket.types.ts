@@ -1,7 +1,6 @@
 export type Data =
 	| string
 	| ArrayBufferLike
-	| Blob
 	| ArrayBufferView
 	| Buffer
 	| Buffer[];

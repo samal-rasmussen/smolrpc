@@ -131,5 +131,9 @@ export type Router<Resources extends AnyResources> = {
 };
 
 export interface ServerLogger {
-	receivedRequest: (request: Request<any>) => void;
+	receivedRequest: (
+		request: Request<any>,
+		clientId: number,
+		remoteAddress: string | undefined,
+	) => void;
 }
