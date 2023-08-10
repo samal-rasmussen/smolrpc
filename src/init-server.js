@@ -1,7 +1,7 @@
 /**
  * @typedef {import('./types.ts').Unsubscribable} Unsubscribable
  * @typedef {import('./message.types.ts').Params} Params
- * @typedef {import('./message.types.ts').Reject<any>} Reject
+ * @typedef {import('./message.types.ts').RequestReject<any>} Reject
  * @typedef {import('./message.types.ts').Request<any>} Request
  * @typedef {import('./server.types.ts').GetHandler<any, any>} GetHandler
  * @typedef {import('./server.types.ts').GetHandlerWithParams<any, any>} GetHandlerWithParams
@@ -23,7 +23,7 @@ function sendReject(ws, error, request) {
 	/** @type {Reject} */
 	const reject = {
 		error,
-		type: 'Reject',
+		type: 'RequestReject',
 		request,
 	};
 	ws.send(JSON.stringify(reject));
@@ -152,15 +152,25 @@ export function initServer(router, resources, options) {
 	async function handleWSMessage(data, ws, cliendId, remoteAddress) {
 		if (typeof data != 'string') {
 			console.error(
-				`only string data supported. typeof event.data = ${typeof data}`,
+				`Only string data supported. typeof event.data = ${typeof data}`,
+				clientId,
+				remoteAddress,
 			);
+			/** @type {import('./message.types.ts').Reject} */
+			const reject = {
+				error: `Only string data supported. typeof event.data = ${typeof data}`,
+				type: 'Reject',
+			};
+			ws.send(JSON.stringify(reject));
 			return;
 		}
 		// console.log('received: %s', data);
 		/** @type {Request} */
 		const request = JSON.parse(data);
 		if (typeof request.id !== 'number') {
-			console.error(`no id number on message`);
+			const error = `no id number on request`;
+			console.error(error, JSON.stringify(request));
+			sendReject(ws, error, request);
 			return;
 		}
 		options?.serverLogger?.receivedRequest(
@@ -169,12 +179,17 @@ export function initServer(router, resources, options) {
 			remoteAddress,
 		);
 		if (typeof request.resource !== 'string') {
-			console.error(`no resource string on message`);
+			const error = `no resource string on request`;
+			console.error(error, JSON.stringify(request));
+			sendReject(ws, error, request);
 			return;
 		}
 		const routerHandlers = router[request.resource];
 		if (routerHandlers == null) {
-			console.error(`router handler for resource not found`, request);
+			console.error(
+				`router handler for resource not found`,
+				JSON.stringify(request),
+			);
 			sendReject(ws, `resource not found`, request);
 			return;
 		}
@@ -182,7 +197,7 @@ export function initServer(router, resources, options) {
 		if (resourceDefinition == null) {
 			console.error(
 				`resource definition for resource not found`,
-				request,
+				JSON.stringify(request),
 			);
 			sendReject(ws, `resource not found`, request);
 			return;
@@ -214,7 +229,7 @@ export function initServer(router, resources, options) {
 				if (!parsed.success) {
 					console.error(
 						`invalid route response for ${request.resource}`,
-						result,
+						JSON.stringify(result),
 					);
 					return;
 				}
@@ -227,7 +242,11 @@ export function initServer(router, resources, options) {
 				};
 				ws.send(JSON.stringify(response));
 			} catch (error) {
-				console.error('handling get request failed', request, error);
+				console.error(
+					'handling get request failed',
+					JSON.stringify(request),
+					error,
+				);
 				sendReject(ws, '500', request);
 			}
 		} else if (request.type === 'SetRequest') {
@@ -254,7 +273,7 @@ export function initServer(router, resources, options) {
 				if (!parsed.success) {
 					console.error(
 						`invalid route response for ${request.resource}`,
-						result,
+						JSON.stringify(result),
 					);
 					return;
 				}
@@ -267,7 +286,11 @@ export function initServer(router, resources, options) {
 				};
 				ws.send(JSON.stringify(response));
 			} catch (error) {
-				console.error('handling set request failed', request, error);
+				console.error(
+					'handling set request failed',
+					JSON.stringify(request),
+					error,
+				);
 				sendReject(ws, '500', request);
 			}
 		} else if (request.type === 'SubscribeRequest') {
@@ -332,7 +355,7 @@ export function initServer(router, resources, options) {
 			} catch (error) {
 				console.error(
 					'handling subscribe request failed',
-					request,
+					JSON.stringify(request),
 					error,
 				);
 				sendReject(ws, '500', request);
@@ -364,7 +387,7 @@ export function initServer(router, resources, options) {
 			} catch (error) {
 				console.error(
 					'handling unsubscribe request failed',
-					request,
+					JSON.stringify(request),
 					error,
 				);
 				sendReject(ws, '500', request);

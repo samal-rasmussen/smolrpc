@@ -12,9 +12,13 @@ export type Response<Resources extends AnyResources> =
 	| SetSuccess<Resources>
 	| SubscribeAccept<Resources>
 	| UnsubscribeAccept<Resources>;
-export type Reject<Resources extends AnyResources> = {
+export type RequestReject<Resources extends AnyResources> = {
 	error: string;
 	request: Request<Resources>;
+	type: 'RequestReject';
+};
+export type Reject = {
+	error: string;
 	type: 'Reject';
 };
 

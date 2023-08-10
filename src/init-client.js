@@ -157,10 +157,14 @@ export async function initClient({ url, connectionStateCb }) {
 				// 	typeof event.data,
 				// 	event.data,
 				// );
-				/** @type { Response | SubscribeEvent | Reject} */
+				/** @type { Response | SubscribeEvent | RequestReject | Reject} */
 				const response = JSON.parse(event.data);
+				if (response.type === 'Reject') {
+					console.error('Received Reject response', response);
+					return;
+				}
 				const id =
-					response.type === 'Reject'
+					response.type === 'RequestReject'
 						? response.request.id
 						: response.id;
 				const listener = listeners.get(id);
@@ -180,7 +184,7 @@ export async function initClient({ url, connectionStateCb }) {
 
 		/**
 		 * @type {Map<number, {
-		 * 	listener: (msg: Response | SubscribeEvent | Reject) => void,
+		 * 	listener: (msg: Response | SubscribeEvent | RequestReject) => void,
 		 * 	params: Params,
 		 * 	resource: string,
 		 *  type: 'get' | 'set' | 'subscribe' | 'unsubscribe'
@@ -223,8 +227,16 @@ export async function initClient({ url, connectionStateCb }) {
 				// TODO: Handle request timeout
 				listeners.set(requestId, {
 					listener: (msg) => {
-						if (msg.type === 'Reject') {
-							reject(msg.error);
+						if (msg.type === 'RequestReject') {
+							const paramsErrMsg =
+								msg.request.params != null
+									? ` with params ${msg.request.params}`
+									: '';
+							const errMsg =
+								`Get request on ${msg.request.resource}` +
+								paramsErrMsg +
+								` rejected with error: ${msg.error}`;
+							reject(new Error(errMsg));
 						} else if (msg.type === 'GetResponse') {
 							resolve(msg.data);
 						} else {
@@ -258,8 +270,16 @@ export async function initClient({ url, connectionStateCb }) {
 				// TODO: Handle request timeout
 				listeners.set(requestId, {
 					listener: (msg) => {
-						if (msg.type === 'Reject') {
-							reject(msg.error);
+						if (msg.type === 'RequestReject') {
+							const paramsErrMsg =
+								msg.request.params != null
+									? ` with params ${msg.request.params}`
+									: '';
+							const errMsg =
+								`Set request on ${msg.request.resource}` +
+								paramsErrMsg +
+								` rejected with error: ${msg.error}`;
+							reject(new Error(errMsg));
 						} else if (msg.type === 'SetSuccess') {
 							resolve(msg.data);
 						} else {
@@ -331,7 +351,7 @@ export async function initClient({ url, connectionStateCb }) {
 						});
 						listeners.set(unsubRequestId, {
 							listener: (msg) => {
-								if (msg.type === 'Reject') {
+								if (msg.type === 'RequestReject') {
 									for (const obs of observers) {
 										obs.error?.(msg.error);
 									}
@@ -352,7 +372,7 @@ export async function initClient({ url, connectionStateCb }) {
 					// TODO: Handle request timeout
 					listeners.set(subscriptionData.requestId, {
 						listener: (msg) => {
-							if (msg.type === 'Reject') {
+							if (msg.type === 'RequestReject') {
 								for (const obs of observers) {
 									obs.error?.(msg.error);
 								}

@@ -1,5 +1,8 @@
+import { WebSocket as ws } from 'ws';
 import { initClient } from '../../src/init-client';
 import { SimpleResources } from '../simple-resources';
+
+global.WebSocket = ws as any;
 
 const client = await initClient<SimpleResources>({
 	url: 'ws://localhost:9200',
