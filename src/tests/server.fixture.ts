@@ -8,6 +8,6 @@ function setupServer() {
 	const wss = new WebSocketServer({ port: 9200 });
 
 	wss.on('connection', function connection(ws, req) {
-		server.addConnection(ws as any, req);
+		server.addConnection(ws as any);
 	});
 }

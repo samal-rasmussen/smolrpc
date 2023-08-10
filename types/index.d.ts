@@ -90,8 +90,10 @@ declare module 'smolrpc' {
 		subscribe(observer: Partial<Observer<T>>): Unsubscribable;
 	}
 	export type Result<Resources extends AnyResources, Resource extends keyof Resources> = z.infer<Resources[Resource]['response']>;
-	export function initServer<Resources extends AnyResources>(router: Router<Resources>, resources: AnyResources): {
-		addConnection: (ws: WS) => void;
+	export function initServer<Resources extends AnyResources>(router: Router<Resources>, resources: AnyResources, options?: {
+		serverLogger?: ServerLogger | undefined;
+	} | undefined): {
+		addConnection: (ws: WS, remoteAddress?: string | undefined) => void;
 	};
 	type WS = WS_1;
 	type GetHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
@@ -163,8 +165,38 @@ declare module 'smolrpc' {
 			subscribe: PickSubscribeHandler<Resources, R>;
 		} : never;
 	};
+	interface ServerLogger {
+		receivedRequest: (request: Request<any>, clientId: number, remoteAddress: string | undefined) => void;
+	}
+	type Params = Record<string, string> | null | undefined;
+	type Request<Resources extends AnyResources> = GetRequest<Resources> | SetRequest<Resources> | SubscribeRequest<Resources> | UnsubscribeRequest<Resources>;
+	type GetRequest<Resources extends AnyResources> = {
+		id: number;
+		type: 'GetRequest';
+		resource: keyof Resources & string;
+		params: Params;
+	};
+	type SetRequest<Resources extends AnyResources> = {
+		data: any;
+		id: number;
+		params: Params;
+		resource: keyof Resources & string;
+		type: 'SetRequest';
+	};
+	type SubscribeRequest<Resources extends AnyResources> = {
+		id: number;
+		type: 'SubscribeRequest';
+		resource: keyof Resources & string;
+		params: Params;
+	};
+	type UnsubscribeRequest<Resources extends AnyResources> = {
+		id: number;
+		resource: keyof Resources & string;
+		type: 'UnsubscribeRequest';
+		params: Params;
+	};
 	/// <reference types="node" />
-	type Data = string | ArrayBufferLike | Blob | ArrayBufferView | Buffer | Buffer[];
+	type Data = string | ArrayBufferLike | ArrayBufferView | Buffer | Buffer[];
 	interface WSErrorEvent {
 		error: any;
 		message: string;

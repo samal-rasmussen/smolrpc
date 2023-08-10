@@ -10,7 +10,6 @@
  * @typedef {import('./server.types.ts').SetHandlerWithParams<any, any, any>} SetHandlerWithParams
  * @typedef {import('./server.types.ts').SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
  * @typedef {import('./websocket.types.ts').WS} WS
- * @typedef {import('http').IncomingMessage} IncomingMessage
  *
  */
 
@@ -48,31 +47,11 @@ function validateParams(resource, params) {
 }
 
 /**
- *
- * @param {IncomingMessage} req
- * @returns {string | undefined}
- */
-function getRemoteAddress(req) {
-	const remoteAddress = req.socket.remoteAddress;
-	if (remoteAddress == null) {
-		return undefined;
-	}
-	const remotePort = req.socket.remotePort;
-	if (remotePort == null) {
-		return remoteAddress;
-	}
-	if (req.socket.remoteFamily === 'IPv6') {
-		return `[${remoteAddress}]:${remotePort}`;
-	}
-	return `${remoteAddress}:${remotePort}`;
-}
-
-/**
  * @template {import("./types").AnyResources} Resources
  * @param {import("./server.types.ts").Router<Resources>} router
  * @param {import("./types.ts").AnyResources} resources
  * @param {{serverLogger?: import('./server.types.ts').ServerLogger}} [options]
- * @returns {{ addConnection: (ws: WS, req: IncomingMessage) => void }}
+ * @returns {{ addConnection: (ws: WS, remoteAddress?: string | undefined) => void }}
  */
 export function initServer(router, resources, options) {
 	let clientId = 0;
@@ -103,9 +82,9 @@ export function initServer(router, resources, options) {
 
 	/**
 	 * @param {WS} ws
-	 * @param {IncomingMessage} req
+	 * @param {string | undefined} [remoteAddress]
 	 */
-	function addConnection(ws, req) {
+	function addConnection(ws, remoteAddress) {
 		const existing = listeners.get(ws);
 		if (existing != null) {
 			throw new Error(
@@ -115,7 +94,7 @@ export function initServer(router, resources, options) {
 		const listenerData = {
 			clientId: clientId++,
 			listeners: new Map(),
-			remoteAddress: getRemoteAddress(req),
+			remoteAddress,
 		};
 		listeners.set(ws, listenerData);
 		ws.addEventListener('close', () => {
