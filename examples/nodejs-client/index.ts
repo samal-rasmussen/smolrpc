@@ -46,10 +46,21 @@ const newComment = await client['/posts/:postId/comments/new'].set({
 	params: { postId: newPost.id },
 	request: { content: 'sick comment' },
 });
+const newComment2 = await client['/posts/:postId/comments/new'].set({
+	params: { postId: newPost.id },
+	request: { content: 'another sick comment' },
+});
 const postcomments = await client['/posts/:postId/comments'].get({
 	params: { postId: newPost.id },
 });
 console.log('get /posts/:id/comments', postcomments);
+await client['/posts/:postId/comments/:commentId'].set({
+	params: {
+		postId: newPost.id,
+		commentId: newComment.id,
+	},
+	request: { content: 'more sick comment' },
+});
 
 function sleep(timeout: number) {
 	new Promise<void>((res) => setTimeout(() => res(), timeout));
