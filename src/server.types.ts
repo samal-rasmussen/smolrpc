@@ -5,6 +5,7 @@ import type {
 	ResourceParams,
 	Subscribable,
 } from './types.ts';
+import { Request } from './message.types.ts';
 
 export type GetHandler<
 	Resources extends AnyResources,
@@ -128,3 +129,7 @@ export type Router<Resources extends AnyResources> = {
 		  }
 		: never;
 };
+
+export interface ServerLogger {
+	receivedRequest: (request: Request<any>) => void;
+}

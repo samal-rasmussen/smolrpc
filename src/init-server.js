@@ -46,27 +46,13 @@ function validateParams(resource, params) {
 }
 
 /**
- *
- * @param {any} result
- * @param {import('zod').ZodTypeAny} parser
- * @param {string} resource
- * @returns
- */
-function parseResult(result, parser, resource) {
-	const parsed = parser.safeParse(result);
-	if (!parsed.success) {
-		console.error(`invalid route response for ${resource}`, result);
-		return;
-	}
-}
-
-/**
  * @template {import("./types").AnyResources} Resources
  * @param {import("./server.types.ts").Router<Resources>} router
- *  @param {import("./types.ts").AnyResources} resources
+ * @param {import("./types.ts").AnyResources} resources
+ * @param {{serverLogger?: import('./server.types.ts').ServerLogger}} [options]
  * @returns {{ addConnection: (ws: WS) => void }}
  */
-export function initServer(router, resources) {
+export function initServer(router, resources, options) {
 	/**
 	 * @type {Map<WS, Map<string, Unsubscribable>>}
 	 */
@@ -136,6 +122,7 @@ export function initServer(router, resources) {
 			console.error(`no id number on message`);
 			return;
 		}
+		options?.serverLogger?.receivedRequest(request);
 		if (typeof request.resource !== 'string') {
 			console.error(`no resource string on message`);
 			return;
@@ -176,7 +163,6 @@ export function initServer(router, resources) {
 				const routeHandler = /** @type {{get: GetHandlerWithParams}}*/ (
 					/** @type {any}*/ (routerHandlers)
 				).get;
-				console.log('get', args);
 				const result = await routeHandler(args);
 				const parsed = resourceDefinition.response.safeParse(result);
 				if (!parsed.success) {
@@ -193,10 +179,9 @@ export function initServer(router, resources) {
 					type: 'GetResponse',
 					resource: request.resource,
 				};
-				// console.log(response, JSON.stringify(response));
 				ws.send(JSON.stringify(response));
 			} catch (error) {
-				console.error(error);
+				console.error('handling get request failed', request, error);
 				sendReject(ws, '500', request);
 			}
 		} else if (request.type === 'SetRequest') {
@@ -218,7 +203,6 @@ export function initServer(router, resources) {
 				const routeHandler = /** @type {{set: SetHandlerWithParams}}*/ (
 					/** @type {any}*/ (routerHandlers)
 				).set;
-				console.log('set', args);
 				const result = await routeHandler(args);
 				const parsed = resourceDefinition.response.safeParse(result);
 				if (!parsed.success) {
@@ -237,7 +221,7 @@ export function initServer(router, resources) {
 				};
 				ws.send(JSON.stringify(response));
 			} catch (error) {
-				console.error(error);
+				console.error('handling set request failed', request, error);
 				sendReject(ws, '500', request);
 			}
 		} else if (request.type === 'SubscribeRequest') {
@@ -267,7 +251,6 @@ export function initServer(router, resources) {
 					/** @type {{subscribe: SubscribeHandlerWithParams}}*/ (
 						/** @type {any}*/ (routerHandlers)
 					).subscribe;
-				console.log('subscribe', args);
 				const observable = await routerHandler(args);
 				const subscription = observable.subscribe({
 					next(val) {
@@ -302,7 +285,11 @@ export function initServer(router, resources) {
 				};
 				ws.send(JSON.stringify(response));
 			} catch (error) {
-				console.error(error);
+				console.error(
+					'handling subscribe request failed',
+					request,
+					error,
+				);
 				sendReject(ws, '500', request);
 			}
 		} else if (request.type === 'UnsubscribeRequest') {
@@ -330,7 +317,11 @@ export function initServer(router, resources) {
 				};
 				ws.send(JSON.stringify(response));
 			} catch (error) {
-				console.error(error);
+				console.error(
+					'handling unsubscribe request failed',
+					request,
+					error,
+				);
 				sendReject(ws, '500', request);
 			}
 		} else {
