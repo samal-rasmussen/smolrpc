@@ -6,10 +6,6 @@ const comment = z.object({ content: z.string(), id: z.number() });
 
 // Resources for handling posts
 export const posts = {
-	'/wat': {
-		response: z.object({ wat: z.string() }),
-		type: 'get',
-	},
 	'/posts': {
 		response: z.array(post),
 		type: 'get|subscribe',

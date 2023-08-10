@@ -9,20 +9,20 @@ const client = await initClient<Resources>({
 	connectionStateCb: (state) => console.log(`connection state ${state}`),
 });
 
-const setResult = await client['/posts/new'].set({
+const newPost = await client['/posts/new'].set({
 	request: { content: 'sick post' },
 });
-console.log('set', setResult);
+console.log('set', newPost);
 const posts = await client['/posts'].get();
 console.log('get posts', posts);
 const post = await client['/posts/:postId'].get({
-	params: { postId: setResult.id },
+	params: { postId: newPost.id },
 });
 console.log('get post', post);
 
 client['/posts/:postId']
 	.subscribe({
-		params: { postId: setResult.id },
+		params: { postId: newPost.id },
 	})
 	.subscribe({
 		next: (post) => {
@@ -31,25 +31,25 @@ client['/posts/:postId']
 	});
 
 await client['/posts/:postId'].set({
-	params: { postId: setResult.id },
+	params: { postId: newPost.id },
 	request: { content: 'more sick post' },
 });
 
 // await sleep(1000);
 // subscription.unsubscribe();
 await client['/posts/:postId'].set({
-	params: { postId: '123' },
-	request: { content: '999' },
+	params: { postId: newPost.id },
+	request: { content: 'sickest post' },
 });
 
-await client['/posts/:postId/comments/:commentId'].set({
-	params: { postId: 123, commentId: 456 },
+const newComment = await client['/posts/:postId/comments/new'].set({
+	params: { postId: newPost.id },
 	request: { content: 'sick comment' },
 });
-const post123comments = await client['/posts/:postId/comments'].get({
-	params: { postId: 123 },
+const postcomments = await client['/posts/:postId/comments'].get({
+	params: { postId: newPost.id },
 });
-console.log('get /posts/123/comments', post123comments);
+console.log('get /posts/:id/comments', postcomments);
 
 function sleep(timeout: number) {
 	new Promise<void>((res) => setTimeout(() => res(), timeout));
