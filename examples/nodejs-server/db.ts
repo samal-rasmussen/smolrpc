@@ -8,8 +8,25 @@ export const db = {
 		return map.get(resource);
 	},
 	getAll(resource: string) {
+		const resourceSlashCount = resource.split('/').length;
 		return Array.from(map.entries())
-			.filter(([key]) => key.startsWith(resource))
+			.filter(([key]) => {
+				if (!key.startsWith(resource)) {
+					// Must be prefixed with same resource
+					return false;
+				}
+				const split = key.split('/');
+				if (resourceSlashCount !== split.length - 1) {
+					// Must have exactly one extra slash
+					return false;
+				}
+				const last = split.at(-1);
+				if (last == null || last.length < 1) {
+					// Must have at least one char after last slash
+					return false;
+				}
+				return true;
+			})
 			.map(([_, value]) => value);
 	},
 	set<T>(resource: string, value: T) {

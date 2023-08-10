@@ -20,7 +20,7 @@ const post = await client['/posts/:postId'].get({
 });
 console.log('get post', post);
 
-client['/posts/:postId']
+const subscription = client['/posts/:postId']
 	.subscribe({
 		params: { postId: newPost.id },
 	})
