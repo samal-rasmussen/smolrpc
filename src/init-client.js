@@ -2,7 +2,8 @@
  * @typedef {import("./types").AnyResources} AnyResources
  * @typedef {import("./types").Subscribable<any>} Subscribable
  * @typedef {import("./message.types").Params} Params
- * @typedef {import("./message.types").Reject<any>} Reject
+ * @typedef {import("./message.types").RequestReject<any>} RequestReject
+ * @typedef {import("./message.types").Reject} Reject
  * @typedef {import("./message.types").Request<any>} Request
  * @typedef {import("./message.types").Response<any>} Response
  * @typedef {import("./message.types").SubscribeEvent<any>} SubscribeEvent
@@ -230,7 +231,9 @@ export async function initClient({ url, connectionStateCb }) {
 						if (msg.type === 'RequestReject') {
 							const paramsErrMsg =
 								msg.request.params != null
-									? ` with params ${msg.request.params}`
+									? ` with params ${JSON.stringify(
+											msg.request.params,
+									  )}`
 									: '';
 							const errMsg =
 								`Get request on ${msg.request.resource}` +
@@ -273,7 +276,9 @@ export async function initClient({ url, connectionStateCb }) {
 						if (msg.type === 'RequestReject') {
 							const paramsErrMsg =
 								msg.request.params != null
-									? ` with params ${msg.request.params}`
+									? ` with params ${JSON.stringify(
+											msg.request.params,
+									  )}`
 									: '';
 							const errMsg =
 								`Set request on ${msg.request.resource}` +

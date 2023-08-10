@@ -39,20 +39,20 @@ const client = await initClient<SimpleResources>({
 // type: { content: string; id: string; }[]
 const posts = await client['/posts'].get();
 // type: { content: string; id: string; }
-const post123 = await client['/posts/:id'].get({
-	params: { id: 123 },
+const post123 = await client['/posts/:postId'].get({
+	params: { postId: 123 },
 });
-client['/posts/:id']
+client['/posts/:postId']
 	.subscribe({
-		params: { id: 123 },
+		params: { postId: 123 },
 	})
 	.subscribe({
 		next: (post) => {
-			console.log(post);
+			console.log('event', post);
 		},
 	});
-await client['/posts/:id'].set({
-	params: { id: '123' },
+await client['/posts/:postId'].set({
+	params: { postId: 123 },
 	request: { content: 'sick post' },
 });
 ```

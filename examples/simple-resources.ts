@@ -11,7 +11,7 @@ export const resources = {
 		response: z.array(post),
 		type: 'get|subscribe',
 	},
-	'/posts/:id': {
+	'/posts/:postId': {
 		request: post.omit({ id: true }),
 		response: post,
 		type: 'get|set|subscribe',

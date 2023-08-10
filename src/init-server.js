@@ -315,12 +315,24 @@ export function initServer(router, resources, options) {
 					sendReject(ws, 'Already subscribed', request);
 					return;
 				}
+
 				/** @type {PickSubscribeHandler} */
 				const routerHandler =
 					/** @type {{subscribe: SubscribeHandlerWithParams}}*/ (
 						/** @type {any}*/ (routerHandlers)
 					).subscribe;
 				const observable = await routerHandler(args);
+
+				// Send SubscribeAccept before calling observable.subscribe,
+				// because observable.subscribe will send the initial subscription event
+				/** @type {import("./message.types.ts").SubscribeAccept<any>} */
+				const response = {
+					id: request.id,
+					resource: request.resource,
+					type: 'SubscribeAccept',
+				};
+				ws.send(JSON.stringify(response));
+
 				const subscription = observable.subscribe({
 					next(val) {
 						const parsed = responseSchema.safeParse(val);
@@ -345,13 +357,6 @@ export function initServer(router, resources, options) {
 					args.resourceWithParams ?? args.resource,
 					subscription,
 				);
-				/** @type {import("./message.types.ts").SubscribeAccept<any>} */
-				const response = {
-					id: request.id,
-					resource: request.resource,
-					type: 'SubscribeAccept',
-				};
-				ws.send(JSON.stringify(response));
 			} catch (error) {
 				console.error(
 					'handling subscribe request failed',

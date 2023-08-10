@@ -36,8 +36,10 @@ export const db = {
 			map.set(resource, value);
 		}
 		const resourceListeners = listeners.get(resource);
-		resourceListeners?.forEach((l) => {
-			l(value);
+		setImmediate(() => {
+			resourceListeners?.forEach((l) => {
+				l(value);
+			});
 		});
 		return value;
 	},
@@ -54,7 +56,8 @@ export const db = {
 					listeners.set(resource, resourceListeners);
 				}
 				resourceListeners.add(listener);
-				observer.next?.(map.get(resource));
+				const val = map.get(resource);
+				observer.next?.(val);
 				return {
 					unsubscribe: () => {
 						const resourceListeners = listeners.get(resource);
