@@ -53,8 +53,9 @@ declare module 'smolrpc' {
 		} : never;
 	};
 	type ConnectionState = 'offline' | 'connecting' | 'reconnecting' | 'online';
-	export function initClient<Resources extends AnyResources>({ url, connectionStateCb }: {
+	export function initClient<Resources extends AnyResources>({ url, createWebSocket, connectionStateCb }: {
 		url: string;
+		createWebSocket?: ((url: string) => WebSocket) | undefined;
 		connectionStateCb?: ((connectionState: ConnectionState) => void) | undefined;
 	}): Promise<Client<Resources>>;
 	/**

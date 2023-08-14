@@ -9,6 +9,13 @@
  * @typedef {import("./message.types").SubscribeEvent<any>} SubscribeEvent
  */
 
+const ReadyStates = Object.freeze({
+	CONNECTING: 0,
+	OPEN: 1,
+	CLOSING: 2,
+	CLOSED: 3,
+});
+
 import { getResourceWithParams } from './shared.js';
 
 /**
@@ -27,16 +34,27 @@ function addRandomJitter(number, jitterPercentage) {
  * @template {AnyResources} Resources
  * @param {{
  * 	url: string,
+ *  createWebSocket?: (url: string) => WebSocket,
  * 	connectionStateCb?: (connectionState: import("./client.types").ConnectionState) => void}
  * } args
  * @return {Promise<import("./client.types").Client<Resources>>}
  */
-export async function initClient({ url, connectionStateCb }) {
-	if (globalThis.WebSocket == null) {
+export async function initClient({ url, createWebSocket, connectionStateCb }) {
+	if (createWebSocket == null && globalThis.WebSocket == null) {
 		throw new Error(
-			`initClient: globalThis.WebScoket not found. On nodejs you will need to polyfill globalThis.WebSocket.`,
+			`initClient: globalThis.WebSocket not found. ` +
+				`When runnin initClient on runtimes like nodejs that don't have ` +
+				`a WebSocket client built in, you will need to pass in a createWebSocket ` +
+				`helper function that returns a new WebSocket client instance.`,
 		);
 	}
+	const cWebSocket =
+		createWebSocket == null
+			? (createWebSocket = (url) => {
+					return new WebSocket(url);
+			  })
+			: createWebSocket;
+
 	return new Promise((resolve) => {
 		/** @type {WebSocket | undefined} */
 		let websocket;
@@ -83,7 +101,7 @@ export async function initClient({ url, connectionStateCb }) {
 				console.warn('initClient.open: websocket already open');
 				return;
 			}
-			websocket = new WebSocket(url);
+			websocket = cWebSocket(url);
 			websocket.addEventListener('open', () => {
 				// console.log('initClient: websocket connected');
 
@@ -209,7 +227,10 @@ export async function initClient({ url, connectionStateCb }) {
 		 * @param {Request} request
 		 */
 		function sendRequest(request) {
-			if (websocket == null || websocket.readyState !== WebSocket.OPEN) {
+			if (
+				websocket == null ||
+				websocket.readyState !== ReadyStates.OPEN
+			) {
 				sendQueue.push(request);
 				return;
 			}
