@@ -58,6 +58,8 @@ declare module 'smolrpc' {
 		createWebSocket?: ((url: string) => WebSocket) | undefined;
 		connectionStateCb?: ((connectionState: ConnectionState) => void) | undefined;
 	}): Client<Resources>;
+
+	export function dummyClient<Resources extends AnyResources>(): Client<Resources>;
 	/**
 	 * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
 	 * with the params as keys (eg. `{ thingId: string }`).
