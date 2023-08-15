@@ -51,7 +51,9 @@ function validateParams(resource, params) {
  * @param {import("./server.types.ts").Router<Resources>} router
  * @param {import("./types.ts").AnyResources} resources
  * @param {{serverLogger?: import('./server.types.ts').ServerLogger}} [options]
- * @returns {{ addConnection: (ws: WS, remoteAddress?: string | undefined) => void }}
+ * @returns {{
+ * 	addConnection: (ws: WS, remoteAddress?: string | undefined) => void
+ * }}
  */
 export function initServer(router, resources, options) {
 	let clientId = 0;
