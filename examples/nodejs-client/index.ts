@@ -2,7 +2,7 @@ import { WebSocket as ws } from 'ws';
 import { initClient } from '../../src/init-client.js';
 import { Resources } from '../resources.js';
 
-const client = await initClient<Resources>({
+const client = initClient<Resources>({
 	url: 'ws://localhost:9200',
 	createWebSocket: (url) => new ws(url) as any as WebSocket,
 	connectionStateCb: (state) => console.log(`connection state ${state}`),
