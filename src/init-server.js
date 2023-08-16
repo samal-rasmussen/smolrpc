@@ -10,7 +10,6 @@
  * @typedef {import('./server.types.ts').SetHandlerWithParams<any, any, any>} SetHandlerWithParams
  * @typedef {import('./server.types.ts').SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
  * @typedef {import('./websocket.types.ts').WS} WS
- *
  */
 
 import { getResourceWithParams } from './shared.js';
@@ -195,6 +194,7 @@ export function initServer(router, resources, options) {
 			try {
 				/** @type {Parameters<GetHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
+					clientId,
 					resource: request.resource,
 				});
 				if (request.params != null) {
@@ -237,6 +237,7 @@ export function initServer(router, resources, options) {
 			try {
 				/** @type {Parameters<SetHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
+					clientId,
 					resource: request.resource,
 					request: request.data,
 				});
@@ -281,6 +282,7 @@ export function initServer(router, resources, options) {
 			try {
 				/** @type {Parameters<SubscribeHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
+					clientId,
 					resource: request.resource,
 				});
 				if (request.params != null) {

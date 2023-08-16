@@ -439,28 +439,28 @@ export function initClient({ url, createWebSocket, connectionStateCb }) {
 	/** @type {import("./client.types").Client<Resources> & {close: () => void}} */
 	const proxy = /** @type {any} */ (
 		new Proxy(
-		{},
-		{
+			{},
+			{
 				get(target, /** @type {string} */ p, receiver) {
 					if (p === 'close') {
 						return () => {
 							close();
 						};
 					}
-				return {
-					get: (/** @type {{ params: Params; }} */ args) =>
-						getHandler(p, args?.params),
-					set: (
-						/** @type {{ params: Params; request: any }} */ {
-							request,
-							params,
-						},
-					) => setHandler(p, request, params),
-					subscribe: (/** @type {{ params: Params; }} */ args) =>
-						subscribeHandler(p, args?.params),
-				};
+					return {
+						get: (/** @type {{ params: Params; }} */ args) =>
+							getHandler(p, args?.params),
+						set: (
+							/** @type {{ params: Params; request: any }} */ {
+								request,
+								params,
+							},
+						) => setHandler(p, request, params),
+						subscribe: (/** @type {{ params: Params; }} */ args) =>
+							subscribeHandler(p, args?.params),
+					};
+				},
 			},
-		},
 		)
 	);
 
@@ -473,24 +473,25 @@ export function initClient({ url, createWebSocket, connectionStateCb }) {
  * @return {import("./client.types").Client<Resources>}
  */
 export function dummyClient() {
+	const noopPromise = new Promise(() => {});
+	const noopSubscribable = /** @type {Subscribable} */ ({
+		subscribe: () => ({
+			unsubscribe: () => {},
+		}),
+	});
 	/** @type {import("./client.types").Client<Resources>} */
 	const proxy = /** @type {any} */ (
 		new Proxy(
-		{},
-		{
-			get() {
-				return {
-					get: () => Promise.resolve(),
-					set: () => Promise.resolve(),
-					subscribe: () =>
-						/** @type {Subscribable} */ ({
-							subscribe: () => ({
-								unsubscribe: () => {},
-							}),
-						}),
-				};
+			{},
+			{
+				get() {
+					return {
+						get: () => noopPromise,
+						set: () => noopPromise,
+						subscribe: () => noopSubscribable,
+					};
+				},
 			},
-		},
 		)
 	);
 

@@ -102,19 +102,23 @@ declare module 'smolrpc' {
 	};
 	type WS = WS_1;
 	type GetHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
+		clientId: number;
 		resource: Resource;
 	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	type GetHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
+		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
 	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	type PickGetHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null ? GetHandler_1<Resources, Resource> : GetHandlerWithParams<Resources, Resource>;
 	type SetHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = (args: {
+		clientId: number;
 		resource: Resource;
 		request: z.infer<Request>;
 	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	type SetHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = (args: {
+		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
@@ -122,9 +126,11 @@ declare module 'smolrpc' {
 	}) => Promise<z.infer<Resources[Resource]['response']>>;
 	type PickSetHandler<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = ResourceParams<Resource> extends null ? SetHandler_1<Resources, Resource, Request> : SetHandlerWithParams<Resources, Resource, Request>;
 	type SubscribeHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
+		clientId: number;
 		resource: Resource;
 	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
 	type SubscribeHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
+		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
