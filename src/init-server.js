@@ -52,11 +52,11 @@ function validateParams(resource, params) {
  * @param {import("./types.ts").AnyResources} resources
  * @param {{serverLogger?: import('./server.types.ts').ServerLogger}} [options]
  * @returns {{
- * 	addConnection: (ws: WS, remoteAddress?: string | undefined) => void
+ * 	addConnection: (ws: WS, remoteAddress?: string | undefined) => number
  * }}
  */
 export function initServer(router, resources, options) {
-	let clientId = 0;
+	let nextClientId = 0;
 
 	/**
 	 * @type {Map<WS, {
@@ -85,6 +85,7 @@ export function initServer(router, resources, options) {
 	/**
 	 * @param {WS} ws
 	 * @param {string | undefined} [remoteAddress]
+	 * @returns {number} clientId
 	 */
 	function addConnection(ws, remoteAddress) {
 		const existing = listeners.get(ws);
@@ -93,8 +94,9 @@ export function initServer(router, resources, options) {
 				'initServer.onOpen: Found unexpected existing map of listeners for websocket connection',
 			);
 		}
+		const clientId = nextClientId++;
 		const listenerData = {
-			clientId: clientId++,
+			clientId,
 			listeners: new Map(),
 			remoteAddress,
 		};
@@ -122,15 +124,16 @@ export function initServer(router, resources, options) {
 				listenerData.remoteAddress,
 			);
 		});
+		return clientId;
 	}
 
 	/**
 	 * @param {import("./websocket.types.ts").Data} data
 	 * @param {WS} ws
-	 * @param {number}cliendId
+	 * @param {number} clientId
 	 * @param {string | undefined} remoteAddress
 	 */
-	async function handleWSMessage(data, ws, cliendId, remoteAddress) {
+	async function handleWSMessage(data, ws, clientId, remoteAddress) {
 		if (typeof data != 'string') {
 			console.error(
 				`Only string data supported. typeof event.data = ${typeof data}`,

@@ -37,7 +37,7 @@ function addRandomJitter(number, jitterPercentage) {
  *  createWebSocket?: (url: string) => WebSocket,
  * 	connectionStateCb?: (connectionState: import("./client.types").ConnectionState) => void}
  * } args
- * @return {import("./client.types").Client<Resources>}
+ * @return {import("./client.types").Client<Resources> & {close: () => void}}
  */
 export function initClient({ url, createWebSocket, connectionStateCb }) {
 	if (createWebSocket == null && globalThis.WebSocket == null) {
@@ -436,11 +436,17 @@ export function initClient({ url, createWebSocket, connectionStateCb }) {
 		return subscribable;
 	}
 
-	/** @type {any} */
-	const proxy = new Proxy(
+	/** @type {import("./client.types").Client<Resources> & {close: () => void}} */
+	const proxy = /** @type {any} */ (
+		new Proxy(
 		{},
 		{
-			get(target, /** @type {any} */ p, receiver) {
+				get(target, /** @type {string} */ p, receiver) {
+					if (p === 'close') {
+						return () => {
+							close();
+						};
+					}
 				return {
 					get: (/** @type {{ params: Params; }} */ args) =>
 						getHandler(p, args?.params),
@@ -455,6 +461,7 @@ export function initClient({ url, createWebSocket, connectionStateCb }) {
 				};
 			},
 		},
+		)
 	);
 
 	open();
@@ -466,8 +473,9 @@ export function initClient({ url, createWebSocket, connectionStateCb }) {
  * @return {import("./client.types").Client<Resources>}
  */
 export function dummyClient() {
-	/** @type {any} */
-	const proxy = new Proxy(
+	/** @type {import("./client.types").Client<Resources>} */
+	const proxy = /** @type {any} */ (
+		new Proxy(
 		{},
 		{
 			get() {
@@ -483,6 +491,7 @@ export function dummyClient() {
 				};
 			},
 		},
+		)
 	);
 
 	return proxy;

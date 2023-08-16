@@ -57,7 +57,9 @@ declare module 'smolrpc' {
 		url: string;
 		createWebSocket?: ((url: string) => WebSocket) | undefined;
 		connectionStateCb?: ((connectionState: ConnectionState) => void) | undefined;
-	}): Client<Resources>;
+	}): Client<Resources> & {
+		close: () => void;
+	};
 
 	export function dummyClient<Resources extends AnyResources>(): Client<Resources>;
 	/**
@@ -96,7 +98,7 @@ declare module 'smolrpc' {
 	export function initServer<Resources extends AnyResources>(router: Router<Resources>, resources: AnyResources, options?: {
 		serverLogger?: ServerLogger | undefined;
 	} | undefined): {
-		addConnection: (ws: WS, remoteAddress?: string | undefined) => void;
+		addConnection: (ws: WS, remoteAddress?: string | undefined) => number;
 	};
 	type WS = WS_1;
 	type GetHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {

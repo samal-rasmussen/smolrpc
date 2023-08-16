@@ -2,11 +2,23 @@ import { WebSocket as ws } from 'ws';
 import { initClient } from '../../src/init-client.js';
 import { Resources } from '../resources.js';
 
+let resolve: () => void;
+const connected = new Promise<void>((res) => {
+	resolve = res;
+});
+
 const client = initClient<Resources>({
 	url: 'ws://localhost:9200',
 	createWebSocket: (url) => new ws(url) as any as WebSocket,
-	connectionStateCb: (state) => console.log(`connection state ${state}`),
+	connectionStateCb: (state) => {
+		console.log(`connection state ${state}`);
+		if (state === 'online') {
+			resolve();
+		}
+	},
 });
+
+await connected;
 
 const newPost = await client['/posts/new'].set({
 	request: { content: 'sick post' },
