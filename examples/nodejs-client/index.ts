@@ -10,11 +10,13 @@ const connected = new Promise<void>((res) => {
 const client = initClient<Resources>({
 	url: 'ws://localhost:9200',
 	createWebSocket: (url) => new ws(url) as any as WebSocket,
-	connectionStateCb: (state) => {
-		console.log(`connection state ${state}`);
-		if (state === 'online') {
-			resolve();
-		}
+	onopen: () => {
+		resolve();
+	},
+	onclose: (event) => {
+		console.log(
+			`closed with code ${event.code} and reason ${event.reason}`,
+		);
 	},
 });
 
@@ -73,6 +75,6 @@ await client['/posts/:postId/comments/:commentId'].set({
 	request: { content: 'more sick comment' },
 });
 
-function sleep(timeout: number) {
-	new Promise<void>((res) => setTimeout(() => res(), timeout));
+async function sleep(timeout: number) {
+	return new Promise<void>((res) => setTimeout(res, timeout));
 }

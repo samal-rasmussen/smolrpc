@@ -6,7 +6,8 @@ Communicates over websockets and supports three operations on user defined resou
 
 Uses Zod for runtime typechecking. No other dependencies.
 
-Inspired by tRPC (https://trpc.io/), ts-rest (https://ts-rest.com/), and Zodios (https://www.zodios.org/).
+Inspired by the typesafe Typescript apis as done by tRPC (https://trpc.io/), ts-rest (https://ts-rest.com/), and Zodios (https://www.zodios.org/).
+And by the WebSocket api as done by Sockette (https://github.com/lukeed/sockette).
 
 You define the api in one place and import and use the same api types on both the server and the client.
 

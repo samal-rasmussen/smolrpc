@@ -6,9 +6,7 @@
 		"SetHandler",
 		"SubscribeHandler",
 		"Client",
-		"ConnectionState",
 		"initClient",
-		"dummyClient",
 		"ResourceParams",
 		"AnySettableResource",
 		"AnyResources",
@@ -26,6 +24,7 @@
 		"PickSubscribeHandler",
 		"Router",
 		"ServerLogger",
+		"dummyClient",
 		"Params",
 		"Request",
 		"GetRequest",
@@ -41,6 +40,7 @@
 		"../src/types.ts",
 		"../src/init-server.js",
 		"../src/websocket.types.ts",
+		"../src/init-client-proxy.js",
 		"../src/message.types.ts"
 	],
 	"sourcesContent": [
@@ -50,7 +50,8 @@
 		null,
 		null,
 		null,
+		null,
 		null
 	],
-	"mappings": ";;MASYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;aCzBhBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;MAiDNC,eAAeA;iBC/CXC,UAAUA;;;;;;;;iBAibVC,WAAWA;;;;;MCjdfC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCUFC,UAAUA;;;;;MCxBdC,EAAEA;;;;;MLfFC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;MMxIjBC,MAAMA;MAENC,OAAOA;MAoBPC,UAAUA;;;;;;MAYVC,UAAUA;;;;;;;MAaVC,gBAAgBA;;;;;;MAiBhBC,kBAAkBA;;;;;;;MDlElBC,IAAIA"
+	"mappings": ";;MASYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;aCwBhBC,MAAMA;;;;iBCxEFC,UAAUA;;;;;;;;;;;;;MCPdC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCUFC,UAAUA;;;;;MCxBdC,EAAEA;;;;;MLfFC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;iBM8NbC,WAAWA;MCtWfC,MAAMA;MAENC,OAAOA;MAoBPC,UAAUA;;;;;;MAYVC,UAAUA;;;;;;;MAaVC,gBAAgBA;;;;;;MAiBhBC,kBAAkBA;;;;;;;MFlElBC,IAAIA"
 }

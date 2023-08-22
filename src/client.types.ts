@@ -37,7 +37,7 @@ type SubscribeHandler<
 			params: ResourceParams<Resource>;
 	  }) => Subscribable<z.infer<Resources[Resource]['response']>>;
 
-export type Client<Resources extends AnyResources> = {
+type ResourcesClient<Resources extends AnyResources> = {
 	[R in keyof Resources & string]: Resources[R] extends {
 		type: 'get';
 	}
@@ -85,6 +85,9 @@ export type Client<Resources extends AnyResources> = {
 		  }
 		: never;
 };
+
+export type Client<Resources extends AnyResources> =
+	ResourcesClient<Resources> & { close: () => void; open: () => void };
 
 export type ConnectionState =
 	| 'offline'

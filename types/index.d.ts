@@ -12,7 +12,7 @@ declare module 'smolrpc' {
 	type SubscribeHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null | undefined ? () => Subscribable<z.infer<Resources[Resource]['response']>> : (args: {
 		params: ResourceParams<Resource>;
 	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
-	export type Client<Resources extends AnyResources> = {
+	type ResourcesClient<Resources extends AnyResources> = {
 		[R in keyof Resources & string]: Resources[R] extends {
 			type: 'get';
 		} ? {
@@ -52,16 +52,19 @@ declare module 'smolrpc' {
 			subscribe: SubscribeHandler<Resources, R>;
 		} : never;
 	};
-	type ConnectionState = 'offline' | 'connecting' | 'reconnecting' | 'online';
-	export function initClient<Resources extends AnyResources>({ url, createWebSocket, connectionStateCb }: {
+	export type Client<Resources extends AnyResources> = ResourcesClient<Resources> & {
+		close: () => void;
+		open: () => void;
+	};
+	export function initClient<Resources extends AnyResources>({ url, createWebSocket, onopen, onmessage, onreconnect, onclose, onerror, }: {
 		url: string;
 		createWebSocket?: ((url: string) => WebSocket) | undefined;
-		connectionStateCb?: ((connectionState: ConnectionState) => void) | undefined;
-	}): Client<Resources> & {
-		close: () => void;
-	};
-
-	export function dummyClient<Resources extends AnyResources>(): Client<Resources>;
+		onopen?: ((e: Event) => void) | undefined;
+		onmessage?: ((e: MessageEvent) => void) | undefined;
+		onreconnect?: (() => void) | undefined;
+		onclose?: ((e: CloseEvent) => void) | undefined;
+		onerror?: ((e: Event) => void) | undefined;
+	}): Client<Resources>;
 	/**
 	 * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
 	 * with the params as keys (eg. `{ thingId: string }`).
@@ -179,6 +182,7 @@ declare module 'smolrpc' {
 	interface ServerLogger {
 		receivedRequest: (request: Request<any>, clientId: number, remoteAddress: string | undefined) => void;
 	}
+	export function dummyClient<Resources extends AnyResources>(): Client<Resources>;
 	type Params = Record<string, string> | null | undefined;
 	type Request<Resources extends AnyResources> = GetRequest<Resources> | SetRequest<Resources> | SubscribeRequest<Resources> | UnsubscribeRequest<Resources>;
 	type GetRequest<Resources extends AnyResources> = {
