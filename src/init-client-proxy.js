@@ -1,4 +1,4 @@
-import { ReadyStates } from './init-client-websocket';
+import { ReadyStates } from './init-client-websocket.js';
 import { getResourceWithParams } from './shared.js';
 
 /**
@@ -266,12 +266,6 @@ export function initClientProxy(websocket) {
 			{},
 			{
 				get(target, /** @type {string} */ p, receiver) {
-					if (p === 'close') {
-						return close;
-					}
-					if (p === 'open') {
-						return open;
-					}
 					return {
 						get: (/** @type {{ params: Params; }} */ args) =>
 							getHandler(p, args?.params),
@@ -352,8 +346,6 @@ export function initClientProxy(websocket) {
 	};
 }
 
-const noop = () => {};
-
 /**
  * @template {import("./types").AnyResources} Resources
  * @return {import("./client.types").Client<Resources>}
@@ -369,13 +361,7 @@ export function dummyClient() {
 	const proxy = new Proxy(
 		{},
 		{
-			get(targeg, p) {
-				if (p === 'close') {
-					return noop;
-				}
-				if (p === 'open') {
-					return noop;
-				}
+			get() {
 				return {
 					get: () => noopPromise,
 					set: () => noopPromise,

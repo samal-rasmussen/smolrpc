@@ -6,6 +6,7 @@
 		"SetHandler",
 		"SubscribeHandler",
 		"Client",
+		"ClientMethods",
 		"initClient",
 		"ResourceParams",
 		"AnySettableResource",
@@ -53,5 +54,5 @@
 		null,
 		null
 	],
-	"mappings": ";;MASYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;aCwBhBC,MAAMA;;;;iBCxEFC,UAAUA;;;;;;;;;;;;;MCPdC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCUFC,UAAUA;;;;;MCxBdC,EAAEA;;;;;MLfFC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;iBM8NbC,WAAWA;MCtWfC,MAAMA;MAENC,OAAOA;MAoBPC,UAAUA;;;;;;MAYVC,UAAUA;;;;;;;MAaVC,gBAAgBA;;;;;;MAiBhBC,kBAAkBA;;;;;;;MFlElBC,IAAIA"
+	"mappings": ";;MASYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;aCzBhBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,aAAaA;;;;iBCrEdC,UAAUA;;;;;;;;;;;;;;;;MCVdC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCUFC,UAAUA;;;;;MCxBdC,EAAEA;;;;;MLfFC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;iBMsNbC,WAAWA;MC9VfC,MAAMA;MAENC,OAAOA;MAoBPC,UAAUA;;;;;;MAYVC,UAAUA;;;;;;;MAaVC,gBAAgBA;;;;;;MAiBhBC,kBAAkBA;;;;;;;MFlElBC,IAAIA"
 }

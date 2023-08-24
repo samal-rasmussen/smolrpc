@@ -12,7 +12,10 @@ import { initClientWebSocket } from './init-client-websocket.js';
  *  onclose?: (e: CloseEvent) => void,
  *  onerror?: (e: Event) => void,
  * }} args
- * @return {import("./client.types").Client<Resources>}
+ * @return {{
+ *  client: import("./client.types").Client<Resources>,
+ *  clientMethods: import("./client.types").ClientMethods,
+ * }}
  */
 export function initClient({
 	url,
@@ -55,9 +58,17 @@ export function initClient({
 	});
 
 	const clientProxyResult = initClientProxy(clientWebSocket);
-
 	clientWebSocket.open();
-	return /** @type {any} */ (clientProxyResult.proxy);
+	const client = /** @type {import("./client.types").Client<Resources>} */ (
+		clientProxyResult.proxy
+	);
+	return {
+		client,
+		clientMethods: {
+			open: clientWebSocket.open,
+			close: clientWebSocket.close,
+		},
+	};
 }
 
 export { dummyClient } from './init-client-proxy.js';
