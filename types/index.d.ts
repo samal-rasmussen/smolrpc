@@ -107,40 +107,42 @@ declare module 'smolrpc' {
 		addConnection: (ws: WS, remoteAddress?: string | undefined) => number;
 	};
 	type WS = WS_1;
+	type Response<Resources extends AnyResources, Resource extends keyof AnyResources> = z.infer<Resources[Resource]['response']> | Promise<z.infer<Resources[Resource]['response']>>;
+	type SubscribeResponse<Resources extends AnyResources, Resource extends keyof AnyResources> = Subscribable<z.infer<Resources[Resource]['response']>> | Promise<Subscribable<z.infer<Resources[Resource]['response']>>>;
 	type GetHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
 		clientId: number;
 		resource: Resource;
-	}) => Promise<z.infer<Resources[Resource]['response']>>;
+	}) => Response<Resources, Resource>;
 	type GetHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-	}) => Promise<z.infer<Resources[Resource]['response']>>;
+	}) => Response<Resources, Resource>;
 	type PickGetHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null ? GetHandler_1<Resources, Resource> : GetHandlerWithParams<Resources, Resource>;
 	type SetHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = (args: {
 		clientId: number;
 		resource: Resource;
 		request: z.infer<Request>;
-	}) => Promise<z.infer<Resources[Resource]['response']>>;
+	}) => Response<Resources, Resource>;
 	type SetHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
 		request: z.infer<Request>;
-	}) => Promise<z.infer<Resources[Resource]['response']>>;
+	}) => Response<Resources, Resource>;
 	type PickSetHandler<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = ResourceParams<Resource> extends null ? SetHandler_1<Resources, Resource, Request> : SetHandlerWithParams<Resources, Resource, Request>;
 	type SubscribeHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
 		clientId: number;
 		resource: Resource;
-	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
+	}) => SubscribeResponse<Resources, Resource>;
 	type SubscribeHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-	}) => Subscribable<z.infer<Resources[Resource]['response']>>;
+	}) => SubscribeResponse<Resources, Resource>;
 	type PickSubscribeHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null ? SubscribeHandler_1<Resources, Resource> : SubscribeHandlerWithParams<Resources, Resource>;
 	export type Router<Resources extends AnyResources> = {
 		[R in keyof Resources & string]: Resources[R] extends {

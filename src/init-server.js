@@ -5,10 +5,10 @@
  * @typedef {import('./message.types.ts').Request<any>} Request
  * @typedef {import('./server.types.ts').GetHandler<any, any>} GetHandler
  * @typedef {import('./server.types.ts').GetHandlerWithParams<any, any>} GetHandlerWithParams
- * @typedef {import('./server.types.ts').PickSetHandler<any, any, any>} PickSetHandler
- * @typedef {import('./server.types.ts').PickSubscribeHandler<any, any>} PickSubscribeHandler
- * @typedef {import('./server.types.ts').SetHandlerWithParams<any, any, any>} SetHandlerWithParams
+ * @typedef {import('./server.types.ts').SetHandler<any, any, any>} SetHandler
+ *  * @typedef {import('./server.types.ts').SetHandlerWithParams<any, any, any>} SetHandlerWithParams
  * @typedef {import('./server.types.ts').SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
+ * @typedef {import('./server.types.ts').SubscribeHandler<any, any>} SubscribeHandler
  * @typedef {import('./websocket.types.ts').WS} WS
  */
 
@@ -205,10 +205,11 @@ export function initServer(router, resources, options) {
 					args.params = request.params;
 					args.resourceWithParams = resourceWithParams;
 				}
-				const routeHandler = /** @type {{get: GetHandlerWithParams}}*/ (
-					/** @type {any}*/ (routerHandlers)
-				).get;
-				const result = await routeHandler(args);
+				const getHandler =
+					/** @type {{get: GetHandler | GetHandlerWithParams}}*/ (
+						routerHandlers
+					).get;
+				const result = await getHandler(args);
 				const parsed = responseSchema.safeParse(result);
 				if (!parsed.success) {
 					console.error(
@@ -249,11 +250,11 @@ export function initServer(router, resources, options) {
 					args.params = request.params;
 					args.resourceWithParams = resourceWithParams;
 				}
-				/** @type {PickSetHandler} */
-				const routeHandler = /** @type {{set: SetHandlerWithParams}}*/ (
-					/** @type {any}*/ (routerHandlers)
-				).set;
-				const result = await routeHandler(args);
+				const setHandler =
+					/** @type {{set: SetHandler | SetHandlerWithParams}}*/ (
+						routerHandlers
+					).set;
+				const result = await setHandler(args);
 				const parsed = responseSchema.safeParse(result);
 				if (!parsed.success) {
 					console.error(
@@ -302,15 +303,14 @@ export function initServer(router, resources, options) {
 					return;
 				}
 
-				/** @type {PickSubscribeHandler} */
-				const routerHandler =
-					/** @type {{subscribe: SubscribeHandlerWithParams}}*/ (
-						/** @type {any}*/ (routerHandlers)
+				const subscribeHandler =
+					/** @type {{subscribe: SubscribeHandlerWithParams | SubscribeHandler}}*/ (
+						routerHandlers
 					).subscribe;
-				const observable = await routerHandler(args);
+				const subscribable = await subscribeHandler(args);
 
-				// Send SubscribeAccept before calling observable.subscribe,
-				// because observable.subscribe will send the initial subscription event
+				// Send SubscribeAccept before calling subscribable.subscribe,
+				// because subscribable.subscribe will send the initial subscription event
 				/** @type {import("./message.types.ts").SubscribeAccept<any>} */
 				const response = {
 					id: request.id,
@@ -319,7 +319,7 @@ export function initServer(router, resources, options) {
 				};
 				ws.send(JSON.stringify(response));
 
-				const subscription = observable.subscribe({
+				const subscription = subscribable.subscribe({
 					next(val) {
 						const parsed = responseSchema.safeParse(val);
 						if (!parsed.success) {

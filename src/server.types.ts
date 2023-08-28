@@ -7,13 +7,27 @@ import type {
 } from './types.ts';
 import { Request } from './message.types.ts';
 
+export type Response<
+	Resources extends AnyResources,
+	Resource extends keyof AnyResources,
+> =
+	| z.infer<Resources[Resource]['response']>
+	| Promise<z.infer<Resources[Resource]['response']>>;
+
+export type SubscribeResponse<
+	Resources extends AnyResources,
+	Resource extends keyof AnyResources,
+> =
+	| Subscribable<z.infer<Resources[Resource]['response']>>
+	| Promise<Subscribable<z.infer<Resources[Resource]['response']>>>;
+
 export type GetHandler<
 	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
 > = (args: {
 	clientId: number;
 	resource: Resource;
-}) => Promise<z.infer<Resources[Resource]['response']>>;
+}) => Response<Resources, Resource>;
 
 export type GetHandlerWithParams<
 	Resources extends AnyResources,
@@ -23,7 +37,7 @@ export type GetHandlerWithParams<
 	params: ResourceParams<Resource>;
 	resourceWithParams: string;
 	resource: Resource;
-}) => Promise<z.infer<Resources[Resource]['response']>>;
+}) => Response<Resources, Resource>;
 
 export type PickGetHandler<
 	Resources extends AnyResources,
@@ -40,7 +54,7 @@ export type SetHandler<
 	clientId: number;
 	resource: Resource;
 	request: z.infer<Request>;
-}) => Promise<z.infer<Resources[Resource]['response']>>;
+}) => Response<Resources, Resource>;
 
 export type SetHandlerWithParams<
 	Resources extends AnyResources,
@@ -52,7 +66,7 @@ export type SetHandlerWithParams<
 	resourceWithParams: string;
 	resource: Resource;
 	request: z.infer<Request>;
-}) => Promise<z.infer<Resources[Resource]['response']>>;
+}) => Response<Resources, Resource>;
 
 export type PickSetHandler<
 	Resources extends AnyResources,
@@ -68,7 +82,7 @@ export type SubscribeHandler<
 > = (args: {
 	clientId: number;
 	resource: Resource;
-}) => Subscribable<z.infer<Resources[Resource]['response']>>;
+}) => SubscribeResponse<Resources, Resource>;
 
 export type SubscribeHandlerWithParams<
 	Resources extends AnyResources,
@@ -78,7 +92,7 @@ export type SubscribeHandlerWithParams<
 	params: ResourceParams<Resource>;
 	resourceWithParams: string;
 	resource: Resource;
-}) => Subscribable<z.infer<Resources[Resource]['response']>>;
+}) => SubscribeResponse<Resources, Resource>;
 
 export type PickSubscribeHandler<
 	Resources extends AnyResources,
