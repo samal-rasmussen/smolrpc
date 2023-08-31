@@ -215,6 +215,7 @@ export function initServer(router, resources, options) {
 					console.error(
 						`invalid route response for ${request.resource}`,
 						JSON.stringify(result),
+						parsed.error,
 					);
 					return;
 				}
@@ -260,6 +261,7 @@ export function initServer(router, resources, options) {
 					console.error(
 						`invalid route response for ${request.resource}`,
 						JSON.stringify(result),
+						parsed.error,
 					);
 					return;
 				}
@@ -325,7 +327,8 @@ export function initServer(router, resources, options) {
 						if (!parsed.success) {
 							console.error(
 								`invalid route response for ${request.resource}`,
-								val,
+								JSON.stringify(val),
+								parsed.error,
 							);
 							return;
 						}
