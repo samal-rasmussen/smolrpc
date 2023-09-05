@@ -339,6 +339,9 @@ export function initServer(router, resources, options) {
 							resource: request.resource,
 							type: 'SubscribeEvent',
 						};
+						if (request.params != null) {
+							event.params = request.params;
+						}
 						ws.send(JSON.stringify(event));
 					},
 				});

@@ -181,6 +181,7 @@ export function initClientProxy(websocket) {
 						);
 					}
 					listeners.delete(subscriptionData.requestId);
+					subscriptions.delete(resourceWithParams);
 					const unsubRequestId = ++id;
 					websocket.send({
 						id: unsubRequestId,

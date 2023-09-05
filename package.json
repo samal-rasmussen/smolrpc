@@ -1,6 +1,6 @@
 {
 	"name": "smolrpc",
-	"version": "0.12.0",
+	"version": "0.13.0",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": "samal-rasmussen/smolrpc",
 	"license": "MIT",
@@ -23,9 +23,7 @@
 		"deno-server": "deno run --watch --allow-net examples/deno-server/index.ts",
 		"nodejs-client": "tsx --watch examples/nodejs-client/index.ts",
 		"nodejs-server": "tsx --watch examples/nodejs-server/index.ts",
-		"publish-common": "tsc --noEmit && publint",
-		"publish-dry-run": "npm run publish-common && npm publish --registry https://registry.npmjs.org/ --access public --dry-run",
-		"publish-for-real": "npm run publish-common && npm publish --registry https://registry.npmjs.org/ --access public"
+		"publish": "tsc --noEmit && publint && npm publish --registry https://registry.npmjs.org/ --access public"
 	},
 	"dependencies": {
 		"zod": "3.21.4"

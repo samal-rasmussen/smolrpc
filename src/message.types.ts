@@ -62,6 +62,7 @@ export type SubscribeEvent<Resources extends AnyResources> = {
 	data: any;
 	id: number;
 	resource: keyof Resources & string;
+	params?: Params;
 	type: 'SubscribeEvent';
 };
 export type UnsubscribeRequest<Resources extends AnyResources> = {
