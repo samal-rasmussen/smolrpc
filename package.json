@@ -1,6 +1,6 @@
 {
 	"name": "smolrpc",
-	"version": "0.13.0",
+	"version": "0.14.0",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": "samal-rasmussen/smolrpc",
 	"license": "MIT",
@@ -26,7 +26,7 @@
 		"publish": "tsc --noEmit && publint && npm publish --registry https://registry.npmjs.org/ --access public"
 	},
 	"dependencies": {
-		"zod": "3.21.4"
+		"zod": "3.22.4"
 	},
 	"devDependencies": {
 		"@types/ws": "8.5.5",

@@ -102,16 +102,22 @@ export function initClientWebSocket({
 			onopen(event);
 		};
 		websocket.onclose = (event) => {
+			websocket = undefined;
 			returnObject.readyState = ReadyStates.CLOSED;
 			const target = /**@type {WebSocket & {isClosed: boolean}} */ (
 				event.target
 			);
 			if (!target.isClosed) {
-			reopenTimeoutHandler = setTimeout(() => {
-				returnObject.readyState = ReadyStates.CONNECTING;
-				open();
-				onreconnect?.();
-			}, getWaitTime());
+				reopenTimeoutHandler = setTimeout(() => {
+					if (target.readyState !== ReadyStates.CLOSED) {
+						throw new Error(
+							`initClient.reconnect: websocket isn't closed ${target.readyState}`,
+						);
+					}
+					returnObject.readyState = ReadyStates.CONNECTING;
+					open();
+					onreconnect?.();
+				}, getWaitTime());
 			}
 			onclose?.(event);
 		};
