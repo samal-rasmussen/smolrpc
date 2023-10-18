@@ -92,8 +92,14 @@ export function initClientWebSocket({
 			clearTimeout(reopenTimeoutHandler);
 			reopenTimeoutHandler = undefined;
 		}
-		if (websocket) {
-			throw new Error('initClient.open: websocket already open');
+		if (
+			websocket != null &&
+			!(
+				websocket?.readyState === ReadyStates.CLOSED ||
+				websocket?.readyState === ReadyStates.CLOSED
+			)
+		) {
+			throw new Error(`initClient.open: websocket isn't closed`);
 		}
 		websocket = createWebSocket(url);
 		websocket.onopen = (event) => {
@@ -102,7 +108,6 @@ export function initClientWebSocket({
 			onopen(event);
 		};
 		websocket.onclose = (event) => {
-			websocket = undefined;
 			returnObject.readyState = ReadyStates.CLOSED;
 			const target = /**@type {WebSocket & {isClosed: boolean}} */ (
 				event.target
