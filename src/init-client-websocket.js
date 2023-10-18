@@ -31,6 +31,7 @@ function addRandomJitter(number, jitterPercentage) {
  *  onreconnect?: () => void,
  *  onclose?: (e: CloseEvent) => void,
  *  onerror?: (e: Event) => void,
+ *  onsend?: (r: Request) => void,
  * }} args
  * @return {{
  *  close: () => void
@@ -47,6 +48,7 @@ export function initClientWebSocket({
 	onreconnect,
 	onclose,
 	onerror,
+	onsend,
 }) {
 	/** @type {WebSocket | undefined} */
 	let websocket;
@@ -143,6 +145,7 @@ export function initClientWebSocket({
 			throw new Error('websocket not open');
 		}
 		// TODO: Add timeout that will console log error after 30s
+		onsend?.(request);
 		websocket.send(JSON.stringify(request));
 	}
 

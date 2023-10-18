@@ -56,7 +56,7 @@ declare module 'smolrpc' {
 		close: () => void;
 		open: () => void;
 	}
-	export function initClient<Resources extends AnyResources>({ url, createWebSocket, onopen, onmessage, onreconnect, onclose, onerror, }: {
+	export function initClient<Resources extends AnyResources>({ url, createWebSocket, onopen, onmessage, onreconnect, onclose, onerror, onsend, }: {
 		url: string;
 		createWebSocket?: ((url: string) => WebSocket) | undefined;
 		onopen?: ((e: Event) => void) | undefined;
@@ -64,10 +64,12 @@ declare module 'smolrpc' {
 		onreconnect?: (() => void) | undefined;
 		onclose?: ((e: CloseEvent) => void) | undefined;
 		onerror?: ((e: Event) => void) | undefined;
+		onsend?: ((r: Request) => void) | undefined;
 	}): {
 		client: Client<Resources>;
 		clientMethods: ClientMethods;
 	};
+	type Request = Request_1<any>;
 	/**
 	 * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
 	 * with the params as keys (eg. `{ thingId: string }`).
@@ -120,19 +122,19 @@ declare module 'smolrpc' {
 		resource: Resource;
 	}) => Response<Resources, Resource>;
 	type PickGetHandler<Resources extends AnyResources, Resource extends keyof AnyResources> = ResourceParams<Resource> extends null ? GetHandler_1<Resources, Resource> : GetHandlerWithParams<Resources, Resource>;
-	type SetHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = (args: {
+	type SetHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources, Request_1 extends AnySettableResource['request']> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: z.infer<Request>;
+		request: z.infer<Request_1>;
 	}) => Response<Resources, Resource>;
-	type SetHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = (args: {
+	type SetHandlerWithParams<Resources extends AnyResources, Resource extends keyof AnyResources, Request_1 extends AnySettableResource['request']> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: z.infer<Request>;
+		request: z.infer<Request_1>;
 	}) => Response<Resources, Resource>;
-	type PickSetHandler<Resources extends AnyResources, Resource extends keyof AnyResources, Request extends AnySettableResource['request']> = ResourceParams<Resource> extends null ? SetHandler_1<Resources, Resource, Request> : SetHandlerWithParams<Resources, Resource, Request>;
+	type PickSetHandler<Resources extends AnyResources, Resource extends keyof AnyResources, Request_1 extends AnySettableResource['request']> = ResourceParams<Resource> extends null ? SetHandler_1<Resources, Resource, Request_1> : SetHandlerWithParams<Resources, Resource, Request_1>;
 	type SubscribeHandler_1<Resources extends AnyResources, Resource extends keyof AnyResources> = (args: {
 		clientId: number;
 		resource: Resource;
@@ -151,19 +153,19 @@ declare module 'smolrpc' {
 			get: PickGetHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'set';
-			request: infer Request extends z.ZodTypeAny;
+			request: infer Request_1 extends z.ZodTypeAny;
 		} ? {
-			set: PickSetHandler<Resources, R, Request>;
+			set: PickSetHandler<Resources, R, Request_1>;
 		} : Resources[R] extends {
 			type: 'subscribe';
 		} ? {
 			subscribe: PickSubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'get|set';
-			request: infer Request extends z.ZodTypeAny;
+			request: infer Request_1 extends z.ZodTypeAny;
 		} ? {
 			get: PickGetHandler<Resources, R>;
-			set: PickSetHandler<Resources, R, Request>;
+			set: PickSetHandler<Resources, R, Request_1>;
 		} : Resources[R] extends {
 			type: 'get|subscribe';
 		} ? {
@@ -171,25 +173,25 @@ declare module 'smolrpc' {
 			subscribe: PickSubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'set|subscribe';
-			request: infer Request extends z.ZodTypeAny;
+			request: infer Request_1 extends z.ZodTypeAny;
 		} ? {
-			set: PickSetHandler<Resources, R, Request>;
+			set: PickSetHandler<Resources, R, Request_1>;
 			subscribe: PickSubscribeHandler<Resources, R>;
 		} : Resources[R] extends {
 			type: 'get|set|subscribe';
-			request: infer Request extends z.ZodTypeAny;
+			request: infer Request_1 extends z.ZodTypeAny;
 		} ? {
 			get: PickGetHandler<Resources, R>;
-			set: PickSetHandler<Resources, R, Request>;
+			set: PickSetHandler<Resources, R, Request_1>;
 			subscribe: PickSubscribeHandler<Resources, R>;
 		} : never;
 	};
 	interface ServerLogger {
-		receivedRequest: (request: Request<any>, clientId: number, remoteAddress: string | undefined) => void;
+		receivedRequest: (request: Request_1<any>, clientId: number, remoteAddress: string | undefined) => void;
 	}
 	export function dummyClient<Resources extends AnyResources>(): Client<Resources>;
 	type Params = Record<string, string> | null | undefined;
-	type Request<Resources extends AnyResources> = GetRequest<Resources> | SetRequest<Resources> | SubscribeRequest<Resources> | UnsubscribeRequest<Resources>;
+	type Request_1<Resources extends AnyResources> = GetRequest<Resources> | SetRequest<Resources> | SubscribeRequest<Resources> | UnsubscribeRequest<Resources>;
 	type GetRequest<Resources extends AnyResources> = {
 		id: number;
 		type: 'GetRequest';

@@ -2,6 +2,10 @@ import { initClientProxy } from './init-client-proxy.js';
 import { initClientWebSocket } from './init-client-websocket.js';
 
 /**
+ * @typedef {import("./message.types").Request<any>} Request
+ */
+
+/**
  * @template {import("./types").AnyResources} Resources
  * @param {{
  * 	url: string,
@@ -11,6 +15,7 @@ import { initClientWebSocket } from './init-client-websocket.js';
  *  onreconnect?: () => void,
  *  onclose?: (e: CloseEvent) => void,
  *  onerror?: (e: Event) => void,
+ *  onsend?: (r: Request) => void,
  * }} args
  * @return {{
  *  client: import("./client.types").Client<Resources>,
@@ -25,6 +30,7 @@ export function initClient({
 	onreconnect,
 	onclose,
 	onerror,
+	onsend,
 }) {
 	if (createWebSocket == null && globalThis.WebSocket == null) {
 		throw new Error(
@@ -55,6 +61,7 @@ export function initClient({
 		onreconnect,
 		onclose,
 		onerror,
+		onsend,
 	});
 
 	const clientProxyResult = initClientProxy(clientWebSocket);

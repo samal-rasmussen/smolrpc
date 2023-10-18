@@ -8,6 +8,7 @@
 		"Client",
 		"ClientMethods",
 		"initClient",
+		"Request",
 		"ResourceParams",
 		"AnySettableResource",
 		"AnyResources",
@@ -29,7 +30,6 @@
 		"ServerLogger",
 		"dummyClient",
 		"Params",
-		"Request",
 		"GetRequest",
 		"SetRequest",
 		"SubscribeRequest",
@@ -40,11 +40,11 @@
 		"../src/server.types.ts",
 		"../src/client.types.ts",
 		"../src/init-client.js",
+		"../src/message.types.ts",
 		"../src/types.ts",
 		"../src/init-server.js",
 		"../src/websocket.types.ts",
-		"../src/init-client-proxy.js",
-		"../src/message.types.ts"
+		"../src/init-client-proxy.js"
 	],
 	"sourcesContent": [
 		null,
@@ -56,5 +56,5 @@
 		null,
 		null
 	],
-	"mappings": ";;MAuBYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;aCvChBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,aAAaA;;;;iBCrEdC,UAAUA;;;;;;;;;;;;;;;;MCVdC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCUFC,UAAUA;;;;;MCxBdC,EAAEA;MLvBFC,QAAQA;MAORC,iBAAiBA;;;;;MAejBC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;iBMyMbC,WAAWA;MC/VfC,MAAMA;MAENC,OAAOA;MAoBPC,UAAUA;;;;;;MAYVC,UAAUA;;;;;;;MAaVC,gBAAgBA;;;;;;MAkBhBC,kBAAkBA;;;;;;;MFnElBC,IAAIA"
+	"mappings": ";;MAuBYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;aCvChBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,aAAaA;;;;iBChEdC,UAAUA;;;;;;;;;;;;;MCpBdC,OAAOA;;;;;MCKPC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCUFC,UAAUA;;;;;MCxBdC,EAAEA;MNvBFC,QAAQA;MAORC,iBAAiBA;;;;;MAejBC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;iBOyMbC,WAAWA;MJ/VfC,MAAMA;;MAsBNC,UAAUA;;;;;;MAYVC,UAAUA;;;;;;;MAaVC,gBAAgBA;;;;;;MAkBhBC,kBAAkBA;;;;;;;MGnElBC,IAAIA"
 }
