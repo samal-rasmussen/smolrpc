@@ -266,7 +266,7 @@ export function initClientProxy(websocket) {
 		new Proxy(
 			{},
 			{
-				get(target, /** @type {string} */ p, receiver) {
+				get(target, /** @type {string} */ p) {
 					return {
 						get: (/** @type {{ params: Params; }} */ args) =>
 							getHandler(p, args?.params),

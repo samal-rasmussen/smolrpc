@@ -1,6 +1,6 @@
 {
 	"name": "smolrpc",
-	"version": "0.16.0",
+	"version": "0.17.0",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": "samal-rasmussen/smolrpc",
 	"license": "MIT",
@@ -21,6 +21,8 @@
 		"build": "dts-buddy",
 		"check": "tsc -w --noEmit",
 		"deno-server": "deno run --watch --allow-net examples/deno-server/index.ts",
+		"format": "prettier --write .",
+		"lint": "prettier --check . && eslint .",
 		"nodejs-client": "tsx --watch examples/nodejs-client/index.ts",
 		"nodejs-server": "tsx --watch examples/nodejs-server/index.ts",
 		"publish": "tsc --noEmit && publint && npm publish --registry https://registry.npmjs.org/ --access public"
@@ -30,7 +32,13 @@
 	},
 	"devDependencies": {
 		"@types/ws": "8.5.5",
+		"@typescript-eslint/eslint-plugin": "6.7.5",
+		"@typescript-eslint/parser": "6.7.5",
 		"dts-buddy": "0.1.9",
+		"eslint-config-prettier": "9.0.0",
+		"eslint-plugin-simple-import-sort": "10.0.0",
+		"eslint": "8.51.0",
+		"prettier": "3.0.3",
 		"publint": "0.2.0",
 		"tsx": "3.12.7",
 		"typescript": "5.1.6",

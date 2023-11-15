@@ -1,7 +1,8 @@
 import { WebSocketServer } from 'ws';
+
 import { initServer } from '../init-server';
-import { router } from './router';
 import { Resources, resources } from './resources';
+import { router } from './router';
 
 function setupServer() {
 	const server = initServer<Resources>(router, resources);

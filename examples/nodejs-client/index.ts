@@ -1,4 +1,5 @@
 import { WebSocket as ws } from 'ws';
+
 import { initClient } from '../../src/init-client.js';
 import { Resources } from '../resources.js';
 

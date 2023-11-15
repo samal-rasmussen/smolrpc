@@ -1,9 +1,10 @@
-import { WebSocketServer } from 'ws';
-import { WS, initServer } from '../../src/init-server.js';
-import { router } from './router.js';
-import { Resources, resources } from '../resources.js';
 import { IncomingMessage } from 'http';
 import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
+
+import { initServer } from '../../src/init-server.js';
+import { Resources, resources } from '../resources.js';
+import { router } from './router.js';
 
 const smolrpcServer = initServer<Resources>(router, resources, {
 	serverLogger: {

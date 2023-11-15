@@ -1,11 +1,12 @@
 import type { z } from 'zod';
+
+import { Request } from './message.types.ts';
 import type {
 	AnyResources,
 	AnySettableResource,
 	ResourceParams,
 	Subscribable,
 } from './types.ts';
-import { Request } from './message.types.ts';
 
 export type Response<
 	Resources extends AnyResources,

@@ -9,13 +9,6 @@
 		"ClientMethods",
 		"initClient",
 		"Request",
-		"ResourceParams",
-		"AnySettableResource",
-		"AnyResources",
-		"Observer",
-		"Unsubscribable",
-		"Subscribable",
-		"Result",
 		"initServer",
 		"WS",
 		"Response",
@@ -28,6 +21,13 @@
 		"PickSubscribeHandler",
 		"Router",
 		"ServerLogger",
+		"ResourceParams",
+		"AnySettableResource",
+		"AnyResources",
+		"Observer",
+		"Unsubscribable",
+		"Subscribable",
+		"Result",
 		"dummyClient",
 		"Params",
 		"GetRequest",
@@ -41,9 +41,9 @@
 		"../src/client.types.ts",
 		"../src/init-client.js",
 		"../src/message.types.ts",
-		"../src/types.ts",
 		"../src/init-server.js",
 		"../src/websocket.types.ts",
+		"../src/types.ts",
 		"../src/init-client-proxy.js"
 	],
 	"sourcesContent": [
@@ -56,5 +56,5 @@
 		null,
 		null
 	],
-	"mappings": ";;MAuBYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;aCvChBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,aAAaA;;;;iBChEdC,UAAUA;;;;;;;;;;;;;MCpBdC,OAAOA;;;;;MCKPC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCUFC,UAAUA;;;;;MCxBdC,EAAEA;MNvBFC,QAAQA;MAORC,iBAAiBA;;;;;MAejBC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;iBOyMbC,WAAWA;MJ/VfC,MAAMA;;MAsBNC,UAAUA;;;;;;MAYVC,UAAUA;;;;;;;MAaVC,gBAAgBA;;;;;;MAkBhBC,kBAAkBA;;;;;;;MGnElBC,IAAIA"
+	"mappings": ";;MAwBYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;aCvChBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,aAAaA;;;;iBCjEdC,UAAUA;;;;;;;;;;;;;MCpBdC,OAAOA;iBCoDHC,UAAUA;;;;;MCxBdC,EAAEA;MLtBFC,QAAQA;MAORC,iBAAiBA;;;;;MAejBC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;;;;;MMhJjBC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCmTFC,WAAWA;MJ/VfC,MAAMA;;MAsBNC,UAAUA;;;;;;MAYVC,UAAUA;;;;;;;MAaVC,gBAAgBA;;;;;;MAkBhBC,kBAAkBA;;;;;;;MEnElBC,IAAIA"
 }

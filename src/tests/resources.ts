@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { AnyResources } from '../types';
 
 const post = z.object({ content: z.string(), id: z.number() });
