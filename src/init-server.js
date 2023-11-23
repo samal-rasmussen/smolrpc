@@ -15,9 +15,16 @@
 import { getResourceWithParams } from './shared.js';
 
 /**
- * @type {(ws: WS, error: string, request: Request) => void}
+ * @type {(
+ * 	ws: WS,
+ * 	error: string,
+ * 	request: Request,
+ * 	clientId: number,
+ * 	remoteAddress: string | undefined,
+ *  logger?: import('./server.types.ts').ServerLogger
+ * ) => void}
  */
-function sendReject(ws, error, request) {
+function sendReject(ws, error, request, clientId, remoteAddress, logger) {
 	/** @type {Reject} */
 	const reject = {
 		error,
@@ -25,6 +32,7 @@ function sendReject(ws, error, request) {
 		request,
 	};
 	ws.send(JSON.stringify(reject));
+	logger?.sentReject(request, reject, clientId, remoteAddress);
 }
 
 /**
@@ -145,15 +153,27 @@ export function initServer(router, resources, options) {
 				type: 'Reject',
 			};
 			ws.send(JSON.stringify(reject));
+			options?.serverLogger?.sentReject(
+				undefined,
+				reject,
+				clientId,
+				remoteAddress,
+			);
 			return;
 		}
 		// console.log('received: %s', data);
 		/** @type {Request} */
 		const request = JSON.parse(data);
+		request.params;
 		if (typeof request.id !== 'number') {
-			const error = `no id number on request`;
-			console.error(error, JSON.stringify(request));
-			sendReject(ws, error, request);
+			sendReject(
+				ws,
+				`no id number on request`,
+				request,
+				clientId,
+				remoteAddress,
+				options?.serverLogger,
+			);
 			return;
 		}
 		options?.serverLogger?.receivedRequest(
@@ -162,32 +182,50 @@ export function initServer(router, resources, options) {
 			remoteAddress,
 		);
 		if (typeof request.resource !== 'string') {
-			const error = `no resource string on request`;
-			console.error(error, JSON.stringify(request));
-			sendReject(ws, error, request);
+			sendReject(
+				ws,
+				`no resource string on request`,
+				request,
+				clientId,
+				remoteAddress,
+				options?.serverLogger,
+			);
 			return;
 		}
 		const routerHandlers = router[request.resource];
 		if (routerHandlers == null) {
-			console.error(
+			sendReject(
+				ws,
 				`router handler for resource not found`,
-				JSON.stringify(request),
+				request,
+				clientId,
+				remoteAddress,
+				options?.serverLogger,
 			);
-			sendReject(ws, `resource not found`, request);
 			return;
 		}
 		const resourceDefinition = resources[request.resource];
 		if (resourceDefinition == null) {
-			console.error(
+			sendReject(
+				ws,
 				`resource definition for resource not found`,
-				JSON.stringify(request),
+				request,
+				clientId,
+				remoteAddress,
+				options?.serverLogger,
 			);
-			sendReject(ws, `resource not found`, request);
 			return;
 		}
 		const responseSchema = resourceDefinition.response;
 		if (!validateParams(request.resource, request.params)) {
-			sendReject(ws, `invalid params`, request);
+			sendReject(
+				ws,
+				`invalid params`,
+				request,
+				clientId,
+				remoteAddress,
+				options?.serverLogger,
+			);
 			return;
 		}
 		if (request.type === 'GetRequest') {
@@ -227,13 +265,26 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 				};
 				ws.send(JSON.stringify(response));
+				options?.serverLogger?.sentResponse(
+					request,
+					response,
+					clientId,
+					remoteAddress,
+				);
 			} catch (error) {
 				console.error(
 					'handling get request failed',
 					JSON.stringify(request),
 					error,
 				);
-				sendReject(ws, '500', request);
+				sendReject(
+					ws,
+					'500',
+					request,
+					clientId,
+					remoteAddress,
+					options?.serverLogger,
+				);
 			}
 		} else if (request.type === 'SetRequest') {
 			try {
@@ -273,13 +324,26 @@ export function initServer(router, resources, options) {
 					type: 'SetSuccess',
 				};
 				ws.send(JSON.stringify(response));
+				options?.serverLogger?.sentResponse(
+					request,
+					response,
+					clientId,
+					remoteAddress,
+				);
 			} catch (error) {
 				console.error(
 					'handling set request failed',
 					JSON.stringify(request),
 					error,
 				);
-				sendReject(ws, '500', request);
+				sendReject(
+					ws,
+					'500',
+					request,
+					clientId,
+					remoteAddress,
+					options?.serverLogger,
+				);
 			}
 		} else if (request.type === 'SubscribeRequest') {
 			try {
@@ -301,7 +365,14 @@ export function initServer(router, resources, options) {
 					args.resourceWithParams ?? args.resource,
 				);
 				if (existingSubscription != null) {
-					sendReject(ws, 'Already subscribed', request);
+					sendReject(
+						ws,
+						'Already subscribed',
+						request,
+						clientId,
+						remoteAddress,
+						options?.serverLogger,
+					);
 					return;
 				}
 
@@ -320,6 +391,12 @@ export function initServer(router, resources, options) {
 					type: 'SubscribeAccept',
 				};
 				ws.send(JSON.stringify(response));
+				options?.serverLogger?.sentResponse(
+					request,
+					response,
+					clientId,
+					remoteAddress,
+				);
 
 				const subscription = subscribable.subscribe({
 					next(val) {
@@ -343,6 +420,12 @@ export function initServer(router, resources, options) {
 							event.params = request.params;
 						}
 						ws.send(JSON.stringify(event));
+						options?.serverLogger?.sentEvent(
+							request,
+							event,
+							clientId,
+							remoteAddress,
+						);
 					},
 				});
 				websocketListeners.set(
@@ -350,12 +433,14 @@ export function initServer(router, resources, options) {
 					subscription,
 				);
 			} catch (error) {
-				console.error(
-					'handling subscribe request failed',
-					JSON.stringify(request),
-					error,
+				sendReject(
+					ws,
+					'500',
+					request,
+					clientId,
+					remoteAddress,
+					options?.serverLogger,
 				);
-				sendReject(ws, '500', request);
 			}
 		} else if (request.type === 'UnsubscribeRequest') {
 			try {
@@ -369,7 +454,14 @@ export function initServer(router, resources, options) {
 				const websocketListeners = getWebSocketListeners(ws);
 				const subscription = websocketListeners.get(resource);
 				if (subscription == null) {
-					sendReject(ws, 'Not subscribed', request);
+					sendReject(
+						ws,
+						'Not subscribed',
+						request,
+						clientId,
+						remoteAddress,
+						options?.serverLogger,
+					);
 					return;
 				}
 				subscription.unsubscribe();
@@ -381,19 +473,34 @@ export function initServer(router, resources, options) {
 					type: 'UnsubscribeAccept',
 				};
 				ws.send(JSON.stringify(response));
-			} catch (error) {
-				console.error(
-					'handling unsubscribe request failed',
-					JSON.stringify(request),
-					error,
+				options?.serverLogger?.sentResponse(
+					request,
+					response,
+					clientId,
+					remoteAddress,
 				);
-				sendReject(ws, '500', request);
+			} catch (error) {
+				sendReject(
+					ws,
+					'500',
+					request,
+					clientId,
+					remoteAddress,
+					options?.serverLogger,
+				);
 			}
 		} else {
 			try {
 				exhaustive(request);
 			} catch (e) {
-				sendReject(ws, `Invalid request type`, request);
+				sendReject(
+					ws,
+					`Invalid request type`,
+					request,
+					clientId,
+					remoteAddress,
+					options?.serverLogger,
+				);
 			}
 		}
 	}

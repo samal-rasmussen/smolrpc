@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+
 import type { AnyResources } from './types';
 
 export type Params = Record<string, string> | null | undefined;
@@ -29,13 +31,13 @@ export type GetRequest<Resources extends AnyResources> = {
 	params: Params;
 };
 export type GetResponse<Resources extends AnyResources> = {
-	data: any;
+	data: z.infer<Resources[keyof Resources]['response']>;
 	id: number;
 	resource: keyof Resources & string;
 	type: 'GetResponse';
 };
 export type SetRequest<Resources extends AnyResources> = {
-	data: any;
+	data: z.infer<Resources[keyof Resources]['response']>;
 	id: number;
 	params: Params;
 	resource: keyof Resources & string;
@@ -44,7 +46,7 @@ export type SetRequest<Resources extends AnyResources> = {
 export type SetSuccess<Resources extends AnyResources> = {
 	id: number;
 	resource: keyof Resources & string;
-	data: any;
+	data: z.infer<Resources[keyof Resources]['response']>;
 	type: 'SetSuccess';
 };
 export type SubscribeRequest<Resources extends AnyResources> = {
@@ -59,7 +61,7 @@ export type SubscribeAccept<Resources extends AnyResources> = {
 	type: 'SubscribeAccept';
 };
 export type SubscribeEvent<Resources extends AnyResources> = {
-	data: any;
+	data: z.infer<Resources[keyof Resources]['response']>;
 	id: number;
 	resource: keyof Resources & string;
 	params?: Params;

@@ -1,6 +1,6 @@
 {
 	"name": "smolrpc",
-	"version": "0.17.0",
+	"version": "0.18.0",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": "samal-rasmussen/smolrpc",
 	"license": "MIT",
@@ -18,7 +18,7 @@
 	],
 	"types": "./types/index.d.ts",
 	"scripts": {
-		"build": "dts-buddy",
+		"build": "dts-buddy && npm run format",
 		"check": "tsc -w --noEmit",
 		"deno-server": "deno run --watch --allow-net examples/deno-server/index.ts",
 		"format": "prettier --write .",

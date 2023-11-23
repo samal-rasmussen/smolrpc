@@ -1,6 +1,12 @@
 import type { z } from 'zod';
 
-import { Request } from './message.types.ts';
+import {
+	Reject,
+	Request,
+	RequestReject,
+	Response,
+	SubscribeEvent,
+} from './message.types.ts';
 import type {
 	AnyResources,
 	AnySettableResource,
@@ -8,14 +14,14 @@ import type {
 	Subscribable,
 } from './types.ts';
 
-export type Response<
+export type HandlerResponse<
 	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
 > =
 	| z.infer<Resources[Resource]['response']>
 	| Promise<z.infer<Resources[Resource]['response']>>;
 
-export type SubscribeResponse<
+export type SubscribeHandlerResponse<
 	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
 > =
@@ -28,7 +34,7 @@ export type GetHandler<
 > = (args: {
 	clientId: number;
 	resource: Resource;
-}) => Response<Resources, Resource>;
+}) => HandlerResponse<Resources, Resource>;
 
 export type GetHandlerWithParams<
 	Resources extends AnyResources,
@@ -38,7 +44,7 @@ export type GetHandlerWithParams<
 	params: ResourceParams<Resource>;
 	resourceWithParams: string;
 	resource: Resource;
-}) => Response<Resources, Resource>;
+}) => HandlerResponse<Resources, Resource>;
 
 export type PickGetHandler<
 	Resources extends AnyResources,
@@ -55,7 +61,7 @@ export type SetHandler<
 	clientId: number;
 	resource: Resource;
 	request: z.infer<Request>;
-}) => Response<Resources, Resource>;
+}) => HandlerResponse<Resources, Resource>;
 
 export type SetHandlerWithParams<
 	Resources extends AnyResources,
@@ -67,7 +73,7 @@ export type SetHandlerWithParams<
 	resourceWithParams: string;
 	resource: Resource;
 	request: z.infer<Request>;
-}) => Response<Resources, Resource>;
+}) => HandlerResponse<Resources, Resource>;
 
 export type PickSetHandler<
 	Resources extends AnyResources,
@@ -83,7 +89,7 @@ export type SubscribeHandler<
 > = (args: {
 	clientId: number;
 	resource: Resource;
-}) => SubscribeResponse<Resources, Resource>;
+}) => SubscribeHandlerResponse<Resources, Resource>;
 
 export type SubscribeHandlerWithParams<
 	Resources extends AnyResources,
@@ -93,7 +99,7 @@ export type SubscribeHandlerWithParams<
 	params: ResourceParams<Resource>;
 	resourceWithParams: string;
 	resource: Resource;
-}) => SubscribeResponse<Resources, Resource>;
+}) => SubscribeHandlerResponse<Resources, Resource>;
 
 export type PickSubscribeHandler<
 	Resources extends AnyResources,
@@ -154,6 +160,24 @@ export type Router<Resources extends AnyResources> = {
 export interface ServerLogger {
 	receivedRequest: (
 		request: Request<any>,
+		clientId: number,
+		remoteAddress: string | undefined,
+	) => void;
+	sentResponse: (
+		request: Request<any>,
+		response: Response<any>,
+		clientId: number,
+		remoteAddress: string | undefined,
+	) => void;
+	sentEvent: (
+		request: Request<any>,
+		event: SubscribeEvent<any>,
+		clientId: number,
+		remoteAddress: string | undefined,
+	) => void;
+	sentReject: (
+		request: Request<any> | undefined,
+		reject: RequestReject<AnyResources> | Reject,
 		clientId: number,
 		remoteAddress: string | undefined,
 	) => void;

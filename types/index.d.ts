@@ -121,13 +121,13 @@ declare module 'smolrpc' {
 		addConnection: (ws: WS, remoteAddress?: string | undefined) => number;
 	};
 	type WS = WS_1;
-	type Response<
+	type HandlerResponse<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
 	> =
 		| z.infer<Resources[Resource]['response']>
 		| Promise<z.infer<Resources[Resource]['response']>>;
-	type SubscribeResponse<
+	type SubscribeHandlerResponse<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
 	> =
@@ -139,7 +139,7 @@ declare module 'smolrpc' {
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-	}) => Response<Resources, Resource>;
+	}) => HandlerResponse<Resources, Resource>;
 	type GetHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -148,7 +148,7 @@ declare module 'smolrpc' {
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-	}) => Response<Resources, Resource>;
+	}) => HandlerResponse<Resources, Resource>;
 	type PickGetHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -163,7 +163,7 @@ declare module 'smolrpc' {
 		clientId: number;
 		resource: Resource;
 		request: z.infer<Request_1>;
-	}) => Response<Resources, Resource>;
+	}) => HandlerResponse<Resources, Resource>;
 	type SetHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -174,7 +174,7 @@ declare module 'smolrpc' {
 		resourceWithParams: string;
 		resource: Resource;
 		request: z.infer<Request_1>;
-	}) => Response<Resources, Resource>;
+	}) => HandlerResponse<Resources, Resource>;
 	type PickSetHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -188,7 +188,7 @@ declare module 'smolrpc' {
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-	}) => SubscribeResponse<Resources, Resource>;
+	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type SubscribeHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -197,7 +197,7 @@ declare module 'smolrpc' {
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-	}) => SubscribeResponse<Resources, Resource>;
+	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type PickSubscribeHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -264,6 +264,24 @@ declare module 'smolrpc' {
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
+		sentResponse: (
+			request: Request_1<any>,
+			response: Response<any>,
+			clientId: number,
+			remoteAddress: string | undefined,
+		) => void;
+		sentEvent: (
+			request: Request_1<any>,
+			event: SubscribeEvent<any>,
+			clientId: number,
+			remoteAddress: string | undefined,
+		) => void;
+		sentReject: (
+			request: Request_1<any> | undefined,
+			reject: RequestReject<AnyResources> | Reject,
+			clientId: number,
+			remoteAddress: string | undefined,
+		) => void;
 	}
 	/**
 	 * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
@@ -315,18 +333,44 @@ declare module 'smolrpc' {
 		| SetRequest<Resources>
 		| SubscribeRequest<Resources>
 		| UnsubscribeRequest<Resources>;
+	type Response<Resources extends AnyResources> =
+		| GetResponse<Resources>
+		| SetSuccess<Resources>
+		| SubscribeAccept<Resources>
+		| UnsubscribeAccept<Resources>;
+	type RequestReject<Resources extends AnyResources> = {
+		error: string;
+		request: Request_1<Resources>;
+		type: 'RequestReject';
+	};
+	type Reject = {
+		error: string;
+		type: 'Reject';
+	};
 	type GetRequest<Resources extends AnyResources> = {
 		id: number;
 		type: 'GetRequest';
 		resource: keyof Resources & string;
 		params: Params;
 	};
+	type GetResponse<Resources extends AnyResources> = {
+		data: z.infer<Resources[keyof Resources]['response']>;
+		id: number;
+		resource: keyof Resources & string;
+		type: 'GetResponse';
+	};
 	type SetRequest<Resources extends AnyResources> = {
-		data: any;
+		data: z.infer<Resources[keyof Resources]['response']>;
 		id: number;
 		params: Params;
 		resource: keyof Resources & string;
 		type: 'SetRequest';
+	};
+	type SetSuccess<Resources extends AnyResources> = {
+		id: number;
+		resource: keyof Resources & string;
+		data: z.infer<Resources[keyof Resources]['response']>;
+		type: 'SetSuccess';
 	};
 	type SubscribeRequest<Resources extends AnyResources> = {
 		id: number;
@@ -334,11 +378,28 @@ declare module 'smolrpc' {
 		resource: keyof Resources & string;
 		params: Params;
 	};
+	type SubscribeAccept<Resources extends AnyResources> = {
+		id: number;
+		resource: keyof Resources & string;
+		type: 'SubscribeAccept';
+	};
+	type SubscribeEvent<Resources extends AnyResources> = {
+		data: z.infer<Resources[keyof Resources]['response']>;
+		id: number;
+		resource: keyof Resources & string;
+		params?: Params;
+		type: 'SubscribeEvent';
+	};
 	type UnsubscribeRequest<Resources extends AnyResources> = {
 		id: number;
 		resource: keyof Resources & string;
 		type: 'UnsubscribeRequest';
 		params: Params;
+	};
+	type UnsubscribeAccept<Resources extends AnyResources> = {
+		id: number;
+		resource: keyof Resources & string;
+		type: 'UnsubscribeAccept';
 	};
 	/// <reference types="node" />
 	type Data = string | ArrayBufferLike | ArrayBufferView | Buffer | Buffer[];

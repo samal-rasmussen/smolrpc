@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 
 import { initServer } from '../../src/init-server.js';
+import { Response } from '../../src/message.types.js';
 import { Resources, resources } from '../resources.js';
 import { router } from './router.js';
 
@@ -11,6 +12,32 @@ const smolrpcServer = initServer<Resources>(router, resources, {
 		receivedRequest: (request, clientId, remoteAddress) => {
 			console.log(
 				`${clientId} ${remoteAddress} ${JSON.stringify(request)}`,
+			);
+		},
+		sentResponse: (
+			request,
+			response: Response<Resources>,
+			clientId,
+			remoteAddress,
+		) => {
+			console.log(
+				'sent response',
+				request,
+				response,
+				clientId,
+				remoteAddress,
+			);
+		},
+		sentEvent: (request, event, clientId, remoteAddress) => {
+			console.log('sent event', request, event, clientId, remoteAddress);
+		},
+		sentReject: (request, reject, clientId, remoteAddress) => {
+			console.log(
+				'sent reject',
+				request,
+				reject,
+				clientId,
+				remoteAddress,
 			);
 		},
 	},
