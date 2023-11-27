@@ -27,8 +27,8 @@ import { getResourceWithParams } from './shared.js';
 function sendReject(ws, error, request, clientId, remoteAddress, logger) {
 	/** @type {Reject} */
 	const reject = {
-		error,
 		type: 'RequestReject',
+		error,
 		request,
 	};
 	ws.send(JSON.stringify(reject));
@@ -149,8 +149,8 @@ export function initServer(router, resources, options) {
 			);
 			/** @type {import('./message.types.ts').Reject} */
 			const reject = {
-				error: `Only string data supported. typeof event.data = ${typeof data}`,
 				type: 'Reject',
+				error: `Only string data supported. typeof event.data = ${typeof data}`,
 			};
 			ws.send(JSON.stringify(reject));
 			options?.serverLogger?.sentReject(
@@ -260,9 +260,9 @@ export function initServer(router, resources, options) {
 				/** @type {import("./message.types.ts").GetResponse<any>} */
 				const response = {
 					id: request.id,
-					data: parsed.data,
 					type: 'GetResponse',
 					resource: request.resource,
+					data: parsed.data,
 				};
 				ws.send(JSON.stringify(response));
 				options?.serverLogger?.sentResponse(
@@ -319,9 +319,9 @@ export function initServer(router, resources, options) {
 				/** @type {import("./message.types.ts").SetSuccess<any>} */
 				const response = {
 					id: request.id,
+					type: 'SetSuccess',
 					resource: request.resource,
 					data: parsed.data,
-					type: 'SetSuccess',
 				};
 				ws.send(JSON.stringify(response));
 				options?.serverLogger?.sentResponse(
@@ -387,8 +387,8 @@ export function initServer(router, resources, options) {
 				/** @type {import("./message.types.ts").SubscribeAccept<any>} */
 				const response = {
 					id: request.id,
-					resource: request.resource,
 					type: 'SubscribeAccept',
+					resource: request.resource,
 				};
 				ws.send(JSON.stringify(response));
 				options?.serverLogger?.sentResponse(
@@ -411,10 +411,10 @@ export function initServer(router, resources, options) {
 						}
 						/** @type {import("./message.types.ts").SubscribeEvent<any>} */
 						const event = {
-							data: val,
 							id: request.id,
-							resource: request.resource,
 							type: 'SubscribeEvent',
+							resource: request.resource,
+							data: val,
 						};
 						if (request.params != null) {
 							event.params = request.params;
@@ -469,8 +469,8 @@ export function initServer(router, resources, options) {
 				/** @type {import("./message.types.ts").UnsubscribeAccept<any>} */
 				const response = {
 					id: request.id,
-					resource: request.resource,
 					type: 'UnsubscribeAccept',
+					resource: request.resource,
 				};
 				ws.send(JSON.stringify(response));
 				options?.serverLogger?.sentResponse(
