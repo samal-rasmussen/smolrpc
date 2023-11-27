@@ -34,11 +34,14 @@ export function initClientProxy(websocket) {
 	/** @type {number} */
 	let id = 0;
 
+	/** @type {number} */
+	let connection_number = 0;
+
 	/** @type {Map<string, {
 	 * 	subscribable: Subscribable,
 	 * 	requestId: number | undefined
 	 * }>} */
-	const subscriptions = new Map();
+	let subscriptions = new Map();
 
 	/**
 	 * @param {string} resource
@@ -153,6 +156,7 @@ export function initClientProxy(websocket) {
 		if (existing) {
 			return existing.subscribable;
 		}
+		let current_connection_number = connection_number;
 		/** @type {Set<Partial<import("./types").Observer<any>>>} */
 		const observers = new Set();
 		/** @type {(() => void) | undefined} */
@@ -180,34 +184,43 @@ export function initClientProxy(websocket) {
 							`initClient: Unsubscribe error. No requestId found. requestId was${subscriptionData.requestId}`,
 						);
 					}
+					if (current_connection_number !== connection_number) {
+						// The connection has been closed and reopened since this subscription was created.
+						// All subscription are cleared on disconnect, so we don't need to send an unsubscribe request.
+						return;
+					}
 					listeners.delete(subscriptionData.requestId);
 					subscriptions.delete(resourceWithParams);
 					const unsubRequestId = ++id;
-					websocket.send({
-						id: unsubRequestId,
-						params,
-						resource,
-						type: 'UnsubscribeRequest',
-					});
-					listeners.set(unsubRequestId, {
-						listener: (msg) => {
-							if (msg.type === 'RequestReject') {
-								for (const obs of observers) {
-									obs.error?.(msg.error);
+					if (websocket.readyState === ReadyStates.OPEN) {
+						// No need to send unsubscribe request if the websocket is closed.
+						// The server will clear all subscriptions on disconnect.
+						websocket.send({
+							id: unsubRequestId,
+							params,
+							resource,
+							type: 'UnsubscribeRequest',
+						});
+						listeners.set(unsubRequestId, {
+							listener: (msg) => {
+								if (msg.type === 'RequestReject') {
+									for (const obs of observers) {
+										obs.error?.(msg.error);
+									}
+								} else if (msg.type === 'UnsubscribeAccept') {
+									observers.clear();
+								} else {
+									console.error(
+										`Unexpected message type in get listener`,
+										msg,
+									);
 								}
-							} else if (msg.type === 'UnsubscribeAccept') {
-								observers.clear();
-							} else {
-								console.error(
-									`Unexpected message type in get listener`,
-									msg,
-								);
-							}
-						},
-						params,
-						resource,
-						type: 'unsubscribe',
-					});
+							},
+							params,
+							resource,
+							type: 'unsubscribe',
+						});
+					}
 				};
 				// TODO: Handle request timeout
 				listeners.set(subscriptionData.requestId, {
@@ -288,32 +301,9 @@ export function initClientProxy(websocket) {
 		// The server clears all pending requests and subscriptions on disconnect,
 		// so we need to start from scratch on the client.
 		id = 0;
-		// Don't overwrite existing listeners map yet, because we reuse listeners for
-		// sendQueue and resubscribe below.
-		const newListeners = new Map();
-
-		// Resubscribe old existing subscriptions
-		for (const subscriptionData of subscriptions.values()) {
-			if (subscriptionData.requestId == null) {
-				return;
-			}
-			const oldListener = listeners.get(subscriptionData.requestId);
-			if (oldListener == null) {
-				throw new Error(
-					`initClient: on open resubscript did not find old listener. requestId: ${subscriptionData.requestId}`,
-				);
-			}
-			const newRequestId = ++id;
-			subscriptionData.requestId = newRequestId;
-			newListeners.set(newRequestId, oldListener);
-			websocket.send({
-				id: newRequestId,
-				resource: oldListener.resource,
-				params: oldListener.params,
-				type: 'SubscribeRequest',
-			});
-		}
-		listeners = newListeners;
+		listeners = new Map();
+		subscriptions = new Map();
+		connection_number++;
 	}
 
 	/**
