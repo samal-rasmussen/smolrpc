@@ -414,7 +414,7 @@ export function initServer(router, resources, options) {
 							id: request.id,
 							type: 'SubscribeEvent',
 							resource: request.resource,
-							data: val,
+							data: parsed.data,
 						};
 						if (request.params != null) {
 							event.params = request.params;
