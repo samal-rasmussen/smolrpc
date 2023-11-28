@@ -84,9 +84,9 @@ export function initClientProxy(websocket) {
 			});
 			websocket.send({
 				id: requestId,
+				type: 'GetRequest',
 				resource,
 				params,
-				type: 'GetRequest',
 			});
 		});
 	}
@@ -133,10 +133,10 @@ export function initClientProxy(websocket) {
 			});
 			websocket.send({
 				id: requestId,
-				resource,
-				data: request,
-				params,
 				type: 'SetRequest',
+				resource,
+				params,
+				data: request,
 			});
 		});
 	}
@@ -197,9 +197,9 @@ export function initClientProxy(websocket) {
 						// The server will clear all subscriptions on disconnect.
 						websocket.send({
 							id: unsubRequestId,
-							params,
-							resource,
 							type: 'UnsubscribeRequest',
+							resource,
+							params,
 						});
 						listeners.set(unsubRequestId, {
 							listener: (msg) => {
@@ -253,9 +253,9 @@ export function initClientProxy(websocket) {
 				}
 				websocket.send({
 					id: subscriptionData.requestId,
+					type: 'SubscribeRequest',
 					resource,
 					params,
-					type: 'SubscribeRequest',
 				});
 				return {
 					unsubscribe: () => {

@@ -1,6 +1,6 @@
 {
 	"name": "smolrpc",
-	"version": "0.21.0",
+	"version": "0.22.0",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": "samal-rasmussen/smolrpc",
 	"license": "MIT",
