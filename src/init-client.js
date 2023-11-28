@@ -51,12 +51,29 @@ export function initClient({
 		url,
 		createWebSocket: cWebSocket,
 		onopen: (e) => {
+			/**
+			 * clientProxyOnopen must be called before onopen
+			 *
+			 * clientProxyOnopen will reset the client and set it to be ready to use.
+			 * onopen will notify the user that the client is ready to use.
+			 *
+			 * Calling onopen before clientProxyOnopen will cause lost messages,
+			 * because it may trigger the user to make requests, which will be lost when
+			 * clientProxy will be reset when calling clientProxyOnopen.
+			 */
+			clientProxyOnopen(e);
 			onopen?.(e);
-			clientProxyResult.onopen(e);
 		},
 		onmessage: (e) => {
+			/**
+			 * onmessage must be called before clientProxyOnmesage
+			 *
+			 * onmessage is only meant for debug logging.
+			 * clientProxyOnmesage will process the message and trigger the listeners.
+			 * We want to see the raw messages logged before they are processed by the client.
+			 */
 			onmessage?.(e);
-			clientProxyResult.onmessage(e);
+			clientProxyOnmesage(e);
 		},
 		onreconnect,
 		onclose,
@@ -64,13 +81,16 @@ export function initClient({
 		onsend,
 	});
 
-	const clientProxyResult = initClientProxy(clientWebSocket);
+	const {
+		proxy,
+		onmessage: clientProxyOnmesage,
+		onopen: clientProxyOnopen,
+	} = initClientProxy(clientWebSocket);
 	clientWebSocket.open();
-	const client = /** @type {import("./client.types").Client<Resources>} */ (
-		clientProxyResult.proxy
-	);
 	return {
-		client,
+		client: /** @type {import("./client.types").Client<Resources>} */ (
+			proxy
+		),
 		clientMethods: {
 			open: clientWebSocket.open,
 			close: clientWebSocket.close,
