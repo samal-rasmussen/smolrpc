@@ -51,12 +51,12 @@ export function initClient({
 		url,
 		createWebSocket: cWebSocket,
 		onopen: (e) => {
-			clientProxyResult.onopen(e);
 			onopen?.(e);
+			clientProxyResult.onopen(e);
 		},
 		onmessage: (e) => {
-			clientProxyResult.onmessage(e);
 			onmessage?.(e);
+			clientProxyResult.onmessage(e);
 		},
 		onreconnect,
 		onclose,
