@@ -166,6 +166,9 @@ export function initClientProxy(websocket) {
 			subscribe: (observer) => {
 				if (observers.size > 0) {
 					observers.add(observer);
+					if (subscriptionData.lastVal !== undefined) {
+						observer.next?.(subscriptionData.lastVal);
+					}
 					return {
 						unsubscribe: () => {
 							observers.delete(observer);
@@ -230,6 +233,7 @@ export function initClientProxy(websocket) {
 								obs.error?.(msg.error);
 							}
 						} else if (msg.type === 'SubscribeEvent') {
+							subscriptionData.lastVal = msg.data;
 							for (const obs of observers) {
 								obs.next?.(msg.data);
 							}
@@ -265,10 +269,11 @@ export function initClientProxy(websocket) {
 				};
 			},
 		};
-		/** @type {{subscribable: Subscribable, requestId: number | undefined}} */
+		/** @type {{lastVal: any, requestId: number | undefined, subscribable: Subscribable}} */
 		const subscriptionData = {
-			subscribable,
+			lastVal: undefined,
 			requestId: undefined,
+			subscribable,
 		};
 		subscriptions.set(resourceWithParams, subscriptionData);
 		return subscribable;
