@@ -180,5 +180,6 @@ export interface ServerLogger {
 		reject: RequestReject<AnyResources> | Reject,
 		clientId: number,
 		remoteAddress: string | undefined,
+		error?: unknown,
 	) => void;
 }

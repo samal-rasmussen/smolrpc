@@ -17,22 +17,31 @@ import { getResourceWithParams } from './shared.js';
 /**
  * @type {(
  * 	ws: WS,
- * 	error: string,
+ * 	message: string,
  * 	request: Request,
  * 	clientId: number,
  * 	remoteAddress: string | undefined,
- *  logger?: import('./server.types.ts').ServerLogger
+ *  logger?: import('./server.types.ts').ServerLogger,
+ *  error?: unknown
  * ) => void}
  */
-function sendReject(ws, error, request, clientId, remoteAddress, logger) {
+function sendReject(
+	ws,
+	message,
+	request,
+	clientId,
+	remoteAddress,
+	logger,
+	error,
+) {
 	/** @type {Reject} */
 	const reject = {
 		type: 'RequestReject',
-		error,
+		error: message,
 		request,
 	};
 	ws.send(JSON.stringify(reject));
-	logger?.sentReject(request, reject, clientId, remoteAddress);
+	logger?.sentReject(request, reject, clientId, remoteAddress, error);
 }
 
 /**
@@ -284,10 +293,28 @@ export function initServer(router, resources, options) {
 					clientId,
 					remoteAddress,
 					options?.serverLogger,
+					error,
 				);
 			}
 		} else if (request.type === 'SetRequest') {
 			try {
+				const settableResourceDefinition =
+					/** @type {import("./types.ts").AnySettableResource} */ (
+						resourceDefinition
+					);
+				const requestSchema = settableResourceDefinition.request;
+				const parsedRequest = requestSchema.safeParse(request.data);
+				if (!parsedRequest.success) {
+					sendReject(
+						ws,
+						`request schema validation failed: ${parsedRequest.error.message}}`,
+						request,
+						clientId,
+						remoteAddress,
+						options?.serverLogger,
+					);
+					return;
+				}
 				/** @type {Parameters<SetHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
 					clientId,
@@ -343,6 +370,7 @@ export function initServer(router, resources, options) {
 					clientId,
 					remoteAddress,
 					options?.serverLogger,
+					error,
 				);
 			}
 		} else if (request.type === 'SubscribeRequest') {
@@ -440,6 +468,7 @@ export function initServer(router, resources, options) {
 					clientId,
 					remoteAddress,
 					options?.serverLogger,
+					error,
 				);
 			}
 		} else if (request.type === 'UnsubscribeRequest') {
