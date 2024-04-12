@@ -2,6 +2,8 @@
  * @typedef {import("./message.types").Request<any>} Request
  */
 
+import { json_stringify } from './shared.js';
+
 export const ReadyStates = Object.freeze({
 	CONNECTING: 0,
 	OPEN: 1,
@@ -146,7 +148,7 @@ export function initClientWebSocket({
 		}
 		// TODO: Add timeout that will console log error after 30s
 		onsend?.(request);
-		websocket.send(JSON.stringify(request));
+		websocket.send(json_stringify(request));
 	}
 
 	const returnObject = {

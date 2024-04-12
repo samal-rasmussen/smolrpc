@@ -1,5 +1,5 @@
 import { ReadyStates } from './init-client-websocket.js';
-import { getResourceWithParams } from './shared.js';
+import { getResourceWithParams, json_parse } from './shared.js';
 
 /**
  * @typedef {import("./types").Subscribable<any>} Subscribable
@@ -315,7 +315,7 @@ export function initClientProxy(websocket) {
 	 * @param {MessageEvent} event
 	 */
 	function onmessage(event) {
-		const response = JSON.parse(event.data);
+		const response = json_parse(event.data);
 		if (response.type === 'Reject') {
 			console.error('Received Reject response', response);
 			return;

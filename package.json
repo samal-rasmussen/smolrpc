@@ -1,6 +1,6 @@
 {
 	"name": "smolrpc",
-	"version": "0.26.0",
+	"version": "0.27.0",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": "samal-rasmussen/smolrpc",
 	"license": "MIT",
@@ -35,9 +35,9 @@
 		"@typescript-eslint/eslint-plugin": "6.7.5",
 		"@typescript-eslint/parser": "6.7.5",
 		"dts-buddy": "0.1.9",
+		"eslint": "8.51.0",
 		"eslint-config-prettier": "9.0.0",
 		"eslint-plugin-simple-import-sort": "10.0.0",
-		"eslint": "8.51.0",
 		"prettier": "3.0.3",
 		"publint": "0.2.0",
 		"tsx": "3.12.7",

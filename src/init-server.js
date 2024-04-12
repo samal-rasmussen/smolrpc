@@ -11,8 +11,7 @@
  * @typedef {import('./server.types.ts').SubscribeHandler<any, any>} SubscribeHandler
  * @typedef {import('./websocket.types.ts').WS} WS
  */
-
-import { getResourceWithParams } from './shared.js';
+import { getResourceWithParams, json_parse, json_stringify } from './shared.js';
 
 /**
  * @type {(
@@ -40,7 +39,7 @@ function sendReject(
 		error: message,
 		request,
 	};
-	ws.send(JSON.stringify(reject));
+	ws.send(json_stringify(reject));
 	logger?.sentReject(request, reject, clientId, remoteAddress, error);
 }
 
@@ -161,7 +160,7 @@ export function initServer(router, resources, options) {
 				type: 'Reject',
 				error: `Only string data supported. typeof event.data = ${typeof data}`,
 			};
-			ws.send(JSON.stringify(reject));
+			ws.send(json_stringify(reject));
 			options?.serverLogger?.sentReject(
 				undefined,
 				reject,
@@ -172,7 +171,7 @@ export function initServer(router, resources, options) {
 		}
 		// console.log('received: %s', data);
 		/** @type {Request} */
-		const request = JSON.parse(data);
+		const request = json_parse(data);
 		request.params;
 		if (typeof request.id !== 'number') {
 			sendReject(
@@ -261,7 +260,7 @@ export function initServer(router, resources, options) {
 				if (!parsed.success) {
 					console.error(
 						`invalid route response for ${request.resource}`,
-						JSON.stringify(result),
+						json_stringify(result),
 						parsed.error,
 					);
 					return;
@@ -273,7 +272,7 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 					data: parsed.data,
 				};
-				ws.send(JSON.stringify(response));
+				ws.send(json_stringify(response));
 				options?.serverLogger?.sentResponse(
 					request,
 					response,
@@ -283,7 +282,7 @@ export function initServer(router, resources, options) {
 			} catch (error) {
 				console.error(
 					'handling get request failed',
-					JSON.stringify(request),
+					json_stringify(request),
 					error,
 				);
 				sendReject(
@@ -338,7 +337,7 @@ export function initServer(router, resources, options) {
 				if (!parsed.success) {
 					console.error(
 						`invalid route response for ${request.resource}`,
-						JSON.stringify(result),
+						json_stringify(result),
 						parsed.error,
 					);
 					return;
@@ -350,7 +349,7 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 					data: parsed.data,
 				};
-				ws.send(JSON.stringify(response));
+				ws.send(json_stringify(response));
 				options?.serverLogger?.sentResponse(
 					request,
 					response,
@@ -360,7 +359,7 @@ export function initServer(router, resources, options) {
 			} catch (error) {
 				console.error(
 					'handling set request failed',
-					JSON.stringify(request),
+					json_stringify(request),
 					error,
 				);
 				sendReject(
@@ -418,7 +417,7 @@ export function initServer(router, resources, options) {
 					type: 'SubscribeAccept',
 					resource: request.resource,
 				};
-				ws.send(JSON.stringify(response));
+				ws.send(json_stringify(response));
 				options?.serverLogger?.sentResponse(
 					request,
 					response,
@@ -432,7 +431,7 @@ export function initServer(router, resources, options) {
 						if (!parsed.success) {
 							console.error(
 								`invalid route response for ${request.resource}`,
-								JSON.stringify(val),
+								json_stringify(val),
 								parsed.error,
 							);
 							return;
@@ -447,7 +446,7 @@ export function initServer(router, resources, options) {
 						if (request.params != null) {
 							event.params = request.params;
 						}
-						ws.send(JSON.stringify(event));
+						ws.send(json_stringify(event));
 						options?.serverLogger?.sentEvent(
 							request,
 							event,
@@ -501,7 +500,7 @@ export function initServer(router, resources, options) {
 					type: 'UnsubscribeAccept',
 					resource: request.resource,
 				};
-				ws.send(JSON.stringify(response));
+				ws.send(json_stringify(response));
 				options?.serverLogger?.sentResponse(
 					request,
 					response,
