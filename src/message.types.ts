@@ -26,9 +26,12 @@ export type Reject = {
 
 export type GetRequest<Resources extends AnyResources> = {
 	id: number;
-	type: 'GetRequest';
-	resource: keyof Resources & string;
 	params: Params;
+	resource: keyof Resources & string;
+	request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
+		? z.infer<Resources[keyof Resources]['request']>
+		: undefined;
+	type: 'GetRequest';
 };
 export type GetResponse<Resources extends AnyResources> = {
 	data: z.infer<Resources[keyof Resources]['response']>;
@@ -37,10 +40,12 @@ export type GetResponse<Resources extends AnyResources> = {
 	type: 'GetResponse';
 };
 export type SetRequest<Resources extends AnyResources> = {
-	data: z.infer<Resources[keyof Resources]['response']>;
 	id: number;
 	params: Params;
 	resource: keyof Resources & string;
+	request: Resources[keyof Resources]['request'] extends z.ZodTypeAny
+		? z.infer<Resources[keyof Resources]['request']>
+		: undefined;
 	type: 'SetRequest';
 };
 export type SetSuccess<Resources extends AnyResources> = {
@@ -51,9 +56,12 @@ export type SetSuccess<Resources extends AnyResources> = {
 };
 export type SubscribeRequest<Resources extends AnyResources> = {
 	id: number;
-	type: 'SubscribeRequest';
-	resource: keyof Resources & string;
 	params: Params;
+	resource: keyof Resources & string;
+	request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
+		? z.infer<Resources[keyof Resources]['request']>
+		: undefined;
+	type: 'SubscribeRequest';
 };
 export type SubscribeAccept<Resources extends AnyResources> = {
 	id: number;
@@ -61,17 +69,17 @@ export type SubscribeAccept<Resources extends AnyResources> = {
 	type: 'SubscribeAccept';
 };
 export type SubscribeEvent<Resources extends AnyResources> = {
-	data: z.infer<Resources[keyof Resources]['response']>;
 	id: number;
-	resource: keyof Resources & string;
 	params?: Params;
+	resource: keyof Resources & string;
+	data: z.infer<Resources[keyof Resources]['response']>;
 	type: 'SubscribeEvent';
 };
 export type UnsubscribeRequest<Resources extends AnyResources> = {
 	id: number;
+	params: Params;
 	resource: keyof Resources & string;
 	type: 'UnsubscribeRequest';
-	params: Params;
 };
 export type UnsubscribeAccept<Resources extends AnyResources> = {
 	id: number;

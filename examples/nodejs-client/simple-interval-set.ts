@@ -20,7 +20,7 @@ client['/posts/:postId']
 	});
 
 setInterval(async () => {
-	await client['/posts/:postId'].set({
+	await client['/posts/:postId/create'].set({
 		params: { postId: 123 },
 		request: { content: 'sick post ' + Date.now() },
 	});

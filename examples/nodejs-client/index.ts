@@ -30,8 +30,12 @@ const newPost = await client['/posts/new'].set({
 	request: { content: 'sick post' },
 });
 console.log('set', newPost);
-const posts = await client['/posts'].get();
-console.log('get posts', posts);
+const all_posts = await client['/posts'].get();
+console.log('get posts', all_posts);
+const limit_posts = await client['/posts/limit'].get({
+	request: { limit: 10 },
+});
+console.log('get posts', limit_posts);
 const post = await client['/posts/:postId'].get({
 	params: { postId: newPost.id },
 });
@@ -47,14 +51,14 @@ const subscription = client['/posts/:postId']
 		},
 	});
 
-await client['/posts/:postId'].set({
+await client['/posts/:postId/create'].set({
 	params: { postId: newPost.id },
 	request: { content: 'more sick post' },
 });
 
 // await sleep(1000);
 // subscription.unsubscribe();
-await client['/posts/:postId'].set({
+await client['/posts/:postId/create'].set({
 	params: { postId: newPost.id },
 	request: { content: 'sickest post' },
 });
@@ -71,7 +75,7 @@ const postcomments = await client['/posts/:postId/comments'].get({
 	params: { postId: newPost.id },
 });
 console.log('get /posts/:id/comments', postcomments);
-await client['/posts/:postId/comments/:commentId'].set({
+await client['/posts/:postId/comments/:commentId/create'].set({
 	params: {
 		postId: newPost.id,
 		commentId: newComment.id,

@@ -14,20 +14,21 @@ export type ResourceParams<T> =
 		? { [k in Param]: string | number }
 		: null | undefined;
 
-type AnyResource = {
+export type AnyResource = {
+	request?: z.ZodTypeAny;
 	response: z.ZodTypeAny;
-	type: 'get' | 'subscribe' | 'get|subscribe';
-};
-export type AnySettableResource = {
-	request: z.ZodTypeAny;
-	response: z.ZodTypeAny;
-	type: 'set' | 'get|set' | 'set|subscribe' | 'get|set|subscribe';
+	cache?: boolean;
+	type:
+		| 'get'
+		| 'set'
+		| 'subscribe'
+		| 'get|set'
+		| 'get|subscribe'
+		| 'set|subscribe'
+		| 'get|set|subscribe';
 };
 export type AnyResources = {
-	[key: string]: AnyResource | AnySettableResource;
-};
-export type AnySettableResources = {
-	[key: string]: AnySettableResource;
+	[key: string]: AnyResource;
 };
 
 export interface Observer<T> {

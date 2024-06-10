@@ -13,9 +13,13 @@ export const resources = {
 		type: 'get|subscribe',
 	},
 	'/posts/:postId': {
+		response: post,
+		type: 'get|subscribe',
+	},
+	'/posts/:postId/create': {
 		request: post.omit({ id: true }),
 		response: post,
-		type: 'get|set|subscribe',
+		type: 'set',
 	},
 } as const satisfies AnyResources;
 export type SimpleResources = typeof resources;

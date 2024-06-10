@@ -24,6 +24,19 @@ export const router = {
 			return result;
 		},
 	},
+	'/posts/limit': {
+		get: async ({ resource, request }) => {
+			console.log('ignore limit', request.limit);
+			const result = db.getAll(resource) as Result<typeof resource>;
+			return result;
+		},
+		subscribe: ({ resourceWithParams, resource }) => {
+			const result = db.subscribe(resourceWithParams) as Subscribable<
+				Result<typeof resource>
+			>;
+			return result;
+		},
+	},
 	'/posts/new': {
 		set: async ({ request }) => {
 			const id = postId++;
@@ -38,17 +51,19 @@ export const router = {
 			>;
 			return result;
 		},
-		set: async ({ params, resourceWithParams, request }) => {
-			return db.set(resourceWithParams, {
-				...request,
-				id: Number(params.postId),
-			});
-		},
 		subscribe: ({ resourceWithParams, resource }) => {
 			const result = db.subscribe(resourceWithParams) as Subscribable<
 				Result<typeof resource>
 			>;
 			return result;
+		},
+	},
+	'/posts/:postId/create': {
+		set: async ({ params, resourceWithParams, request }) => {
+			return db.set(resourceWithParams, {
+				...request,
+				id: Number(params.postId),
+			});
 		},
 	},
 	'/posts/:postId/comments': {
@@ -82,17 +97,19 @@ export const router = {
 			>;
 			return result;
 		},
-		set: async ({ params, resourceWithParams, request }) => {
-			return db.set(resourceWithParams, {
-				...request,
-				id: Number(params.commentId),
-			});
-		},
 		subscribe: ({ resourceWithParams, resource }) => {
 			const result = db.subscribe(resourceWithParams) as Subscribable<
 				Result<typeof resource>
 			>;
 			return result;
+		},
+	},
+	'/posts/:postId/comments/:commentId/create': {
+		set: async ({ params, resourceWithParams, request }) => {
+			return db.set(resourceWithParams, {
+				...request,
+				id: Number(params.commentId),
+			});
 		},
 	},
 } as const satisfies Router<Resources>;

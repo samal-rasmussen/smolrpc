@@ -11,15 +11,24 @@ export const posts = {
 		response: z.array(post),
 		type: 'get|subscribe',
 	},
+	'/posts/limit': {
+		request: z.object({ limit: z.number() }),
+		response: z.array(post),
+		type: 'get|subscribe',
+	},
 	'/posts/new': {
 		request: post.omit({ id: true }),
 		response: z.object({ id: z.number() }),
 		type: 'set',
 	},
 	'/posts/:postId': {
+		response: post.or(z.undefined()),
+		type: 'get|subscribe',
+	},
+	'/posts/:postId/create': {
 		request: post.omit({ id: true }),
 		response: post.or(z.undefined()),
-		type: 'get|set|subscribe',
+		type: 'set',
 	},
 } as const satisfies AnyResources;
 
@@ -36,9 +45,13 @@ export const comments = {
 		type: 'set',
 	},
 	'/posts/:postId/comments/:commentId': {
+		response: comment.or(z.undefined()),
+		type: 'get|subscribe',
+	},
+	'/posts/:postId/comments/:commentId/create': {
 		request: comment.omit({ id: true }),
 		response: comment.or(z.undefined()),
-		type: 'get|set|subscribe',
+		type: 'set',
 	},
 } as const satisfies AnyResources;
 

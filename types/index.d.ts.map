@@ -22,7 +22,7 @@
 		"Router",
 		"ServerLogger",
 		"ResourceParams",
-		"AnySettableResource",
+		"AnyResource",
 		"AnyResources",
 		"Observer",
 		"Unsubscribable",
@@ -64,5 +64,5 @@
 		null,
 		null
 	],
-	"mappings": ";;MA8BYA,UAAUA;;;MAyBVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;aC7ChBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,aAAaA;;;;iBCjEdC,UAAUA;;;;;;;;;;;;;MClBdC,OAAOA;iBCkEHC,UAAUA;;;;;MCxCdC,EAAEA;MLhBFC,eAAeA;MAOfC,wBAAwBA;;;;;MAexBC,oBAAoBA;;;;;;MAUpBC,cAAcA;;;;;;MAiBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;MAgBdC,0BAA0BA;;;;;;MAU1BC,oBAAoBA;aAOpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAiDDC,YAAYA;;;;;;;;;;MMtJjBC,cAAcA;;;;;;;;;MAWdC,mBAAmBA;;;;;MAKnBC,YAAYA;;;WAOPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBC8SFC,WAAWA;MJxVfC,MAAMA;;MAONC,QAAQA;MAKRC,aAAaA;;;;;MAKbC,MAAMA;;;;MAKNC,UAAUA;;;;;;MAMVC,WAAWA;;;;;;MAMXC,UAAUA;;;;;;;MAOVC,UAAUA;;;;;;MAMVC,gBAAgBA;;;;;;MAMhBC,eAAeA;;;;;MAKfC,cAAcA;;;;;;;MAOdC,kBAAkBA;;;;;;MAMlBC,iBAAiBA;;;;;;ME3EjBC,IAAIA"
+	"mappings": ";;MA8BYA,UAAUA;;;;;;;;;MA8BVC,UAAUA;;;;;;MA8BVC,gBAAgBA;;;;;;;;;;;;;;aCPhBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAyEDC,aAAaA;;;;iBCpIdC,UAAUA;;;;;;;;;;;;;MClBdC,OAAOA;iBCkEHC,UAAUA;;;;;MCxCdC,EAAEA;MLhBFC,eAAeA;MAOfC,wBAAwBA;;;;;;MAiBxBC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;;MAkBdC,oBAAoBA;;;;;;;MAYpBC,cAAcA;;;;;;MAkBdC,0BAA0BA;;;;;;;MAY1BC,oBAAoBA;aAQpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAoDDC,YAAYA;;;;;;;;;;MMnKjBC,cAAcA;;;;;MAOdC,WAAWA;;;;;;MAaXC,YAAYA;;;WAIPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBC6TFC,WAAWA;MJxWfC,MAAMA;;MAONC,QAAQA;MAKRC,aAAaA;;;;;MAKbC,MAAMA;;;;MAKNC,UAAUA;;;;;;;MASVC,WAAWA;;;;;;MAMXC,UAAUA;;;;;;;MASVC,UAAUA;;;;;;MAMVC,gBAAgBA;;;;;;;MAShBC,eAAeA;;;;;MAKfC,cAAcA;;;;;;;MAOdC,kBAAkBA;;;;;;MAMlBC,iBAAiBA;;;;;;MEnFjBC,IAAIA"
 }

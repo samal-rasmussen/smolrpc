@@ -3,12 +3,12 @@
  * @typedef {import('./message.types.ts').Params} Params
  * @typedef {import('./message.types.ts').RequestReject<any>} Reject
  * @typedef {import('./message.types.ts').Request<any>} Request
- * @typedef {import('./server.types.ts').GetHandler<any, any>} GetHandler
- * @typedef {import('./server.types.ts').GetHandlerWithParams<any, any>} GetHandlerWithParams
+ * @typedef {import('./server.types.ts').GetHandler<any, any, any>} GetHandler
+ * @typedef {import('./server.types.ts').GetHandlerWithParams<any, any, any>} GetHandlerWithParams
  * @typedef {import('./server.types.ts').SetHandler<any, any, any>} SetHandler
  *  * @typedef {import('./server.types.ts').SetHandlerWithParams<any, any, any>} SetHandlerWithParams
- * @typedef {import('./server.types.ts').SubscribeHandlerWithParams<any, any>} SubscribeHandlerWithParams
- * @typedef {import('./server.types.ts').SubscribeHandler<any, any>} SubscribeHandler
+ * @typedef {import('./server.types.ts').SubscribeHandlerWithParams<any, any, any>} SubscribeHandlerWithParams
+ * @typedef {import('./server.types.ts').SubscribeHandler<any, any, any>} SubscribeHandler
  * @typedef {import('./websocket.types.ts').WS} WS
  */
 import { getResourceWithParams, json_parse, json_stringify } from './shared.js';
@@ -238,11 +238,31 @@ export function initServer(router, resources, options) {
 		}
 		if (request.type === 'GetRequest') {
 			try {
+				const requestSchema = resourceDefinition.request;
+				if (requestSchema != null) {
+					const parsedRequest = requestSchema.safeParse(
+						request.request,
+					);
+					if (!parsedRequest.success) {
+						sendReject(
+							ws,
+							`request schema validation failed: ${parsedRequest.error.message}}`,
+							request,
+							clientId,
+							remoteAddress,
+							options?.serverLogger,
+						);
+						return;
+					}
+				}
 				/** @type {Parameters<GetHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
 					clientId,
 					resource: request.resource,
 				});
+				if (request.request != null) {
+					args.request = request.request;
+				}
 				if (request.params != null) {
 					const resourceWithParams = getResourceWithParams(
 						request.resource,
@@ -297,28 +317,28 @@ export function initServer(router, resources, options) {
 			}
 		} else if (request.type === 'SetRequest') {
 			try {
-				const settableResourceDefinition =
-					/** @type {import("./types.ts").AnySettableResource} */ (
-						resourceDefinition
+				const requestSchema = resourceDefinition.request;
+				if (requestSchema != null) {
+					const parsedRequest = requestSchema.safeParse(
+						request.request,
 					);
-				const requestSchema = settableResourceDefinition.request;
-				const parsedRequest = requestSchema.safeParse(request.data);
-				if (!parsedRequest.success) {
-					sendReject(
-						ws,
-						`request schema validation failed: ${parsedRequest.error.message}}`,
-						request,
-						clientId,
-						remoteAddress,
-						options?.serverLogger,
-					);
-					return;
+					if (!parsedRequest.success) {
+						sendReject(
+							ws,
+							`request schema validation failed: ${parsedRequest.error.message}}`,
+							request,
+							clientId,
+							remoteAddress,
+							options?.serverLogger,
+						);
+						return;
+					}
 				}
 				/** @type {Parameters<SetHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
 					clientId,
 					resource: request.resource,
-					request: request.data,
+					request: request.request,
 				});
 				if (request.params != null) {
 					const resourceWithParams = getResourceWithParams(
@@ -374,11 +394,31 @@ export function initServer(router, resources, options) {
 			}
 		} else if (request.type === 'SubscribeRequest') {
 			try {
+				const requestSchema = resourceDefinition.request;
+				if (requestSchema != null) {
+					const parsedRequest = requestSchema.safeParse(
+						request.request,
+					);
+					if (!parsedRequest.success) {
+						sendReject(
+							ws,
+							`request schema validation failed: ${parsedRequest.error.message}}`,
+							request,
+							clientId,
+							remoteAddress,
+							options?.serverLogger,
+						);
+						return;
+					}
+				}
 				/** @type {Parameters<SubscribeHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
 					clientId,
 					resource: request.resource,
 				});
+				if (request.request != null) {
+					args.request = request.request;
+				}
 				if (request.params != null) {
 					const resourceWithParams = getResourceWithParams(
 						request.resource,

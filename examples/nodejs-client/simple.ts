@@ -18,13 +18,14 @@ const post123 = await client['/posts/:postId'].get({
 client['/posts/:postId']
 	.subscribe({
 		params: { postId: 123 },
+		cache: false,
 	})
 	.subscribe({
 		next: (post) => {
 			console.log('event', post);
 		},
 	});
-await client['/posts/:postId'].set({
+await client['/posts/:postId/create'].set({
 	params: { postId: 123 },
 	request: { content: 'sick post' },
 });

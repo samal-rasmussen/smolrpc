@@ -45,10 +45,11 @@ export function initClientProxy(websocket) {
 
 	/**
 	 * @param {string} resource
+	 * @param {any} request
 	 * @param {Params} params
 	 * @returns {Promise<unknown>}
 	 */
-	function getHandler(resource, params) {
+	function getHandler(resource, request, params) {
 		if (websocket.readyState !== ReadyStates.OPEN) {
 			throw new Error('websocket not open');
 		}
@@ -87,6 +88,7 @@ export function initClientProxy(websocket) {
 				type: 'GetRequest',
 				resource,
 				params,
+				request: request,
 			});
 		});
 	}
@@ -136,7 +138,7 @@ export function initClientProxy(websocket) {
 				type: 'SetRequest',
 				resource,
 				params,
-				data: request,
+				request: request,
 			});
 		});
 	}
@@ -144,17 +146,21 @@ export function initClientProxy(websocket) {
 	/**
 	 *
 	 * @param {string} resource
+	 * @param {any} request
 	 * @param {Params} params
+	 * @param {boolean} cache
 	 * @returns {Subscribable}
 	 */
-	function subscribeHandler(resource, params) {
+	function subscribeHandler(resource, request, params, cache) {
 		if (websocket.readyState !== ReadyStates.OPEN) {
 			throw new Error('websocket not open');
 		}
 		const resourceWithParams = getResourceWithParams(resource, params);
-		const existing = subscriptions.get(resourceWithParams);
-		if (existing) {
-			return existing.subscribable;
+		if (cache) {
+			const existing = subscriptions.get(resourceWithParams);
+			if (existing) {
+				return existing.subscribable;
+			}
 		}
 		let current_connection_number = connection_number;
 		/** @type {Set<Partial<import("./types").Observer<any>>>} */
@@ -193,7 +199,9 @@ export function initClientProxy(websocket) {
 						return;
 					}
 					listeners.delete(subscriptionData.requestId);
-					subscriptions.delete(resourceWithParams);
+					if (cache) {
+						subscriptions.delete(resourceWithParams);
+					}
 					const unsubRequestId = ++id;
 					if (websocket.readyState === ReadyStates.OPEN) {
 						// No need to send unsubscribe request if the websocket is closed.
@@ -260,6 +268,7 @@ export function initClientProxy(websocket) {
 					type: 'SubscribeRequest',
 					resource,
 					params,
+					request: request,
 				});
 				return {
 					unsubscribe: () => {
@@ -275,7 +284,9 @@ export function initClientProxy(websocket) {
 			requestId: undefined,
 			subscribable,
 		};
-		subscriptions.set(resourceWithParams, subscriptionData);
+		if (cache) {
+			subscriptions.set(resourceWithParams, subscriptionData);
+		}
 		return subscribable;
 	}
 
@@ -286,16 +297,21 @@ export function initClientProxy(websocket) {
 			{
 				get(target, /** @type {string} */ p) {
 					return {
-						get: (/** @type {{ params: Params; }} */ args) =>
-							getHandler(p, args?.params),
+						get: (
+							/** @type {{ params: Params; request: any } | undefined} */ args,
+						) => getHandler(p, args?.request, args?.params),
 						set: (
-							/** @type {{ params: Params; request: any }} */ {
-								request,
-								params,
-							},
-						) => setHandler(p, request, params),
-						subscribe: (/** @type {{ params: Params; }} */ args) =>
-							subscribeHandler(p, args?.params),
+							/** @type {{ params: Params; request: any }} */ args,
+						) => setHandler(p, args.request, args.params),
+						subscribe: (
+							/** @type {{ params: Params; request: any, cache: boolean } | undefined} */ args,
+						) =>
+							subscribeHandler(
+								p,
+								args?.request,
+								args?.params,
+								args?.cache ?? true,
+							),
 					};
 				},
 			},
