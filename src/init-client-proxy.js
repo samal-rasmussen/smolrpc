@@ -208,6 +208,7 @@ export function initClientProxy(websocket) {
 						// The server will clear all subscriptions on disconnect.
 						websocket.send({
 							id: unsubRequestId,
+							subscriptionId: subscriptionData.requestId,
 							type: 'UnsubscribeRequest',
 							resource,
 							params,

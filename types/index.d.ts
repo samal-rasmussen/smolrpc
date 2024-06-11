@@ -515,6 +515,7 @@ declare module 'smolrpc' {
 	};
 	type UnsubscribeRequest<Resources extends AnyResources> = {
 		id: number;
+		subscriptionId: number;
 		params: Params;
 		resource: keyof Resources & string;
 		type: 'UnsubscribeRequest';

@@ -77,7 +77,7 @@ export function initServer(router, resources, options) {
 	 * @type {Map<WS, {
 	 *  clientId: number,
 	 *  remoteAddress: string | undefined,
-	 *  listeners: Map<string, Unsubscribable>
+	 *  listeners: Map<number, Unsubscribable>
 	 * }>}
 	 */
 	const listeners = new Map();
@@ -85,7 +85,7 @@ export function initServer(router, resources, options) {
 	/**
 	 *
 	 * @param {WS} ws
-	 * @returns {Map<string, Unsubscribable>}
+	 * @returns {Map<number, Unsubscribable>}
 	 */
 	function getWebSocketListeners(ws) {
 		const websocketListeners = listeners.get(ws);
@@ -427,21 +427,6 @@ export function initServer(router, resources, options) {
 					args.params = request.params;
 					args.resourceWithParams = resourceWithParams;
 				}
-				const websocketListeners = getWebSocketListeners(ws);
-				const existingSubscription = websocketListeners.get(
-					args.resourceWithParams ?? args.resource,
-				);
-				if (existingSubscription != null) {
-					sendReject(
-						ws,
-						'Already subscribed',
-						request,
-						clientId,
-						remoteAddress,
-						options?.serverLogger,
-					);
-					return;
-				}
 
 				const subscribeHandler =
 					/** @type {{subscribe: SubscribeHandlerWithParams | SubscribeHandler}}*/ (
@@ -495,10 +480,8 @@ export function initServer(router, resources, options) {
 						);
 					},
 				});
-				websocketListeners.set(
-					args.resourceWithParams ?? args.resource,
-					subscription,
-				);
+				const websocketListeners = getWebSocketListeners(ws);
+				websocketListeners.set(request.id, subscription);
 			} catch (error) {
 				sendReject(
 					ws,
@@ -512,15 +495,10 @@ export function initServer(router, resources, options) {
 			}
 		} else if (request.type === 'UnsubscribeRequest') {
 			try {
-				const resource =
-					request.params != null
-						? getResourceWithParams(
-								request.resource,
-								request.params,
-						  )
-						: request.resource;
 				const websocketListeners = getWebSocketListeners(ws);
-				const subscription = websocketListeners.get(resource);
+				const subscription = websocketListeners.get(
+					request.subscriptionId,
+				);
 				if (subscription == null) {
 					sendReject(
 						ws,
@@ -533,7 +511,7 @@ export function initServer(router, resources, options) {
 					return;
 				}
 				subscription.unsubscribe();
-				websocketListeners.delete(resource);
+				websocketListeners.delete(request.subscriptionId);
 				/** @type {import("./message.types.ts").UnsubscribeAccept<any>} */
 				const response = {
 					id: request.id,
