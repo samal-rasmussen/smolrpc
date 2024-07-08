@@ -144,7 +144,10 @@ export function initClientWebSocket({
 	 */
 	function send(request) {
 		if (websocket == null || websocket.readyState !== ReadyStates.OPEN) {
-			throw new Error('websocket not open');
+			console.error('initClientWebSocket.send:websocket not open', {
+				request,
+			});
+			throw new Error('initClientWebSocket.send:websocket not open');
 		}
 		// TODO: Add timeout that will console log error after 30s
 		onsend?.(request);

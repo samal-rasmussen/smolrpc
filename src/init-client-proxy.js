@@ -51,7 +51,12 @@ export function initClientProxy(websocket) {
 	 */
 	function getHandler(resource, request, params) {
 		if (websocket.readyState !== ReadyStates.OPEN) {
-			throw new Error('websocket not open');
+			console.error('initClientProxy.getHandler: websocket not open', {
+				resource,
+				request,
+				params,
+			});
+			throw new Error('initClientProxy.getHandler: websocket not open');
 		}
 		return new Promise((resolve, reject) => {
 			const requestId = ++id;
@@ -101,7 +106,12 @@ export function initClientProxy(websocket) {
 	 */
 	function setHandler(resource, request, params) {
 		if (websocket.readyState !== ReadyStates.OPEN) {
-			throw new Error('websocket not open');
+			console.error('initClientProxy.setHandler: websocket not open', {
+				resource,
+				request,
+				params,
+			});
+			throw new Error('initClientProxy.setHandler: websocket not open');
 		}
 		return new Promise((resolve, reject) => {
 			const requestId = ++id;
@@ -153,7 +163,17 @@ export function initClientProxy(websocket) {
 	 */
 	function subscribeHandler(resource, request, params, cache) {
 		if (websocket.readyState !== ReadyStates.OPEN) {
-			throw new Error('websocket not open');
+			console.error(
+				'initClientProxy.subscribeHandler: websocket not open',
+				{
+					resource,
+					request,
+					params,
+				},
+			);
+			throw new Error(
+				'initClientProxy.subscribeHandler: websocket not open',
+			);
 		}
 		const resourceWithParams = getResourceWithParams(resource, params);
 		if (cache) {
