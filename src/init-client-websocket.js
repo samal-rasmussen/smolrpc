@@ -65,12 +65,13 @@ export function initClientWebSocket({
 			reopenTimeoutHandler = undefined;
 		}
 
-		if (websocket) {
+		if (websocket != null) {
 			// Mark the websocket as closed, so we know not to run the reopen timer
 			// in the onclose handler.
 			/**@type {WebSocket & {isClosed: boolean}} */ (
 				websocket
 			).isClosed = true;
+			returnObject.readyState = ReadyStates.CLOSED;
 			websocket.close(1000, 'close was called');
 			websocket = undefined;
 		}
@@ -143,7 +144,13 @@ export function initClientWebSocket({
 	 * @param {Request} request
 	 */
 	function send(request) {
-		if (websocket == null || websocket.readyState !== ReadyStates.OPEN) {
+		if (websocket == null) {
+			console.error('initClientWebSocket.send:websocket is null', {
+				request,
+			});
+			throw new Error('initClientWebSocket.send:websocket is null');
+		}
+		if (websocket.readyState !== ReadyStates.OPEN) {
 			console.error('initClientWebSocket.send:websocket not open', {
 				request,
 			});
