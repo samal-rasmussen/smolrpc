@@ -270,6 +270,8 @@ export function initServer(router, resources, options) {
 					);
 					args.params = request.params;
 					args.resourceWithParams = resourceWithParams;
+				} else {
+					args.resourceWithParams = request.resource;
 				}
 				const getHandler =
 					/** @type {{get: GetHandler | GetHandlerWithParams}}*/ (
@@ -347,6 +349,8 @@ export function initServer(router, resources, options) {
 					);
 					args.params = request.params;
 					args.resourceWithParams = resourceWithParams;
+				} else {
+					args.resourceWithParams = request.resource;
 				}
 				const setHandler =
 					/** @type {{set: SetHandler | SetHandlerWithParams}}*/ (
@@ -426,6 +430,8 @@ export function initServer(router, resources, options) {
 					);
 					args.params = request.params;
 					args.resourceWithParams = resourceWithParams;
+				} else {
+					args.resourceWithParams = request.resource;
 				}
 
 				const subscribeHandler =
