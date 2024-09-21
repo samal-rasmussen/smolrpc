@@ -394,6 +394,8 @@ declare module 'smolrpc' {
 			error?: unknown,
 		) => void;
 	}
+	export function json_stringify(obj: any): string;
+	export function json_parse(s: string): any;
 	/**
 	 * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
 	 * with the params as keys (eg. `{ thingId: string }`).
