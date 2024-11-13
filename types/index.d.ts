@@ -182,24 +182,24 @@ declare module 'smolrpc' {
 		onsend,
 	}: {
 		url: string;
-		createWebSocket?: ((url: string) => WebSocket) | undefined;
-		onopen?: ((e: Event) => void) | undefined;
-		onmessage?: ((e: MessageEvent) => void) | undefined;
-		onreconnect?: (() => void) | undefined;
-		onclose?: ((e: CloseEvent) => void) | undefined;
-		onerror?: ((e: Event) => void) | undefined;
-		onsend?: ((r: Request) => void) | undefined;
+		createWebSocket?: (url: string) => WebSocket;
+		onopen?: (e: Event) => void;
+		onmessage?: (e: MessageEvent) => void;
+		onreconnect?: () => void;
+		onclose?: (e: CloseEvent) => void;
+		onerror?: (e: Event) => void;
+		onsend?: (r: Request_1) => void;
 	}): {
 		client: Client<Resources>;
 		clientMethods: ClientMethods;
 	};
-	type Request = Request_1<any>;
+	type Request_1 = Request_1_2<any>;
 	export function initServer<Resources extends AnyResources>(
 		router: Router<Resources>,
 		resources: AnyResources,
 		options?:
 			| {
-					serverLogger?: ServerLogger | undefined;
+					serverLogger?: ServerLogger;
 			  }
 			| undefined,
 	): {
@@ -221,180 +221,183 @@ declare module 'smolrpc' {
 	type GetHandler_1<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1 extends z.ZodTypeAny
-			? z.infer<Request_1>
+		request: Request_1_2 extends z.ZodTypeAny
+			? z.infer<Request_1_2>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type GetHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1 extends z.ZodTypeAny
-			? z.infer<Request_1>
+		request: Request_1_2 extends z.ZodTypeAny
+			? z.infer<Request_1_2>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type PickGetHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = ResourceParams<Resource> extends null
-		? GetHandler_1<Resources, Resource, Request_1>
-		: GetHandlerWithParams<Resources, Resource, Request_1>;
+		? GetHandler_1<Resources, Resource, Request_1_2>
+		: GetHandlerWithParams<Resources, Resource, Request_1_2>;
 	type SetHandler_1<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1 extends z.ZodTypeAny
-			? z.infer<Request_1>
+		request: Request_1_2 extends z.ZodTypeAny
+			? z.infer<Request_1_2>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type SetHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1 extends z.ZodTypeAny
-			? z.infer<Request_1>
+		request: Request_1_2 extends z.ZodTypeAny
+			? z.infer<Request_1_2>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type PickSetHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = ResourceParams<Resource> extends null
-		? SetHandler_1<Resources, Resource, Request_1>
-		: SetHandlerWithParams<Resources, Resource, Request_1>;
+		? SetHandler_1<Resources, Resource, Request_1_2>
+		: SetHandlerWithParams<Resources, Resource, Request_1_2>;
 	type SubscribeHandler_1<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1 extends z.ZodTypeAny
-			? z.infer<Request_1>
+		request: Request_1_2 extends z.ZodTypeAny
+			? z.infer<Request_1_2>
 			: undefined;
 	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type SubscribeHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1 extends z.ZodTypeAny
-			? z.infer<Request_1>
+		request: Request_1_2 extends z.ZodTypeAny
+			? z.infer<Request_1_2>
 			: undefined;
 	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type PickSubscribeHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1 extends AnyResource['request'],
+		Request_1_2 extends AnyResource['request'],
 	> = ResourceParams<Resource> extends null
-		? SubscribeHandler_1<Resources, Resource, Request_1>
-		: SubscribeHandlerWithParams<Resources, Resource, Request_1>;
+		? SubscribeHandler_1<Resources, Resource, Request_1_2>
+		: SubscribeHandlerWithParams<Resources, Resource, Request_1_2>;
 	export type Router<Resources extends AnyResources> = {
 		[R in keyof Resources & string]: Resources[R] extends {
 			type: 'get';
-			request?: infer Request_1 extends z.ZodTypeAny;
+			request?: infer Request_1_2 extends z.ZodTypeAny;
 		}
 			? {
-					get: PickGetHandler<Resources, R, Request_1>;
+					get: PickGetHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'set';
-					request: infer Request_1 extends z.ZodTypeAny;
+					request: infer Request_1_2 extends z.ZodTypeAny;
 			  }
 			? {
-					set: PickSetHandler<Resources, R, Request_1>;
+					set: PickSetHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'subscribe';
-					request?: infer Request_1 extends z.ZodTypeAny;
+					request?: infer Request_1_2 extends z.ZodTypeAny;
 			  }
 			? {
-					subscribe: PickSubscribeHandler<Resources, R, Request_1>;
+					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'get|set';
-					request: infer Request_1 extends z.ZodTypeAny;
+					request: infer Request_1_2 extends z.ZodTypeAny;
 			  }
 			? {
-					get: PickGetHandler<Resources, R, Request_1>;
-					set: PickSetHandler<Resources, R, Request_1>;
+					get: PickGetHandler<Resources, R, Request_1_2>;
+					set: PickSetHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'get|subscribe';
-					request?: infer Request_1 extends z.ZodTypeAny;
+					request?: infer Request_1_2 extends z.ZodTypeAny;
 			  }
 			? {
-					get: PickGetHandler<Resources, R, Request_1>;
-					subscribe: PickSubscribeHandler<Resources, R, Request_1>;
+					get: PickGetHandler<Resources, R, Request_1_2>;
+					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'set|subscribe';
-					request: infer Request_1 extends z.ZodTypeAny;
+					request: infer Request_1_2 extends z.ZodTypeAny;
 			  }
 			? {
-					set: PickSetHandler<Resources, R, Request_1>;
-					subscribe: PickSubscribeHandler<Resources, R, Request_1>;
+					set: PickSetHandler<Resources, R, Request_1_2>;
+					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'get|set|subscribe';
-					request: infer Request_1 extends z.ZodTypeAny;
+					request: infer Request_1_2 extends z.ZodTypeAny;
 			  }
 			? {
-					get: PickGetHandler<Resources, R, Request_1>;
-					set: PickSetHandler<Resources, R, Request_1>;
-					subscribe: PickSubscribeHandler<Resources, R, Request_1>;
+					get: PickGetHandler<Resources, R, Request_1_2>;
+					set: PickSetHandler<Resources, R, Request_1_2>;
+					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
 			  }
 			: never;
 	};
 	interface ServerLogger {
 		receivedRequest: (
-			request: Request_1<any>,
+			request: Request_1_2<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
 		sentResponse: (
-			request: Request_1<any>,
+			request: Request_1_2<any>,
 			response: Response<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
 		sentEvent: (
-			request: Request_1<any>,
+			request: Request_1_2<any>,
 			event: SubscribeEvent<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
 		sentReject: (
-			request: Request_1<any> | undefined,
+			request: Request_1_2<any> | undefined,
 			reject: RequestReject<AnyResources> | Reject,
 			clientId: number,
 			remoteAddress: string | undefined,
 			error?: unknown,
 		) => void;
 	}
-	export function json_stringify(obj: any): string;
+	export function json_stringify(
+		obj: any,
+		space?: Parameters<typeof JSON.stringify>[2],
+	): string;
 	export function json_parse(s: string): any;
 	/**
 	 * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
@@ -445,7 +448,7 @@ declare module 'smolrpc' {
 		Resources extends AnyResources,
 	>(): Client<Resources>;
 	type Params = Record<string, string> | null | undefined;
-	type Request_1<Resources extends AnyResources> =
+	type Request_1_2<Resources extends AnyResources> =
 		| GetRequest<Resources>
 		| SetRequest<Resources>
 		| SubscribeRequest<Resources>
@@ -457,7 +460,7 @@ declare module 'smolrpc' {
 		| UnsubscribeAccept<Resources>;
 	type RequestReject<Resources extends AnyResources> = {
 		error: string;
-		request: Request_1<Resources>;
+		request: Request_1_2<Resources>;
 		type: 'RequestReject';
 	};
 	type Reject = {
@@ -527,7 +530,6 @@ declare module 'smolrpc' {
 		resource: keyof Resources & string;
 		type: 'UnsubscribeAccept';
 	};
-	/// <reference types="node" />
 	type Data = string | ArrayBufferLike | ArrayBufferView | Buffer | Buffer[];
 	interface WSErrorEvent {
 		error: any;
@@ -568,6 +570,8 @@ declare module 'smolrpc' {
 		): void;
 		send: (data: Data) => void;
 	};
+
+	export {};
 }
 
 //# sourceMappingURL=index.d.ts.map
