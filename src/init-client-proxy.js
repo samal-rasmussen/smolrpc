@@ -1,5 +1,5 @@
 import { ReadyStates } from './init-client-websocket.js';
-import { getResourceWithParams, json_parse } from './shared.js';
+import { getResourceWithParams, json_parse, json_stringify } from './shared.js';
 
 /**
  * @typedef {import("./types").Subscribable<any>} Subscribable
@@ -177,7 +177,8 @@ export function initClientProxy(websocket) {
 		}
 		const resourceWithParams = getResourceWithParams(resource, params);
 		if (cache) {
-			const existing = subscriptions.get(resourceWithParams);
+			const cacheKey = getCacheKey(resourceWithParams, request);
+			const existing = subscriptions.get(cacheKey);
 			if (existing) {
 				return existing.subscribable;
 			}
@@ -220,7 +221,11 @@ export function initClientProxy(websocket) {
 					}
 					listeners.delete(subscriptionData.requestId);
 					if (cache) {
-						subscriptions.delete(resourceWithParams);
+						const cacheKey = getCacheKey(
+							resourceWithParams,
+							request,
+						);
+						subscriptions.delete(cacheKey);
 					}
 					const unsubRequestId = ++id;
 					if (websocket.readyState === ReadyStates.OPEN) {
@@ -306,7 +311,8 @@ export function initClientProxy(websocket) {
 			subscribable,
 		};
 		if (cache) {
-			subscriptions.set(resourceWithParams, subscriptionData);
+			const cacheKey = getCacheKey(resourceWithParams, request);
+			subscriptions.set(cacheKey, subscriptionData);
 		}
 		return subscribable;
 	}
@@ -405,4 +411,13 @@ export function dummyClient() {
 	);
 
 	return proxy;
+}
+
+/**
+ * @param {string} resourceWithParams
+ * @param {any} request
+ * @returns {string}
+ */
+function getCacheKey(resourceWithParams, request) {
+	return `${resourceWithParams}-${json_stringify(request)}`;
 }

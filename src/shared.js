@@ -46,10 +46,11 @@ function reviver(_key, value) {
  * Wrapper around JSON stringify methods to support bigint serialization
  *
  * @param {any} obj
+ * @param {Parameters<typeof JSON.stringify>[2]} [space]
  * @returns
  */
-export const json_stringify = (obj) => {
-	return JSON.stringify(obj, replacer);
+export const json_stringify = (obj, space) => {
+	return JSON.stringify(obj, replacer, space);
 };
 
 /**
