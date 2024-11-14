@@ -426,7 +426,7 @@ declare module 'smolrpc' {
 			| 'set|subscribe'
 			| 'get|set|subscribe';
 	};
-	type AnyResources = {
+	export type AnyResources = {
 		[key: string]: AnyResource;
 	};
 	interface Observer<T> {
