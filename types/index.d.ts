@@ -206,6 +206,89 @@ declare module 'smolrpc' {
 		addConnection: (ws: WS, remoteAddress?: string | undefined) => number;
 	};
 	type WS = WS_1;
+	type Params = Record<string, string> | null | undefined;
+	type Request_1_2<Resources extends AnyResources> =
+		| GetRequest<Resources>
+		| SetRequest<Resources>
+		| SubscribeRequest<Resources>
+		| UnsubscribeRequest<Resources>;
+	export type Response<Resources extends AnyResources> =
+		| GetResponse<Resources>
+		| SetSuccess<Resources>
+		| SubscribeAccept<Resources>
+		| UnsubscribeAccept<Resources>;
+	type RequestReject<Resources extends AnyResources> = {
+		error: string;
+		request: Request_1_2<Resources>;
+		type: 'RequestReject';
+	};
+	type Reject = {
+		error: string;
+		type: 'Reject';
+	};
+	type GetRequest<Resources extends AnyResources> = {
+		id: number;
+		params: Params;
+		resource: keyof Resources & string;
+		request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
+			? z.infer<Resources[keyof Resources]['request']>
+			: undefined;
+		type: 'GetRequest';
+	};
+	type GetResponse<Resources extends AnyResources> = {
+		data: z.infer<Resources[keyof Resources]['response']>;
+		id: number;
+		resource: keyof Resources & string;
+		type: 'GetResponse';
+	};
+	type SetRequest<Resources extends AnyResources> = {
+		id: number;
+		params: Params;
+		resource: keyof Resources & string;
+		request: Resources[keyof Resources]['request'] extends z.ZodTypeAny
+			? z.infer<Resources[keyof Resources]['request']>
+			: undefined;
+		type: 'SetRequest';
+	};
+	type SetSuccess<Resources extends AnyResources> = {
+		id: number;
+		resource: keyof Resources & string;
+		data: z.infer<Resources[keyof Resources]['response']>;
+		type: 'SetSuccess';
+	};
+	type SubscribeRequest<Resources extends AnyResources> = {
+		id: number;
+		params: Params;
+		resource: keyof Resources & string;
+		request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
+			? z.infer<Resources[keyof Resources]['request']>
+			: undefined;
+		type: 'SubscribeRequest';
+	};
+	type SubscribeAccept<Resources extends AnyResources> = {
+		id: number;
+		resource: keyof Resources & string;
+		type: 'SubscribeAccept';
+	};
+	export type SubscribeEvent<Resources extends AnyResources> = {
+		id: number;
+		params?: Params;
+		resource: keyof Resources & string;
+		data: z.infer<Resources[keyof Resources]['response']>;
+		type: 'SubscribeEvent';
+	};
+	type UnsubscribeRequest<Resources extends AnyResources> = {
+		id: number;
+		subscriptionId: number;
+		params: Params;
+		resource: keyof Resources & string;
+		type: 'UnsubscribeRequest';
+	};
+	type UnsubscribeAccept<Resources extends AnyResources> = {
+		id: number;
+		resource: keyof Resources & string;
+		type: 'UnsubscribeAccept';
+	};
 	type HandlerResponse<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -368,7 +451,7 @@ declare module 'smolrpc' {
 			  }
 			: never;
 	};
-	interface ServerLogger {
+	export interface ServerLogger {
 		receivedRequest: (
 			request: Request_1_2<any>,
 			clientId: number,
@@ -403,7 +486,7 @@ declare module 'smolrpc' {
 	 * Given a URL-like string with :params (eg. `/thing/:thingId`), returns a type
 	 * with the params as keys (eg. `{ thingId: string }`).
 	 */
-	type ResourceParams<T> =
+	export type ResourceParams<T> =
 		T extends `${infer _Start}:${infer Param}/${infer Rest}`
 			? {
 					[k in Param | keyof ResourceParams<Rest>]: string | number;
@@ -447,89 +530,6 @@ declare module 'smolrpc' {
 	export function dummyClient<
 		Resources extends AnyResources,
 	>(): Client<Resources>;
-	type Params = Record<string, string> | null | undefined;
-	type Request_1_2<Resources extends AnyResources> =
-		| GetRequest<Resources>
-		| SetRequest<Resources>
-		| SubscribeRequest<Resources>
-		| UnsubscribeRequest<Resources>;
-	type Response<Resources extends AnyResources> =
-		| GetResponse<Resources>
-		| SetSuccess<Resources>
-		| SubscribeAccept<Resources>
-		| UnsubscribeAccept<Resources>;
-	type RequestReject<Resources extends AnyResources> = {
-		error: string;
-		request: Request_1_2<Resources>;
-		type: 'RequestReject';
-	};
-	type Reject = {
-		error: string;
-		type: 'Reject';
-	};
-	type GetRequest<Resources extends AnyResources> = {
-		id: number;
-		params: Params;
-		resource: keyof Resources & string;
-		request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-			? z.infer<Resources[keyof Resources]['request']>
-			: undefined;
-		type: 'GetRequest';
-	};
-	type GetResponse<Resources extends AnyResources> = {
-		data: z.infer<Resources[keyof Resources]['response']>;
-		id: number;
-		resource: keyof Resources & string;
-		type: 'GetResponse';
-	};
-	type SetRequest<Resources extends AnyResources> = {
-		id: number;
-		params: Params;
-		resource: keyof Resources & string;
-		request: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-			? z.infer<Resources[keyof Resources]['request']>
-			: undefined;
-		type: 'SetRequest';
-	};
-	type SetSuccess<Resources extends AnyResources> = {
-		id: number;
-		resource: keyof Resources & string;
-		data: z.infer<Resources[keyof Resources]['response']>;
-		type: 'SetSuccess';
-	};
-	type SubscribeRequest<Resources extends AnyResources> = {
-		id: number;
-		params: Params;
-		resource: keyof Resources & string;
-		request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-			? z.infer<Resources[keyof Resources]['request']>
-			: undefined;
-		type: 'SubscribeRequest';
-	};
-	type SubscribeAccept<Resources extends AnyResources> = {
-		id: number;
-		resource: keyof Resources & string;
-		type: 'SubscribeAccept';
-	};
-	type SubscribeEvent<Resources extends AnyResources> = {
-		id: number;
-		params?: Params;
-		resource: keyof Resources & string;
-		data: z.infer<Resources[keyof Resources]['response']>;
-		type: 'SubscribeEvent';
-	};
-	type UnsubscribeRequest<Resources extends AnyResources> = {
-		id: number;
-		subscriptionId: number;
-		params: Params;
-		resource: keyof Resources & string;
-		type: 'UnsubscribeRequest';
-	};
-	type UnsubscribeAccept<Resources extends AnyResources> = {
-		id: number;
-		resource: keyof Resources & string;
-		type: 'UnsubscribeAccept';
-	};
 	type Data = string | ArrayBufferLike | ArrayBufferView | Buffer | Buffer[];
 	interface WSErrorEvent {
 		error: any;
