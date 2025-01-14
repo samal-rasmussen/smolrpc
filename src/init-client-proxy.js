@@ -192,6 +192,7 @@ export function initClientProxy(websocket) {
 		const subscribable = {
 			subscribe: (observer) => {
 				if (observers.size > 0) {
+					// Reuse the existing subscription
 					observers.add(observer);
 					if (subscriptionData.lastVal !== undefined) {
 						observer.next?.(subscriptionData.lastVal);
@@ -203,6 +204,7 @@ export function initClientProxy(websocket) {
 						},
 					};
 				}
+				// No existing subscription, create new
 				subscriptionData.requestId = ++id;
 				observers.add(observer);
 				unsubscribeFn = () => {
