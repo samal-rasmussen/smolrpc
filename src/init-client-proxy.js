@@ -199,8 +199,12 @@ export function initClientProxy(websocket) {
 					}
 					return {
 						unsubscribe: () => {
-							observers.delete(observer);
-							unsubscribeFn?.();
+							setTimeout(() => {
+								// Use setTimeout to push the actual unsubscription to the next tick.
+								// This allows a potential immediate resubscription to reuse this subscription before it is actuallu unsubscribed.
+								observers.delete(observer);
+								unsubscribeFn?.();
+							});
 						},
 					};
 				}
@@ -300,8 +304,12 @@ export function initClientProxy(websocket) {
 				});
 				return {
 					unsubscribe: () => {
-						observers.delete(observer);
-						unsubscribeFn?.();
+						setTimeout(() => {
+							// Use setTimeout to push the actual unsubscription to the next tick.
+							// This allows a potential immediate resubscription to reuse this subscription before it is actuallu unsubscribed.
+							observers.delete(observer);
+							unsubscribeFn?.();
+						});
 					},
 				};
 			},
