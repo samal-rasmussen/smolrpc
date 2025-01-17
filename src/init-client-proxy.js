@@ -208,7 +208,7 @@ export function initClientProxy(websocket) {
 				subscriptionData.requestId = ++id;
 				observers.add(observer);
 				unsubscribeFn = () => {
-					if (observers.size > 1) {
+					if (observers.size > 0) {
 						return;
 					}
 					if (typeof subscriptionData.requestId !== 'number') {
@@ -421,5 +421,8 @@ export function dummyClient() {
  * @returns {string}
  */
 function getCacheKey(resourceWithParams, request) {
+	if (request == null) {
+		return `${resourceWithParams}`;
+	}
 	return `${resourceWithParams}-${json_stringify(request)}`;
 }
