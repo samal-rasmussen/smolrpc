@@ -84,13 +84,13 @@ type SubscribeHandlerWithRequest<
 export type Client<Resources extends AnyResources> = {
 	[R in keyof Resources & string]: Resources[R] extends {
 		type: 'get';
+		request: infer Request extends z.ZodTypeAny;
 	}
-		? { get: GetHandler<Resources, R> }
+		? { get: GetHandlerWithRequest<Resources, R, Request> }
 		: Resources[R] extends {
 				type: 'get';
-				request: infer Request extends z.ZodTypeAny;
 		  }
-		? { get: GetHandlerWithRequest<Resources, R, Request> }
+		? { get: GetHandler<Resources, R> }
 		: Resources[R] extends {
 				type: 'set';
 				request: infer Request extends z.ZodTypeAny;
@@ -98,15 +98,15 @@ export type Client<Resources extends AnyResources> = {
 		? { set: SetHandler<Resources, R, Request> }
 		: Resources[R] extends {
 				type: 'subscribe';
-				cache?: boolean;
-		  }
-		? { subscribe: SubscribeHandler<Resources, R> }
-		: Resources[R] extends {
-				type: 'subscribe';
 				request: infer Request extends z.ZodTypeAny;
 				cache?: boolean;
 		  }
 		? { subscribe: SubscribeHandlerWithRequest<Resources, R, Request> }
+		: Resources[R] extends {
+				type: 'subscribe';
+				cache?: boolean;
+		  }
+		? { subscribe: SubscribeHandler<Resources, R> }
 		: Resources[R] extends {
 				type: 'get|set';
 				request: infer Request extends z.ZodTypeAny;
