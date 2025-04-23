@@ -6,16 +6,16 @@ Communicates over websockets and supports three operations on user defined resou
 
 Uses Zod for runtime typechecking. No other dependencies.
 
-Inspired by the typesafe Typescript apis as done by tRPC (https://trpc.io/), ts-rest (https://ts-rest.com/), and Zodios (https://www.zodios.org/).
-And by the WebSocket api as done by Sockette (https://github.com/lukeed/sockette).
+Inspired by the typesafe TypeScript APIs implemented in tRPC (https://trpc.io/), ts-rest (https://ts-rest.com/), and Zodios (https://www.zodios.org/).
+And by the WebSocket API as done by Sockette (https://github.com/lukeed/sockette).
 
-You define the api in one place and import and use the same api types on both the server and the client.
+You define the API in one place and import and use the same API types on both the server and the client.
 
-Get and set ar practically the same, but it is a useful distinction so you can do read/write separation on the backedn, which is useful if you need to scale up and use leader/follower db clusters.
+Get and set are practically the same, but it is a useful distinction so you can do read/write separation on the backend, which is useful if you need to scale up and use leader/follower database clusters.
 
 Subscriptions can be defined on the same resources as get and set operations, and are rxjs observable compatible.
 
-All actions are on statically typed resource urls that support statically parsed params. You then define the request and response Zod types for such a resource.
+All actions are on statically typed resource URLs that support statically parsed parameters. You then define request and response Zod types for such a resource.
 
 # How to use
 
