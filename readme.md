@@ -382,6 +382,10 @@ const server = initServer<Resources>(router, resources, {
 });
 ```
 
+### Authentication
+
+smolrpc supports secure HTTP-only cookie authentication, which is ideal for browser-based applications. For detailed implementation instructions, see the [Authentication Guide](authentication.md).
+
 ## Troubleshooting
 
 ### Common Issues

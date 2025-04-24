@@ -18,22 +18,20 @@ export const router = {
 			return result;
 		},
 		subscribe: ({ resourceWithParams, resource }) => {
-			const result = db.subscribe(resourceWithParams) as Subscribable<
-				Result<typeof resource>
-			>;
+			const result: Subscribable<Result<typeof resource>> =
+				db.subscribe(resourceWithParams);
 			return result;
 		},
 	},
 	'/posts/limit': {
 		get: async ({ resource, request }) => {
 			console.log('ignore limit', request.limit);
-			const result = db.getAll(resource) as Result<typeof resource>;
+			const result: Result<typeof resource> = db.getAll(resource);
 			return result;
 		},
 		subscribe: ({ resourceWithParams, resource }) => {
-			const result = db.subscribe(resourceWithParams) as Subscribable<
-				Result<typeof resource>
-			>;
+			const result: Subscribable<Result<typeof resource>> =
+				db.subscribe(resourceWithParams);
 			return result;
 		},
 	},
@@ -52,9 +50,8 @@ export const router = {
 			return result;
 		},
 		subscribe: ({ resourceWithParams, resource }) => {
-			const result = db.subscribe(resourceWithParams) as Subscribable<
-				Result<typeof resource>
-			>;
+			const result: Subscribable<Result<typeof resource>> =
+				db.subscribe(resourceWithParams);
 			return result;
 		},
 	},
@@ -68,15 +65,13 @@ export const router = {
 	},
 	'/posts/:postId/comments': {
 		get: async ({ resource, resourceWithParams }) => {
-			const result = db.getAll(resourceWithParams) as Result<
-				typeof resource
-			>;
+			const result: Result<typeof resource> =
+				db.getAll(resourceWithParams);
 			return result;
 		},
 		subscribe: ({ resourceWithParams, resource }) => {
-			const result = db.subscribe(resourceWithParams) as Subscribable<
-				Result<typeof resource>
-			>;
+			const result: Subscribable<Result<typeof resource>> =
+				db.subscribe(resourceWithParams);
 			return result;
 		},
 	},
@@ -92,15 +87,12 @@ export const router = {
 	},
 	'/posts/:postId/comments/:commentId': {
 		get: async ({ resourceWithParams, resource }) => {
-			const result = db.get(resourceWithParams) as Result<
-				typeof resource
-			>;
+			const result: Result<typeof resource> = db.get(resourceWithParams);
 			return result;
 		},
 		subscribe: ({ resourceWithParams, resource }) => {
-			const result = db.subscribe(resourceWithParams) as Subscribable<
-				Result<typeof resource>
-			>;
+			const result: Subscribable<Result<typeof resource>> =
+				db.subscribe(resourceWithParams);
 			return result;
 		},
 	},

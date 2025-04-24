@@ -35,7 +35,7 @@ console.log('get posts', all_posts);
 const limit_posts = await client['/posts/limit'].get({
 	request: { limit: 10 },
 });
-console.log('get posts', limit_posts);
+console.log('get posts with limit', limit_posts);
 const post = await client['/posts/:postId'].get({
 	params: { postId: newPost.id },
 });
