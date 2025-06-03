@@ -43,6 +43,9 @@ export function initClientProxy(websocket) {
 	 * }>} */
 	let subscriptions = new Map();
 
+	/** @type {((value?: unknown) => void)[]} */
+	let onOpenCallbacks = [];
+
 	/**
 	 * @param {string} resource
 	 * @param {any} request
@@ -60,7 +63,6 @@ export function initClientProxy(websocket) {
 		}
 		return new Promise((resolve, reject) => {
 			const requestId = ++id;
-			// TODO: Handle request timeout
 			listeners.set(requestId, {
 				listener: (msg) => {
 					if (msg.type === 'RequestReject') {
@@ -105,51 +107,114 @@ export function initClientProxy(websocket) {
 	 * @returns {Promise<unknown>}
 	 */
 	function setHandler(resource, request, params) {
-		if (websocket.readyState !== ReadyStates.OPEN) {
-			console.error('initClientProxy.setHandler: websocket not open', {
-				resource,
-				request,
-				params,
-			});
-			throw new Error('initClientProxy.setHandler: websocket not open');
-		}
-		return new Promise((resolve, reject) => {
-			const requestId = ++id;
-			// TODO: Handle request timeout
-			listeners.set(requestId, {
-				listener: (msg) => {
-					if (msg.type === 'RequestReject') {
-						const paramsErrMsg =
-							msg.request.params != null
-								? ` with params ${JSON.stringify(
-										msg.request.params,
-								  )}`
-								: '';
-						const errMsg =
-							`Set request on ${msg.request.resource}` +
-							paramsErrMsg +
-							` rejected with error: ${msg.error}`;
-						reject(new Error(errMsg));
-					} else if (msg.type === 'SetSuccess') {
-						resolve(msg.data);
-					} else {
-						console.error(
-							`Unexpected message type in set listener`,
-							msg,
+		return new Promise((resolveOuter, rejectOuter) => {
+			/** @type {NodeJS.Timeout | number | undefined} */
+			let operationTimeoutId;
+			/** @type {number | undefined} */
+			let requestId; // Will be assigned when request is actually sent
+
+			/** @param {Error} error */
+			const cleanupAndReject = (error) => {
+				clearTimeout(operationTimeoutId);
+				if (requestId && listeners.has(requestId)) {
+					listeners.delete(requestId);
+				}
+				rejectOuter(error);
+			};
+
+			/** @param {any} data */
+			const cleanupAndResolve = (data) => {
+				clearTimeout(operationTimeoutId);
+				// Listener is already removed by the message handler or would be if timeout occurred first.
+				resolveOuter(data);
+			};
+
+			operationTimeoutId = setTimeout(() => {
+				const timeoutError = new Error(
+					`Set request on ${resource}${
+						params ? ` with params ${JSON.stringify(params)}` : ''
+					} timed out after 5 seconds.`,
+				);
+				cleanupAndReject(timeoutError);
+			}, 5000);
+
+			async function execute() {
+				try {
+					if (websocket.readyState !== ReadyStates.OPEN) {
+						// Wait for the connection to open, bounded by the outer 5s timeout
+						await new Promise((resolve) => {
+							onOpenCallbacks.push(resolve);
+						});
+					}
+
+					// If, after potentially waiting, the connection is still not open,
+					// it implies the timeout likely occurred while waiting for onopen,
+					// or onopen didn't actually result in an OPEN state.
+					if (websocket.readyState !== ReadyStates.OPEN) {
+						throw new Error(
+							`WebSocket is not OPEN (state: ${websocket.readyState}) after waiting for connection. Request cannot be sent.`,
 						);
 					}
-				},
-				params,
-				resource,
-				type: 'set',
-			});
-			websocket.send({
-				id: requestId,
-				type: 'SetRequest',
-				resource,
-				params,
-				request: request,
-			});
+
+					requestId = ++id;
+
+					listeners.set(requestId, {
+						listener: (msg) => {
+							if (msg.type === 'RequestReject') {
+								const paramsErrMsg =
+									msg.request.params != null
+										? ` with params ${JSON.stringify(
+												msg.request.params,
+										  )}`
+										: '';
+								const errMsg =
+									`Set request on ${msg.request.resource}` +
+									paramsErrMsg +
+									` rejected with error: ${msg.error}`;
+								cleanupAndReject(new Error(errMsg));
+							} else if (msg.type === 'SetSuccess') {
+								cleanupAndResolve(msg.data);
+							} else {
+								console.error(
+									`Unexpected message type in set listener`,
+									msg,
+								);
+								cleanupAndReject(
+									new Error(
+										`Unexpected message type ${msg.type} in set listener`,
+									),
+								);
+							}
+						},
+						params,
+						resource,
+						type: 'set',
+					});
+
+					websocket.send({
+						id: requestId,
+						type: 'SetRequest',
+						resource,
+						params,
+						request: request,
+					});
+				} catch (error) {
+					if (error instanceof Error) {
+						cleanupAndReject(error);
+					} else {
+						cleanupAndReject(
+							new Error(
+								String(
+									error ||
+										'Unknown error in setHandler.execute',
+								),
+							),
+						);
+					}
+				}
+			}
+
+			execute();
 		});
 	}
 
@@ -261,7 +326,6 @@ export function initClientProxy(websocket) {
 						});
 					}
 				};
-				// TODO: Handle request timeout
 				listeners.set(subscriptionData.requestId, {
 					listener: (msg) => {
 						if (msg.type === 'RequestReject') {
@@ -354,6 +418,11 @@ export function initClientProxy(websocket) {
 		listeners = new Map();
 		subscriptions = new Map();
 		connection_number++;
+
+		for (const callback of onOpenCallbacks) {
+			callback();
+		}
+		onOpenCallbacks = [];
 	}
 
 	/**
