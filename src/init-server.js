@@ -240,13 +240,14 @@ export function initServer(router, resources, options) {
 			try {
 				const requestSchema = resourceDefinition.request;
 				if (requestSchema != null) {
-					const parsedRequest = requestSchema.safeParse(
+					const parsedRequest = validateSchema(
+						requestSchema,
 						request.request,
 					);
-					if (!parsedRequest.success) {
+					if (parsedRequest.issues != null) {
 						sendReject(
 							ws,
-							`request schema validation failed: ${parsedRequest.error.message}}`,
+							`request schema validation failed: ${parsedRequest.issues}}`,
 							request,
 							clientId,
 							remoteAddress,
@@ -278,12 +279,12 @@ export function initServer(router, resources, options) {
 						routerHandlers
 					).get;
 				const result = await getHandler(args);
-				const parsed = responseSchema.safeParse(result);
-				if (!parsed.success) {
+				const parsed = validateSchema(responseSchema, result);
+				if (parsed.issues != null) {
 					console.error(
 						`invalid route response for ${request.resource}`,
 						json_stringify(result),
-						parsed.error,
+						parsed.issues,
 					);
 					return;
 				}
@@ -292,7 +293,7 @@ export function initServer(router, resources, options) {
 					id: request.id,
 					type: 'GetResponse',
 					resource: request.resource,
-					data: parsed.data,
+					data: parsed.value,
 				};
 				ws.send(json_stringify(response));
 				options?.serverLogger?.sentResponse(
@@ -321,13 +322,14 @@ export function initServer(router, resources, options) {
 			try {
 				const requestSchema = resourceDefinition.request;
 				if (requestSchema != null) {
-					const parsedRequest = requestSchema.safeParse(
+					const parsedRequest = validateSchema(
+						requestSchema,
 						request.request,
 					);
-					if (!parsedRequest.success) {
+					if (parsedRequest.issues != null) {
 						sendReject(
 							ws,
-							`request schema validation failed: ${parsedRequest.error.message}}`,
+							`request schema validation failed: ${parsedRequest.issues}}`,
 							request,
 							clientId,
 							remoteAddress,
@@ -357,12 +359,12 @@ export function initServer(router, resources, options) {
 						routerHandlers
 					).set;
 				const result = await setHandler(args);
-				const parsed = responseSchema.safeParse(result);
-				if (!parsed.success) {
+				const parsed = validateSchema(responseSchema, result);
+				if (parsed.issues != null) {
 					console.error(
 						`invalid route response for ${request.resource}`,
 						json_stringify(result),
-						parsed.error,
+						parsed.issues,
 					);
 					return;
 				}
@@ -371,7 +373,7 @@ export function initServer(router, resources, options) {
 					id: request.id,
 					type: 'SetSuccess',
 					resource: request.resource,
-					data: parsed.data,
+					data: parsed.value,
 				};
 				ws.send(json_stringify(response));
 				options?.serverLogger?.sentResponse(
@@ -400,13 +402,14 @@ export function initServer(router, resources, options) {
 			try {
 				const requestSchema = resourceDefinition.request;
 				if (requestSchema != null) {
-					const parsedRequest = requestSchema.safeParse(
+					const parsedRequest = validateSchema(
+						requestSchema,
 						request.request,
 					);
-					if (!parsedRequest.success) {
+					if (parsedRequest.issues != null) {
 						sendReject(
 							ws,
-							`request schema validation failed: ${parsedRequest.error.message}}`,
+							`request schema validation failed: ${parsedRequest.issues}}`,
 							request,
 							clientId,
 							remoteAddress,
@@ -458,12 +461,12 @@ export function initServer(router, resources, options) {
 
 				const subscription = subscribable.subscribe({
 					next(val) {
-						const parsed = responseSchema.safeParse(val);
-						if (!parsed.success) {
+						const parsed = validateSchema(responseSchema, val);
+						if (parsed.issues != null) {
 							console.error(
 								`invalid route response for ${request.resource}`,
 								json_stringify(val),
-								parsed.error,
+								parsed.issues,
 							);
 							return;
 						}
@@ -472,7 +475,7 @@ export function initServer(router, resources, options) {
 							id: request.id,
 							type: 'SubscribeEvent',
 							resource: request.resource,
-							data: parsed.data,
+							data: parsed.value,
 						};
 						if (request.params != null) {
 							event.params = request.params;
@@ -565,4 +568,22 @@ export function initServer(router, resources, options) {
 /** @type {(arg: never) => never} */
 function exhaustive(arg) {
 	throw new Error(`Failed exhaustive check. Expected never but got ${arg}`);
+}
+
+/**
+ * @param {import('@standard-schema/spec').StandardSchemaV1<any, any>} schema
+ * @param {any} value
+ * @returns {{value: any, issues: undefined} | {issues: string}}}
+ */
+function validateSchema(schema, value) {
+	const parsed = schema['~standard'].validate(value);
+	if (parsed instanceof Promise) {
+		throw new Error(
+			'smolrpc.initServer:Schema validation must be synchronous',
+		);
+	}
+	if (parsed.issues != null) {
+		return { issues: JSON.stringify(parsed.issues) };
+	}
+	return parsed;
 }

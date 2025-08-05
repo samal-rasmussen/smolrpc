@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { AnyResources } from './types';
 
@@ -28,13 +28,13 @@ export type GetRequest<Resources extends AnyResources> = {
 	id: number;
 	params: Params;
 	resource: keyof Resources & string;
-	request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-		? z.infer<Resources[keyof Resources]['request']>
+	request?: Resources[keyof Resources]['request'] extends StandardSchemaV1
+		? StandardSchemaV1.InferInput<Resources[keyof Resources]['request']>
 		: undefined;
 	type: 'GetRequest';
 };
 export type GetResponse<Resources extends AnyResources> = {
-	data: z.infer<Resources[keyof Resources]['response']>;
+	data: StandardSchemaV1.InferInput<Resources[keyof Resources]['response']>;
 	id: number;
 	resource: keyof Resources & string;
 	type: 'GetResponse';
@@ -43,23 +43,23 @@ export type SetRequest<Resources extends AnyResources> = {
 	id: number;
 	params: Params;
 	resource: keyof Resources & string;
-	request: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-		? z.infer<Resources[keyof Resources]['request']>
+	request: Resources[keyof Resources]['request'] extends StandardSchemaV1
+		? StandardSchemaV1.InferInput<Resources[keyof Resources]['request']>
 		: undefined;
 	type: 'SetRequest';
 };
 export type SetSuccess<Resources extends AnyResources> = {
 	id: number;
 	resource: keyof Resources & string;
-	data: z.infer<Resources[keyof Resources]['response']>;
+	data: StandardSchemaV1.InferInput<Resources[keyof Resources]['response']>;
 	type: 'SetSuccess';
 };
 export type SubscribeRequest<Resources extends AnyResources> = {
 	id: number;
 	params: Params;
 	resource: keyof Resources & string;
-	request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-		? z.infer<Resources[keyof Resources]['request']>
+	request?: Resources[keyof Resources]['request'] extends StandardSchemaV1
+		? StandardSchemaV1.InferInput<Resources[keyof Resources]['request']>
 		: undefined;
 	type: 'SubscribeRequest';
 };
@@ -72,7 +72,7 @@ export type SubscribeEvent<Resources extends AnyResources> = {
 	id: number;
 	params?: Params;
 	resource: keyof Resources & string;
-	data: z.infer<Resources[keyof Resources]['response']>;
+	data: StandardSchemaV1.InferInput<Resources[keyof Resources]['response']>;
 	type: 'SubscribeEvent';
 };
 export type UnsubscribeRequest<Resources extends AnyResources> = {

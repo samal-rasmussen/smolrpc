@@ -33,11 +33,11 @@ Remote Procedure Call (RPC) is a protocol that allows a program to execute code 
 
 smolrpc allows you to:
 
--   Define your API in one place using TypeScript and Zod
+-   Define your API in one place using TypeScript and Standard Schema
 -   Get automatic type-checking on both client and server
 -   Support three operations on user-defined resources: GET, SET, and SUBSCRIBE
 -   Use statically typed resource URLs with parsed parameters
--   Have minimal dependencies (only Zod for runtime type-checking)
+-   Have minimal dependencies (bring you own Standard Schema implementation for runtime type-checking. E.g. Zod, io-ts, etc.)
 
 ### Inspiration
 
@@ -218,7 +218,7 @@ TypeScript provides the compile-time type checking and enforces that:
 
 -   Only defined resource paths are accessible
 -   Only methods defined in the resource's `type` field are available
--   Parameters and return types match your Zod schemas
+-   Parameters and return types match your Standard Schema schemas
 -   URL parameters are required and type-checked
 
 This separation of concerns means runtime behavior is handled by JavaScript (the Proxy and WebSocket communication), while type safety is enforced by TypeScript at compile time:
@@ -244,8 +244,8 @@ Resources are defined as an object where each key is a URL-like path, and the va
 ```ts
 {
 	[path: string]: {
-		request?: z.ZodTypeAny; // Zod schema for request data
-		response: z.ZodTypeAny; // Zod schema for response data
+		request?: StandardSchemaV1; // Standard Schema for request data
+		response: StandardSchemaV1; // Standard Schema for response data
 		type: 'get' | 'set' | 'subscribe' | 'get|set' | 'get|subscribe' | 'set|subscribe' | 'get|set|subscribe';
 		cache?: boolean; // Optional: controls subscription caching behavior
 	}
@@ -391,7 +391,7 @@ smolrpc supports secure HTTP-only cookie authentication, which is ideal for brow
 ### Common Issues
 
 -   **WebSocket Not Found**: In Node.js or other environments without native WebSocket support, use the `createWebSocket` option
--   **Type Errors**: Ensure your Zod schemas match the actual data being sent/received
+-   **Type Errors**: Ensure your Standard Schema (Zod, io-ts, etc.) schemas match the actual data being sent/received
 -   **Connection Issues**: Check network connectivity and WebSocket server availability
 
 ## How to Run Examples

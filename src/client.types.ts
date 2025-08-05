@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type {
 	AnyResource,
@@ -11,10 +11,14 @@ type GetHandler<
 	Resources extends AnyResources,
 	Resource extends keyof AnyResources,
 > = ResourceParams<Resource> extends null | undefined
-	? () => Promise<z.infer<Resources[Resource]['response']>>
+	? () => Promise<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >
 	: (args: {
 			params: ResourceParams<Resource>;
-	  }) => Promise<z.infer<Resources[Resource]['response']>>;
+	  }) => Promise<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >;
 
 type GetHandlerWithRequest<
 	Resources extends AnyResources,
@@ -22,16 +26,20 @@ type GetHandlerWithRequest<
 	Request extends AnyResource['request'],
 > = ResourceParams<Resource> extends null | undefined
 	? (args: {
-			request: Request extends z.ZodTypeAny
-				? z.infer<Request>
+			request: Request extends StandardSchemaV1
+				? StandardSchemaV1.InferInput<Request>
 				: undefined;
-	  }) => Promise<z.infer<Resources[Resource]['response']>>
+	  }) => Promise<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >
 	: (args: {
-			request: Request extends z.ZodTypeAny
-				? z.infer<Request>
+			request: Request extends StandardSchemaV1
+				? StandardSchemaV1.InferInput<Request>
 				: undefined;
 			params: ResourceParams<Resource>;
-	  }) => Promise<z.infer<Resources[Resource]['response']>>;
+	  }) => Promise<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >;
 
 type SetHandler<
 	Resources extends AnyResources,
@@ -39,16 +47,20 @@ type SetHandler<
 	Request extends AnyResource['request'],
 > = ResourceParams<Resource> extends null | undefined
 	? (args: {
-			request: Request extends z.ZodTypeAny
-				? z.infer<Request>
+			request: Request extends StandardSchemaV1
+				? StandardSchemaV1.InferInput<Request>
 				: undefined;
-	  }) => Promise<z.infer<Resources[Resource]['response']>>
+	  }) => Promise<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >
 	: (args: {
-			request: Request extends z.ZodTypeAny
-				? z.infer<Request>
+			request: Request extends StandardSchemaV1
+				? StandardSchemaV1.InferInput<Request>
 				: undefined;
 			params: ResourceParams<Resource>;
-	  }) => Promise<z.infer<Resources[Resource]['response']>>;
+	  }) => Promise<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >;
 
 type SubscribeHandler<
 	Resources extends AnyResources,
@@ -56,11 +68,15 @@ type SubscribeHandler<
 > = ResourceParams<Resource> extends null | undefined
 	? (args?: {
 			cache?: boolean;
-	  }) => Subscribable<z.infer<Resources[Resource]['response']>>
+	  }) => Subscribable<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >
 	: (args: {
 			cache?: boolean;
 			params: ResourceParams<Resource>;
-	  }) => Subscribable<z.infer<Resources[Resource]['response']>>;
+	  }) => Subscribable<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >;
 
 type SubscribeHandlerWithRequest<
 	Resources extends AnyResources,
@@ -69,22 +85,26 @@ type SubscribeHandlerWithRequest<
 > = ResourceParams<Resource> extends null | undefined
 	? (args: {
 			cache?: boolean;
-			request: Request extends z.ZodTypeAny
-				? z.infer<Request>
+			request: Request extends StandardSchemaV1
+				? StandardSchemaV1.InferInput<Request>
 				: undefined;
-	  }) => Subscribable<z.infer<Resources[Resource]['response']>>
+	  }) => Subscribable<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >
 	: (args: {
 			cache?: boolean;
-			request: Request extends z.ZodTypeAny
-				? z.infer<Request>
+			request: Request extends StandardSchemaV1
+				? StandardSchemaV1.InferInput<Request>
 				: undefined;
 			params: ResourceParams<Resource>;
-	  }) => Subscribable<z.infer<Resources[Resource]['response']>>;
+	  }) => Subscribable<
+			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+	  >;
 
 export type Client<Resources extends AnyResources> = {
 	[R in keyof Resources & string]: Resources[R] extends {
 		type: 'get';
-		request: infer Request extends z.ZodTypeAny;
+		request: infer Request extends StandardSchemaV1;
 	}
 		? { get: GetHandlerWithRequest<Resources, R, Request> }
 		: Resources[R] extends {
@@ -93,12 +113,12 @@ export type Client<Resources extends AnyResources> = {
 		? { get: GetHandler<Resources, R> }
 		: Resources[R] extends {
 				type: 'set';
-				request: infer Request extends z.ZodTypeAny;
+				request: infer Request extends StandardSchemaV1;
 		  }
 		? { set: SetHandler<Resources, R, Request> }
 		: Resources[R] extends {
 				type: 'subscribe';
-				request: infer Request extends z.ZodTypeAny;
+				request: infer Request extends StandardSchemaV1;
 				cache?: boolean;
 		  }
 		? { subscribe: SubscribeHandlerWithRequest<Resources, R, Request> }
@@ -109,7 +129,7 @@ export type Client<Resources extends AnyResources> = {
 		? { subscribe: SubscribeHandler<Resources, R> }
 		: Resources[R] extends {
 				type: 'get|set';
-				request: infer Request extends z.ZodTypeAny;
+				request: infer Request extends StandardSchemaV1;
 		  }
 		? {
 				get: GetHandlerWithRequest<Resources, R, Request>;
@@ -117,7 +137,7 @@ export type Client<Resources extends AnyResources> = {
 		  }
 		: Resources[R] extends {
 				type: 'get|subscribe';
-				request: infer Request extends z.ZodTypeAny;
+				request: infer Request extends StandardSchemaV1;
 				cache?: boolean;
 		  }
 		? {
@@ -134,7 +154,7 @@ export type Client<Resources extends AnyResources> = {
 		  }
 		: Resources[R] extends {
 				type: 'set|subscribe';
-				request: infer Request extends z.ZodTypeAny;
+				request: infer Request extends StandardSchemaV1;
 				cache?: boolean;
 		  }
 		? {
@@ -143,7 +163,7 @@ export type Client<Resources extends AnyResources> = {
 		  }
 		: Resources[R] extends {
 				type: 'get|set|subscribe';
-				request: infer Request extends z.ZodTypeAny;
+				request: infer Request extends StandardSchemaV1;
 				cache?: boolean;
 		  }
 		? {

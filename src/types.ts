@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 export type Types = 'get' | 'set' | 'subscribe';
 export type MessageTypes = Types | 'unsubscribe';
@@ -15,8 +15,8 @@ export type ResourceParams<T> =
 		: null | undefined;
 
 export type AnyResource = {
-	request?: z.ZodTypeAny;
-	response: z.ZodTypeAny;
+	request?: StandardSchemaV1;
+	response: StandardSchemaV1;
 	cache?: boolean;
 	type:
 		| 'get'
@@ -48,4 +48,4 @@ export interface Subscribable<T> {
 export type Result<
 	Resources extends AnyResources,
 	Resource extends keyof Resources,
-> = z.infer<Resources[Resource]['response']>;
+> = StandardSchemaV1.InferInput<Resources[Resource]['response']>;

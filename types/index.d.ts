@@ -1,56 +1,72 @@
 declare module 'smolrpc' {
-	import type { z } from 'zod';
+	import type { StandardSchemaV1 } from '@standard-schema/spec';
 	type GetHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
 	> = ResourceParams<Resource> extends null | undefined
-		? () => Promise<z.infer<Resources[Resource]['response']>>
+		? () => Promise<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >
 		: (args: {
 				params: ResourceParams<Resource>;
-		  }) => Promise<z.infer<Resources[Resource]['response']>>;
+		  }) => Promise<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >;
 	type GetHandlerWithRequest<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
 		Request extends AnyResource['request'],
 	> = ResourceParams<Resource> extends null | undefined
 		? (args: {
-				request: Request extends z.ZodTypeAny
-					? z.infer<Request>
+				request: Request extends StandardSchemaV1
+					? StandardSchemaV1.InferInput<Request>
 					: undefined;
-		  }) => Promise<z.infer<Resources[Resource]['response']>>
+		  }) => Promise<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >
 		: (args: {
-				request: Request extends z.ZodTypeAny
-					? z.infer<Request>
+				request: Request extends StandardSchemaV1
+					? StandardSchemaV1.InferInput<Request>
 					: undefined;
 				params: ResourceParams<Resource>;
-		  }) => Promise<z.infer<Resources[Resource]['response']>>;
+		  }) => Promise<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >;
 	type SetHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
 		Request extends AnyResource['request'],
 	> = ResourceParams<Resource> extends null | undefined
 		? (args: {
-				request: Request extends z.ZodTypeAny
-					? z.infer<Request>
+				request: Request extends StandardSchemaV1
+					? StandardSchemaV1.InferInput<Request>
 					: undefined;
-		  }) => Promise<z.infer<Resources[Resource]['response']>>
+		  }) => Promise<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >
 		: (args: {
-				request: Request extends z.ZodTypeAny
-					? z.infer<Request>
+				request: Request extends StandardSchemaV1
+					? StandardSchemaV1.InferInput<Request>
 					: undefined;
 				params: ResourceParams<Resource>;
-		  }) => Promise<z.infer<Resources[Resource]['response']>>;
+		  }) => Promise<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >;
 	type SubscribeHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
 	> = ResourceParams<Resource> extends null | undefined
 		? (args?: {
 				cache?: boolean;
-		  }) => Subscribable<z.infer<Resources[Resource]['response']>>
+		  }) => Subscribable<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >
 		: (args: {
 				cache?: boolean;
 				params: ResourceParams<Resource>;
-		  }) => Subscribable<z.infer<Resources[Resource]['response']>>;
+		  }) => Subscribable<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >;
 	type SubscribeHandlerWithRequest<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -58,21 +74,25 @@ declare module 'smolrpc' {
 	> = ResourceParams<Resource> extends null | undefined
 		? (args: {
 				cache?: boolean;
-				request: Request extends z.ZodTypeAny
-					? z.infer<Request>
+				request: Request extends StandardSchemaV1
+					? StandardSchemaV1.InferInput<Request>
 					: undefined;
-		  }) => Subscribable<z.infer<Resources[Resource]['response']>>
+		  }) => Subscribable<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >
 		: (args: {
 				cache?: boolean;
-				request: Request extends z.ZodTypeAny
-					? z.infer<Request>
+				request: Request extends StandardSchemaV1
+					? StandardSchemaV1.InferInput<Request>
 					: undefined;
 				params: ResourceParams<Resource>;
-		  }) => Subscribable<z.infer<Resources[Resource]['response']>>;
+		  }) => Subscribable<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >;
 	export type Client<Resources extends AnyResources> = {
 		[R in keyof Resources & string]: Resources[R] extends {
 			type: 'get';
-			request: infer Request extends z.ZodTypeAny;
+			request: infer Request extends StandardSchemaV1;
 		}
 			? {
 					get: GetHandlerWithRequest<Resources, R, Request>;
@@ -85,14 +105,14 @@ declare module 'smolrpc' {
 			  }
 			: Resources[R] extends {
 					type: 'set';
-					request: infer Request extends z.ZodTypeAny;
+					request: infer Request extends StandardSchemaV1;
 			  }
 			? {
 					set: SetHandler<Resources, R, Request>;
 			  }
 			: Resources[R] extends {
 					type: 'subscribe';
-					request: infer Request extends z.ZodTypeAny;
+					request: infer Request extends StandardSchemaV1;
 					cache?: boolean;
 			  }
 			? {
@@ -111,7 +131,7 @@ declare module 'smolrpc' {
 			  }
 			: Resources[R] extends {
 					type: 'get|set';
-					request: infer Request extends z.ZodTypeAny;
+					request: infer Request extends StandardSchemaV1;
 			  }
 			? {
 					get: GetHandlerWithRequest<Resources, R, Request>;
@@ -119,7 +139,7 @@ declare module 'smolrpc' {
 			  }
 			: Resources[R] extends {
 					type: 'get|subscribe';
-					request: infer Request extends z.ZodTypeAny;
+					request: infer Request extends StandardSchemaV1;
 					cache?: boolean;
 			  }
 			? {
@@ -140,7 +160,7 @@ declare module 'smolrpc' {
 			  }
 			: Resources[R] extends {
 					type: 'set|subscribe';
-					request: infer Request extends z.ZodTypeAny;
+					request: infer Request extends StandardSchemaV1;
 					cache?: boolean;
 			  }
 			? {
@@ -153,7 +173,7 @@ declare module 'smolrpc' {
 			  }
 			: Resources[R] extends {
 					type: 'get|set|subscribe';
-					request: infer Request extends z.ZodTypeAny;
+					request: infer Request extends StandardSchemaV1;
 					cache?: boolean;
 			  }
 			? {
@@ -230,13 +250,15 @@ declare module 'smolrpc' {
 		id: number;
 		params: Params;
 		resource: keyof Resources & string;
-		request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-			? z.infer<Resources[keyof Resources]['request']>
+		request?: Resources[keyof Resources]['request'] extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Resources[keyof Resources]['request']>
 			: undefined;
 		type: 'GetRequest';
 	};
 	type GetResponse<Resources extends AnyResources> = {
-		data: z.infer<Resources[keyof Resources]['response']>;
+		data: StandardSchemaV1.InferInput<
+			Resources[keyof Resources]['response']
+		>;
 		id: number;
 		resource: keyof Resources & string;
 		type: 'GetResponse';
@@ -245,23 +267,25 @@ declare module 'smolrpc' {
 		id: number;
 		params: Params;
 		resource: keyof Resources & string;
-		request: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-			? z.infer<Resources[keyof Resources]['request']>
+		request: Resources[keyof Resources]['request'] extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Resources[keyof Resources]['request']>
 			: undefined;
 		type: 'SetRequest';
 	};
 	type SetSuccess<Resources extends AnyResources> = {
 		id: number;
 		resource: keyof Resources & string;
-		data: z.infer<Resources[keyof Resources]['response']>;
+		data: StandardSchemaV1.InferInput<
+			Resources[keyof Resources]['response']
+		>;
 		type: 'SetSuccess';
 	};
 	type SubscribeRequest<Resources extends AnyResources> = {
 		id: number;
 		params: Params;
 		resource: keyof Resources & string;
-		request?: Resources[keyof Resources]['request'] extends z.ZodTypeAny
-			? z.infer<Resources[keyof Resources]['request']>
+		request?: Resources[keyof Resources]['request'] extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Resources[keyof Resources]['request']>
 			: undefined;
 		type: 'SubscribeRequest';
 	};
@@ -274,7 +298,9 @@ declare module 'smolrpc' {
 		id: number;
 		params?: Params;
 		resource: keyof Resources & string;
-		data: z.infer<Resources[keyof Resources]['response']>;
+		data: StandardSchemaV1.InferInput<
+			Resources[keyof Resources]['response']
+		>;
 		type: 'SubscribeEvent';
 	};
 	type UnsubscribeRequest<Resources extends AnyResources> = {
@@ -293,14 +319,20 @@ declare module 'smolrpc' {
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
 	> =
-		| z.infer<Resources[Resource]['response']>
-		| Promise<z.infer<Resources[Resource]['response']>>;
+		| StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		| Promise<StandardSchemaV1.InferInput<Resources[Resource]['response']>>;
 	type SubscribeHandlerResponse<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
 	> =
-		| Subscribable<z.infer<Resources[Resource]['response']>>
-		| Promise<Subscribable<z.infer<Resources[Resource]['response']>>>;
+		| Subscribable<
+				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+		  >
+		| Promise<
+				Subscribable<
+					StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				>
+		  >;
 	type GetHandler_1<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
@@ -308,8 +340,8 @@ declare module 'smolrpc' {
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1_2 extends z.ZodTypeAny
-			? z.infer<Request_1_2>
+		request: Request_1_2 extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request_1_2>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type GetHandlerWithParams<
@@ -321,8 +353,8 @@ declare module 'smolrpc' {
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1_2 extends z.ZodTypeAny
-			? z.infer<Request_1_2>
+		request: Request_1_2 extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request_1_2>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type PickGetHandler<
@@ -339,8 +371,8 @@ declare module 'smolrpc' {
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1_2 extends z.ZodTypeAny
-			? z.infer<Request_1_2>
+		request: Request_1_2 extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request_1_2>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type SetHandlerWithParams<
@@ -352,8 +384,8 @@ declare module 'smolrpc' {
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1_2 extends z.ZodTypeAny
-			? z.infer<Request_1_2>
+		request: Request_1_2 extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request_1_2>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type PickSetHandler<
@@ -370,8 +402,8 @@ declare module 'smolrpc' {
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1_2 extends z.ZodTypeAny
-			? z.infer<Request_1_2>
+		request: Request_1_2 extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request_1_2>
 			: undefined;
 	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type SubscribeHandlerWithParams<
@@ -383,8 +415,8 @@ declare module 'smolrpc' {
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1_2 extends z.ZodTypeAny
-			? z.infer<Request_1_2>
+		request: Request_1_2 extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request_1_2>
 			: undefined;
 	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type PickSubscribeHandler<
@@ -397,28 +429,28 @@ declare module 'smolrpc' {
 	export type Router<Resources extends AnyResources> = {
 		[R in keyof Resources & string]: Resources[R] extends {
 			type: 'get';
-			request?: infer Request_1_2 extends z.ZodTypeAny;
+			request?: infer Request_1_2 extends StandardSchemaV1;
 		}
 			? {
 					get: PickGetHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'set';
-					request: infer Request_1_2 extends z.ZodTypeAny;
+					request: infer Request_1_2 extends StandardSchemaV1;
 			  }
 			? {
 					set: PickSetHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'subscribe';
-					request?: infer Request_1_2 extends z.ZodTypeAny;
+					request?: infer Request_1_2 extends StandardSchemaV1;
 			  }
 			? {
 					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
 			  }
 			: Resources[R] extends {
 					type: 'get|set';
-					request: infer Request_1_2 extends z.ZodTypeAny;
+					request: infer Request_1_2 extends StandardSchemaV1;
 			  }
 			? {
 					get: PickGetHandler<Resources, R, Request_1_2>;
@@ -426,7 +458,7 @@ declare module 'smolrpc' {
 			  }
 			: Resources[R] extends {
 					type: 'get|subscribe';
-					request?: infer Request_1_2 extends z.ZodTypeAny;
+					request?: infer Request_1_2 extends StandardSchemaV1;
 			  }
 			? {
 					get: PickGetHandler<Resources, R, Request_1_2>;
@@ -434,7 +466,7 @@ declare module 'smolrpc' {
 			  }
 			: Resources[R] extends {
 					type: 'set|subscribe';
-					request: infer Request_1_2 extends z.ZodTypeAny;
+					request: infer Request_1_2 extends StandardSchemaV1;
 			  }
 			? {
 					set: PickSetHandler<Resources, R, Request_1_2>;
@@ -442,7 +474,7 @@ declare module 'smolrpc' {
 			  }
 			: Resources[R] extends {
 					type: 'get|set|subscribe';
-					request: infer Request_1_2 extends z.ZodTypeAny;
+					request: infer Request_1_2 extends StandardSchemaV1;
 			  }
 			? {
 					get: PickGetHandler<Resources, R, Request_1_2>;
@@ -497,8 +529,8 @@ declare module 'smolrpc' {
 			  }
 			: null | undefined;
 	type AnyResource = {
-		request?: z.ZodTypeAny;
-		response: z.ZodTypeAny;
+		request?: StandardSchemaV1;
+		response: StandardSchemaV1;
 		cache?: boolean;
 		type:
 			| 'get'
@@ -526,7 +558,7 @@ declare module 'smolrpc' {
 	export type Result<
 		Resources extends AnyResources,
 		Resource extends keyof Resources,
-	> = z.infer<Resources[Resource]['response']>;
+	> = StandardSchemaV1.InferInput<Resources[Resource]['response']>;
 	export function dummyClient<
 		Resources extends AnyResources,
 	>(): Client<Resources>;
