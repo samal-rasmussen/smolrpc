@@ -508,6 +508,12 @@ declare module 'smolrpc' {
 			remoteAddress: string | undefined,
 			error?: unknown,
 		) => void;
+		error: (
+			message: string,
+			clientId: number,
+			remoteAddress: string | undefined,
+			data: Record<string, unknown>,
+		) => void;
 	}
 	export function json_stringify(
 		obj: any,

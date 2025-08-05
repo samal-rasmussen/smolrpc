@@ -211,4 +211,10 @@ export interface ServerLogger {
 		remoteAddress: string | undefined,
 		error?: unknown,
 	) => void;
+	error: (
+		message: string,
+		clientId: number,
+		remoteAddress: string | undefined,
+		data: Record<string, unknown>,
+	) => void;
 }

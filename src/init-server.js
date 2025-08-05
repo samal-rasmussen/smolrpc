@@ -73,6 +73,17 @@ function validateParams(resource, params) {
 export function initServer(router, resources, options) {
 	let nextClientId = 0;
 
+	const errorLogger =
+		options?.serverLogger?.error ??
+		((message, clientId, remoteAddress, data) => {
+			console.error({
+				message,
+				clientId,
+				remoteAddress,
+				data,
+			});
+		});
+
 	/**
 	 * @type {Map<WS, {
 	 *  clientId: number,
@@ -129,7 +140,14 @@ export function initServer(router, resources, options) {
 			listeners.delete(ws);
 		});
 		ws.addEventListener('error', (event) => {
-			console.error(`initServer.onError: ${event}`);
+			errorLogger(
+				`smolrpc.initServer.addConnection: ws.onError`,
+				clientId,
+				remoteAddress,
+				{
+					event,
+				},
+			);
 		});
 		ws.addEventListener('message', async (event) => {
 			await handleWSMessage(
@@ -150,10 +168,14 @@ export function initServer(router, resources, options) {
 	 */
 	async function handleWSMessage(data, ws, clientId, remoteAddress) {
 		if (typeof data != 'string') {
-			console.error(
-				`Only string data supported. typeof event.data = ${typeof data}`,
+			errorLogger(
+				`smolrpc.initServer.addConnection.handleWSMessage: Only string data supported.`,
 				clientId,
 				remoteAddress,
+				{
+					type: typeof data,
+					data,
+				},
 			);
 			/** @type {import('./message.types.ts').Reject} */
 			const reject = {
@@ -281,10 +303,16 @@ export function initServer(router, resources, options) {
 				const result = await getHandler(args);
 				const parsed = validateSchema(responseSchema, result);
 				if (parsed.issues != null) {
-					console.error(
-						`invalid route response for ${request.resource}`,
-						json_stringify(result),
-						parsed.issues,
+					errorLogger(
+						`smolrpc.initServer.handleWSMessage: invalid route response for get request`,
+						clientId,
+						remoteAddress,
+						{
+							resource: request.resource,
+							request,
+							result: result,
+							issues: parsed.issues,
+						},
 					);
 					return;
 				}
@@ -303,10 +331,14 @@ export function initServer(router, resources, options) {
 					remoteAddress,
 				);
 			} catch (error) {
-				console.error(
-					'handling get request failed',
-					json_stringify(request),
-					error,
+				errorLogger(
+					`smolrpc.initServer.handleWSMessage: caught error while handling get request`,
+					clientId,
+					remoteAddress,
+					{
+						request,
+						error,
+					},
 				);
 				sendReject(
 					ws,
@@ -361,10 +393,16 @@ export function initServer(router, resources, options) {
 				const result = await setHandler(args);
 				const parsed = validateSchema(responseSchema, result);
 				if (parsed.issues != null) {
-					console.error(
-						`invalid route response for ${request.resource}`,
-						json_stringify(result),
-						parsed.issues,
+					errorLogger(
+						`smolrpc.initServer.handleWSMessage: invalid route response for set request`,
+						clientId,
+						remoteAddress,
+						{
+							resource: request.resource,
+							request,
+							result: result,
+							issues: parsed.issues,
+						},
 					);
 					return;
 				}
@@ -383,10 +421,14 @@ export function initServer(router, resources, options) {
 					remoteAddress,
 				);
 			} catch (error) {
-				console.error(
-					'handling set request failed',
-					json_stringify(request),
-					error,
+				errorLogger(
+					`smolrpc.initServer.handleWSMessage: caught error while handling set request`,
+					clientId,
+					remoteAddress,
+					{
+						request,
+						error,
+					},
 				);
 				sendReject(
 					ws,
@@ -463,10 +505,16 @@ export function initServer(router, resources, options) {
 					next(val) {
 						const parsed = validateSchema(responseSchema, val);
 						if (parsed.issues != null) {
-							console.error(
-								`invalid route response for ${request.resource}`,
-								json_stringify(val),
-								parsed.issues,
+							errorLogger(
+								`smolrpc.initServer.handleWSMessage: invalid route response for subscribe event`,
+								clientId,
+								remoteAddress,
+								{
+									resource: request.resource,
+									request,
+									val,
+									issues: parsed.issues,
+								},
 							);
 							return;
 						}
