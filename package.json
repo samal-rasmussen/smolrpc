@@ -2,7 +2,10 @@
 	"name": "smolrpc",
 	"version": "0.47.0",
 	"description": "A smol typesafe rpc implementation over websockets",
-	"repository": "samal-rasmussen/smolrpc",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/samal-rasmussen/smolrpc.git"
+	},
 	"license": "MIT",
 	"type": "module",
 	"exports": {
