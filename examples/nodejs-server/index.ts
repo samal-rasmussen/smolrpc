@@ -40,6 +40,9 @@ const smolrpcServer = initServer<Resources>(router, resources, {
 				remoteAddress,
 			);
 		},
+		error: (message, clientId, remoteAddress, data) => {
+			console.error({ message, clientId, remoteAddress, data });
+		},
 	},
 });
 
