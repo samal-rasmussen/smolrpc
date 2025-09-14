@@ -12,8 +12,8 @@ module.exports = {
 		ecmaVersion: 2020,
 	},
 	env: {
-		browser: false,
-		es2017: true,
+		browser: true,
+		es2020: true,
 		node: true,
 	},
 	rules: {
