@@ -119,6 +119,9 @@ function isRouter(x: unknown): x is Router<any> {
  * - Input parsing: if `inputSchema` is present, we synchronously validate via Standard Schema.
  * - Output validation: if `outputSchema` is present, we synchronously validate
  *   the resolved result before returning it to the caller.
+ *
+ *  TODO: Should this be a recursive proxy implementation like trpc uses?
+ *        See: https://trpc.io/blog/tinyrpc-client
  */
 export function createCaller<R extends Router<any>, Ctx>(
 	router: R,
