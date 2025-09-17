@@ -8,13 +8,13 @@ import { initClientWebSocket } from './init-client-websocket.js';
 /**
  * @template {import("./types").AnyResources} Resources
  * @param {{
- * 	url: string,
+ *  url: string,
  *  createWebSocket?: (url: string) => WebSocket,
- *  onopen?: (e: Event) => void,
- *  onmessage?: (e: MessageEvent) => void,
- *  onreconnect?: () => void,
  *  onclose?: (e: CloseEvent) => void,
  *  onerror?: (e: Event) => void,
+ *  onmessage?: (e: MessageEvent) => void,
+ *  onopen?: (e: Event) => void,
+ *  onreconnect?: () => void,
  *  onsend?: (r: Request) => void,
  * }} args
  * @return {{
@@ -25,11 +25,11 @@ import { initClientWebSocket } from './init-client-websocket.js';
 export function initClient({
 	url,
 	createWebSocket,
-	onopen,
-	onmessage,
-	onreconnect,
 	onclose,
 	onerror,
+	onmessage,
+	onopen,
+	onreconnect,
 	onsend,
 }) {
 	if (createWebSocket == null && globalThis.WebSocket == null) {

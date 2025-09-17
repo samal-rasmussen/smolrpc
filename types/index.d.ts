@@ -194,20 +194,20 @@ declare module 'smolrpc' {
 	export function initClient<Resources extends AnyResources>({
 		url,
 		createWebSocket,
-		onopen,
-		onmessage,
-		onreconnect,
 		onclose,
 		onerror,
+		onmessage,
+		onopen,
+		onreconnect,
 		onsend,
 	}: {
 		url: string;
 		createWebSocket?: (url: string) => WebSocket;
-		onopen?: (e: Event) => void;
-		onmessage?: (e: MessageEvent) => void;
-		onreconnect?: () => void;
 		onclose?: (e: CloseEvent) => void;
 		onerror?: (e: Event) => void;
+		onmessage?: (e: MessageEvent) => void;
+		onopen?: (e: Event) => void;
+		onreconnect?: () => void;
 		onsend?: (r: Request_1) => void;
 	}): {
 		client: Client<Resources>;
