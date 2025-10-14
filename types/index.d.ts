@@ -514,6 +514,24 @@ declare module 'smolrpc' {
 			remoteAddress: string | undefined,
 			data: Record<string, unknown>,
 		) => void;
+		/**
+		 * Smolrpc only supports synchronous schema validation and fails the validation if a promise is returned.
+		 * But if the schema validation returns a promise, we need to log the result of the promise for debugging purposes.
+		 */
+		asyncValidationResult: (
+			message: string,
+			schema: StandardSchemaV1,
+			value: any,
+			promise_result:
+				| {
+						then_result: any;
+						type: 'then';
+				  }
+				| {
+						catch_error: unknown;
+						type: 'catch';
+				  },
+		) => void;
 	}
 	export function json_stringify(
 		obj: any,

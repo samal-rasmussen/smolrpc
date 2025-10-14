@@ -11,7 +11,12 @@
  * @typedef {import('./server.types.ts').SubscribeHandler<any, any, any>} SubscribeHandler
  * @typedef {import('./websocket.types.ts').WS} WS
  */
-import { getResourceWithParams, json_parse, json_stringify } from './shared.js';
+import {
+	getResourceWithParams,
+	isPromise,
+	json_parse,
+	json_stringify,
+} from './shared.js';
 
 /**
  * @type {(
@@ -265,6 +270,7 @@ export function initServer(router, resources, options) {
 					const parsedRequest = validateSchema(
 						requestSchema,
 						request.request,
+						options?.serverLogger,
 					);
 					if (parsedRequest.issues != null) {
 						sendReject(
@@ -301,7 +307,11 @@ export function initServer(router, resources, options) {
 						routerHandlers
 					).get;
 				const result = await getHandler(args);
-				const parsed = validateSchema(responseSchema, result);
+				const parsed = validateSchema(
+					responseSchema,
+					result,
+					options?.serverLogger,
+				);
 				if (parsed.issues != null) {
 					errorLogger(
 						`smolrpc.initServer.handleWSMessage: invalid route response for get request`,
@@ -357,6 +367,7 @@ export function initServer(router, resources, options) {
 					const parsedRequest = validateSchema(
 						requestSchema,
 						request.request,
+						options?.serverLogger,
 					);
 					if (parsedRequest.issues != null) {
 						sendReject(
@@ -391,7 +402,11 @@ export function initServer(router, resources, options) {
 						routerHandlers
 					).set;
 				const result = await setHandler(args);
-				const parsed = validateSchema(responseSchema, result);
+				const parsed = validateSchema(
+					responseSchema,
+					result,
+					options?.serverLogger,
+				);
 				if (parsed.issues != null) {
 					errorLogger(
 						`smolrpc.initServer.handleWSMessage: invalid route response for set request`,
@@ -400,7 +415,7 @@ export function initServer(router, resources, options) {
 						{
 							resource: request.resource,
 							request,
-							result: result,
+							result,
 							issues: parsed.issues,
 						},
 					);
@@ -447,6 +462,7 @@ export function initServer(router, resources, options) {
 					const parsedRequest = validateSchema(
 						requestSchema,
 						request.request,
+						options?.serverLogger,
 					);
 					if (parsedRequest.issues != null) {
 						sendReject(
@@ -503,7 +519,11 @@ export function initServer(router, resources, options) {
 
 				const subscription = subscribable.subscribe({
 					next(val) {
-						const parsed = validateSchema(responseSchema, val);
+						const parsed = validateSchema(
+							responseSchema,
+							val,
+							options?.serverLogger,
+						);
 						if (parsed.issues != null) {
 							errorLogger(
 								`smolrpc.initServer.handleWSMessage: invalid route response for subscribe event`,
@@ -621,17 +641,44 @@ function exhaustive(arg) {
 /**
  * @param {import('@standard-schema/spec').StandardSchemaV1<any, any>} schema
  * @param {any} value
+ * @param {import('./server.types.ts').ServerLogger | undefined} logger
  * @returns {{value: any, issues: undefined} | {issues: string}}}
  */
-function validateSchema(schema, value) {
-	const parsed = schema['~standard'].validate(value);
-	if (parsed instanceof Promise) {
-		throw new Error(
-			'smolrpc.initServer:Schema validation must be synchronous',
-		);
+function validateSchema(schema, value, logger) {
+	try {
+		const parsed = schema['~standard'].validate(value);
+		if (isPromise(parsed)) {
+			parsed.then((then_result) => {
+				logger?.asyncValidationResult(
+					'smolrpc.initServer: validateSchema found a promise in the parsed result and on .then it produced a value',
+					schema,
+					value,
+					{ type: 'then', then_result },
+				);
+			});
+			parsed.catch((catch_error) => {
+				logger?.asyncValidationResult(
+					'smolrpc.initServer: validateSchema found a promise in the parsed result on .catch it produced an error',
+					schema,
+					value,
+					{ type: 'catch', catch_error },
+				);
+			});
+			return {
+				issues: 'smolrpc.initServer: Schema validation must be synchronous',
+			};
+		}
+		if (parsed.issues != null) {
+			return { issues: JSON.stringify(parsed.issues) };
+		}
+		return parsed;
+	} catch (error) {
+		return {
+			issues: json_stringify({
+				message: 'smolrpc.initServer:Schema validation threw an error',
+				value,
+				error,
+			}),
+		};
 	}
-	if (parsed.issues != null) {
-		return { issues: JSON.stringify(parsed.issues) };
-	}
-	return parsed;
 }

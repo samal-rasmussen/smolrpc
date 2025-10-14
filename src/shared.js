@@ -62,3 +62,13 @@ export const json_stringify = (obj, space) => {
 export const json_parse = (s) => {
 	return JSON.parse(s, reviver);
 };
+
+/** @type {(value: any) => value is Promise<any>} */
+export function isPromise(value) {
+	return (
+		value instanceof Promise ||
+		(typeof value === 'object' &&
+			typeof value.then === 'function' &&
+			typeof value.catch === 'function')
+	);
+}

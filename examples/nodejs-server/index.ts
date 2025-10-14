@@ -43,6 +43,15 @@ const smolrpcServer = initServer<Resources>(router, resources, {
 		error: (message, clientId, remoteAddress, data) => {
 			console.error({ message, clientId, remoteAddress, data });
 		},
+		asyncValidationResult: (message, schema, value, promise_result) => {
+			console.error(
+				'async validation result',
+				message,
+				schema,
+				value,
+				promise_result,
+			);
+		},
 	},
 });
 
