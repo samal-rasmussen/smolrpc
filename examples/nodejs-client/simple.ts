@@ -5,7 +5,7 @@ import { SimpleResources } from '../simple-resources';
 
 global.WebSocket = ws as any;
 
-const { client } = await initClient<SimpleResources>({
+const { client } = initClient<SimpleResources>({
 	url: 'ws://localhost:9200',
 });
 

@@ -160,7 +160,7 @@ import { initClient } from 'smolrpc';
 import { Resources } from './resources';
 import { WebSocket as ws } from 'ws'; // Only for Node.js environments
 
-const { client } = await initClient<Resources>({
+const { client } = initClient<Resources>({
 	url: 'ws://localhost:9200',
 	// For Node.js environments
 	createWebSocket: (url) => new ws(url) as any as WebSocket,

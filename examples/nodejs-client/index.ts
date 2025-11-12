@@ -8,10 +8,7 @@ const connected = new Promise<void>((res) => {
 	resolve = res;
 });
 
-const {
-	client,
-	clientMethods: { open, close },
-} = initClient<Resources>({
+const { client, clientMethods } = initClient<Resources>({
 	url: 'ws://localhost:9200',
 	createWebSocket: (url) => new ws(url) as any as WebSocket,
 	onopen: () => {

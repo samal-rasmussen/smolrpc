@@ -166,7 +166,7 @@ let clientMethods;
 
 // Function to initialize WebSocket connection
 async function connectWebSocket() {
-	const { client, clientMethods: methods } = await initClient<Resources>({
+	const { client, clientMethods: methods } = initClient<Resources>({
 		url: 'ws://localhost:9200',
 		// Browsers automatically include cookies in WebSocket handshake
 		onopen: () => console.log('Connected to server'),
