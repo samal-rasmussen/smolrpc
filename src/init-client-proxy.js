@@ -68,7 +68,7 @@ export function initClientProxy(websocket) {
 					if (msg.type === 'RequestReject') {
 						const paramsErrMsg =
 							msg.request.params != null
-								? ` with params ${JSON.stringify(
+								? ` with params ${json_stringify(
 										msg.request.params,
 								  )}`
 								: '';
@@ -132,7 +132,7 @@ export function initClientProxy(websocket) {
 			operationTimeoutId = setTimeout(() => {
 				const timeoutError = new Error(
 					`Set request on ${resource}${
-						params ? ` with params ${JSON.stringify(params)}` : ''
+						params ? ` with params ${json_stringify(params)}` : ''
 					} timed out after 5 seconds.`,
 				);
 				cleanupAndReject(timeoutError);
@@ -163,7 +163,7 @@ export function initClientProxy(websocket) {
 							if (msg.type === 'RequestReject') {
 								const paramsErrMsg =
 									msg.request.params != null
-										? ` with params ${JSON.stringify(
+										? ` with params ${json_stringify(
 												msg.request.params,
 										  )}`
 										: '';

@@ -1,6 +1,6 @@
 {
 	"name": "smolrpc",
-	"version": "0.51.0",
+	"version": "0.52.0",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": {
 		"type": "git",

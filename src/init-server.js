@@ -669,7 +669,7 @@ function validateSchema(schema, value, logger) {
 			};
 		}
 		if (parsed.issues != null) {
-			return { issues: JSON.stringify(parsed.issues) };
+			return { issues: json_stringify(parsed.issues) };
 		}
 		return parsed;
 	} catch (error) {
