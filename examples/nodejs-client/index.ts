@@ -8,16 +8,20 @@ const connected = new Promise<void>((res) => {
 	resolve = res;
 });
 
-const { client, clientMethods } = initClient<Resources>({
+const { client, clientMethods: _clientMethods } = initClient<Resources>({
 	url: 'ws://localhost:9200',
 	createWebSocket: (url) => new ws(url) as any as WebSocket,
-	onopen: () => {
-		resolve();
-	},
-	onclose: (event) => {
-		console.log(
-			`closed with code ${event.code} and reason ${event.reason}`,
-		);
+	reportInternalError: (message: string, data: Record<string, unknown>) =>
+		console.error(message, data),
+	webSocketEvents: {
+		open: () => {
+			resolve();
+		},
+		close: (event) => {
+			console.log(
+				`closed with code ${event.code} and reason ${event.reason}`,
+			);
+		},
 	},
 });
 
@@ -38,7 +42,7 @@ const post = await client['/posts/:postId'].get({
 });
 console.log('get post', post);
 
-const subscription = client['/posts/:postId']
+const _subscription = client['/posts/:postId']
 	.subscribe({
 		params: { postId: newPost.id },
 	})
@@ -64,7 +68,7 @@ const newComment = await client['/posts/:postId/comments/new'].set({
 	params: { postId: newPost.id },
 	request: { content: 'sick comment' },
 });
-const newComment2 = await client['/posts/:postId/comments/new'].set({
+const _newComment2 = await client['/posts/:postId/comments/new'].set({
 	params: { postId: newPost.id },
 	request: { content: 'another sick comment' },
 });
@@ -79,7 +83,3 @@ await client['/posts/:postId/comments/:commentId/create'].set({
 	},
 	request: { content: 'more sick comment' },
 });
-
-async function sleep(timeout: number) {
-	return new Promise<void>((res) => setTimeout(res, timeout));
-}

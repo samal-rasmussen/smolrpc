@@ -1,8 +1,10 @@
 import { initClientProxy } from './init-client-proxy.js';
 import { initClientWebSocket } from './init-client-websocket.js';
+import { safeInvoke } from './safe-invoke.js';
 
 /**
  * @typedef {import("./message.types").Request<any>} Request
+ * @typedef {import("./client.types").ClientWebSocketEvents} ClientWebSocketEvents
  */
 
 /**
@@ -10,12 +12,8 @@ import { initClientWebSocket } from './init-client-websocket.js';
  * @param {{
  *  url: string,
  *  createWebSocket?: (url: string) => WebSocket,
- *  onclose?: (e: CloseEvent) => void,
- *  onerror?: (e: Event) => void,
- *  onmessage?: (e: MessageEvent) => void,
- *  onopen?: (e: Event) => void,
- *  onreconnect?: () => void,
- *  onsend?: (r: Request) => void,
+ *  reportInternalError: (message: string, data: Record<string, unknown>) => void,
+ *  webSocketEvents: ClientWebSocketEvents,
  * }} args
  * @return {{
  *  client: import("./client.types").Client<Resources>,
@@ -25,12 +23,8 @@ import { initClientWebSocket } from './init-client-websocket.js';
 export function initClient({
 	url,
 	createWebSocket,
-	onclose,
-	onerror,
-	onmessage,
-	onopen,
-	onreconnect,
-	onsend,
+	reportInternalError,
+	webSocketEvents,
 }) {
 	if (createWebSocket == null && globalThis.WebSocket == null) {
 		throw new Error(
@@ -40,6 +34,12 @@ export function initClient({
 				`helper function that returns a new WebSocket client instance.`,
 		);
 	}
+	if (reportInternalError == null || webSocketEvents == null) {
+		throw new Error(
+			`initClient: reportInternalError and webSocketEvents are required`,
+		);
+	}
+
 	const cWebSocket =
 		createWebSocket == null
 			? (createWebSocket = (url) => {
@@ -50,42 +50,88 @@ export function initClient({
 	const clientWebSocket = initClientWebSocket({
 		url,
 		createWebSocket: cWebSocket,
+		reportInternalError: (message, data) => {
+			safeInvoke(
+				'initClient.reportInternalError',
+				reportInternalError,
+				message,
+				data,
+			);
+		},
 		onopen: (e) => {
 			/**
-			 * clientProxyOnopen must be called before onopen
+			 * clientProxyOnopen must be called before webSocketEvents.open
 			 *
 			 * clientProxyOnopen will reset the client and set it to be ready to use.
-			 * onopen will notify the user that the client is ready to use.
+			 * webSocketEvents.open will notify the user that the client is ready to use.
 			 *
-			 * Calling onopen before clientProxyOnopen will cause lost messages,
+			 * Calling webSocketEvents.open before clientProxyOnopen will cause lost messages,
 			 * because it may trigger the user to make requests, which will be lost when
 			 * clientProxy will be reset when calling clientProxyOnopen.
 			 */
 			clientProxyOnopen(e);
-			onopen?.(e);
+			safeInvoke(
+				'initClient.webSocketEvents.open',
+				webSocketEvents.open,
+				e,
+			);
 		},
 		onmessage: (e) => {
 			/**
-			 * onmessage must be called before clientProxyOnmesage
+			 * webSocketEvents.message must be called before clientProxyOnmessage
 			 *
-			 * onmessage is only meant for debug logging.
-			 * clientProxyOnmesage will process the message and trigger the listeners.
+			 * webSocketEvents.message is only meant for debug logging.
+			 * clientProxyOnmessage will process the message and trigger the listeners.
 			 * We want to see the raw messages logged before they are processed by the client.
 			 */
-			onmessage?.(e);
-			clientProxyOnmesage(e);
+			safeInvoke(
+				'initClient.webSocketEvents.message',
+				webSocketEvents.message,
+				e,
+			);
+			clientProxyOnmessage(e);
 		},
-		onreconnect,
-		onclose,
-		onerror,
-		onsend,
+		onreconnect: () => {
+			safeInvoke(
+				'initClient.webSocketEvents.reconnect',
+				webSocketEvents.reconnect,
+			);
+		},
+		onclose: (e) => {
+			safeInvoke(
+				'initClient.webSocketEvents.close',
+				webSocketEvents.close,
+				e,
+			);
+		},
+		onerror: (e) => {
+			safeInvoke(
+				'initClient.webSocketEvents.error',
+				webSocketEvents.error,
+				e,
+			);
+		},
+		onsend: (request) => {
+			safeInvoke(
+				'initClient.webSocketEvents.send',
+				webSocketEvents.send,
+				request,
+			);
+		},
 	});
 
 	const {
 		proxy,
-		onmessage: clientProxyOnmesage,
+		onmessage: clientProxyOnmessage,
 		onopen: clientProxyOnopen,
-	} = initClientProxy(clientWebSocket);
+	} = initClientProxy(clientWebSocket, (message, data) => {
+		safeInvoke(
+			'initClient.reportInternalError',
+			reportInternalError,
+			message,
+			data,
+		);
+	});
 	clientWebSocket.open();
 	return {
 		client: /** @type {import("./client.types").Client<Resources>} */ (

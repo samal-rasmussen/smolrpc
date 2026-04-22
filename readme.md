@@ -164,8 +164,11 @@ const { client } = initClient<Resources>({
 	url: 'ws://localhost:9200',
 	// For Node.js environments
 	createWebSocket: (url) => new ws(url) as any as WebSocket,
-	onopen: () => console.log('Connected to server'),
-	onclose: (event) => console.log(`Closed with code ${event.code}`),
+	reportInternalError: (message, data) => console.error(message, data),
+	webSocketEvents: {
+		open: () => console.log('Connected to server'),
+		close: (event) => console.log(`Closed with code ${event.code}`),
+	},
 });
 
 // Get all posts
@@ -264,12 +267,14 @@ Parameters:
 
 -   `url`: WebSocket server URL
 -   `createWebSocket?`: Function to create a WebSocket instance (required in environments without native WebSocket)
--   `onopen?`: Event handler for connection open
--   `onmessage?`: Event handler for raw messages
--   `onreconnect?`: Event handler for reconnection attempts
--   `onclose?`: Event handler for connection close
--   `onerror?`: Event handler for errors
--   `onsend?`: Event handler when sending a request
+-   `reportInternalError`: Callback for internal smolrpc client errors that were previously written to `console.error`
+-   `webSocketEvents`: Object with raw WebSocket event handlers
+    -   `open?`: Event handler for connection open
+    -   `message?`: Event handler for raw messages
+    -   `reconnect?`: Event handler for reconnection attempts
+    -   `close?`: Event handler for connection close
+    -   `error?`: Event handler for socket errors
+    -   `send?`: Event handler when sending a request
 
 Returns:
 
@@ -357,6 +362,20 @@ const unsubscribable = subscription.subscribe({
 
 // Stop receiving updates
 unsubscribable.unsubscribe();
+```
+
+### Client Error Logging
+
+`reportInternalError` is only for internal smolrpc client errors. Raw transport activity still belongs in `webSocketEvents`.
+
+```ts
+const { client } = initClient<Resources>({
+	url: 'ws://localhost:9200',
+	reportInternalError: (message, data) => {
+		/* ... */
+	},
+	webSocketEvents: {},
+});
 ```
 
 ### Server Logging

@@ -1,5 +1,5 @@
-import type { Client } from './src/client.types.js';
-export { Client };
+import type { Client, ClientWebSocketEvents } from './src/client.types.js';
+export { Client, ClientWebSocketEvents };
 
 export { dummyClient, initClient } from './src/init-client.js';
 export { initServer } from './src/init-server.js';

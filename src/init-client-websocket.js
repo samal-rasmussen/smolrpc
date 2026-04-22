@@ -34,6 +34,7 @@ function addRandomJitter(number, jitterPercentage) {
  *  onclose?: (e: CloseEvent) => void,
  *  onerror?: (e: Event) => void,
  *  onsend?: (r: Request) => void,
+ *  reportInternalError: (message: string, data: Record<string, unknown>) => void,
  * }} args
  * @return {{
  *  close: () => void
@@ -51,6 +52,7 @@ export function initClientWebSocket({
 	onclose,
 	onerror,
 	onsend,
+	reportInternalError,
 }) {
 	/** @type {WebSocket | undefined} */
 	let websocket;
@@ -145,14 +147,15 @@ export function initClientWebSocket({
 	 */
 	function send(request) {
 		if (websocket == null) {
-			console.error('initClientWebSocket.send:websocket is null', {
+			reportInternalError('initClientWebSocket.send:websocket is null', {
 				request,
 			});
 			throw new Error('initClientWebSocket.send:websocket is null');
 		}
 		if (websocket.readyState !== ReadyStates.OPEN) {
-			console.error('initClientWebSocket.send:websocket not open', {
+			reportInternalError('initClientWebSocket.send:websocket not open', {
 				request,
+				readyState: websocket.readyState,
 			});
 			throw new Error('initClientWebSocket.send:websocket not open');
 		}

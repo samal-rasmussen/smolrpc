@@ -7,6 +7,8 @@ global.WebSocket = ws as any;
 
 const { client } = initClient<SimpleResources>({
 	url: 'ws://localhost:9200',
+	reportInternalError: () => {},
+	webSocketEvents: {},
 });
 
 client['/posts/:postId']

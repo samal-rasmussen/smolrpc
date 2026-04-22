@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 
+import type { Request } from './message.types';
 import type {
 	AnyResource,
 	AnyResources,
@@ -177,4 +178,13 @@ export type Client<Resources extends AnyResources> = {
 export interface ClientMethods {
 	close: () => void;
 	open: () => void;
+}
+
+export interface ClientWebSocketEvents {
+	close?: (e: CloseEvent) => void;
+	error?: (e: Event) => void;
+	message?: (e: MessageEvent) => void;
+	open?: (e: Event) => void;
+	reconnect?: () => void;
+	send?: (request: Request<any>) => void;
 }

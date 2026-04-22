@@ -169,12 +169,15 @@ async function connectWebSocket() {
 	const { client, clientMethods: methods } = initClient<Resources>({
 		url: 'ws://localhost:9200',
 		// Browsers automatically include cookies in WebSocket handshake
-		onopen: () => console.log('Connected to server'),
-		onclose: (event) => {
-			console.log(`Connection closed with code ${event.code}`);
-			// You might want to auto-reconnect based on the close code
-			// 1000 (normal) or 1001 (going away) are normal closes
-			// 1006 (abnormal) or 4xx (application) might indicate auth issues
+		reportInternalError: (message, data) => console.error(message, data),
+		webSocketEvents: {
+			open: () => console.log('Connected to server'),
+			close: (event) => {
+				console.log(`Connection closed with code ${event.code}`);
+				// You might want to auto-reconnect based on the close code
+				// 1000 (normal) or 1001 (going away) are normal closes
+				// 1006 (abnormal) or 4xx (application) might indicate auth issues
+			},
 		},
 	});
 

@@ -14,13 +14,14 @@ import { getResourceWithParams, json_parse, json_stringify } from './shared.js';
 /**
  * @template {import("./types").AnyResources} Resources
  * @param {ReturnType<import("./init-client-websocket").initClientWebSocket>} websocket
+ * @param {(message: string, data: Record<string, unknown>) => void} reportInternalError
  * @return {{
  *  proxy: import("./client.types").Client<Resources>,
  *  onopen: (e: Event) => void,
  *  onmessage: (e: MessageEvent) => void,
  * }}
  */
-export function initClientProxy(websocket) {
+export function initClientProxy(websocket, reportInternalError) {
 	/**
 	 * @type {Map<number, {
 	 * 	listener: (msg: Response | SubscribeEvent | RequestReject) => void,
@@ -54,11 +55,15 @@ export function initClientProxy(websocket) {
 	 */
 	function getHandler(resource, request, params) {
 		if (websocket.readyState !== ReadyStates.OPEN) {
-			console.error('initClientProxy.getHandler: websocket not open', {
-				resource,
-				request,
-				params,
-			});
+			reportInternalError(
+				'initClientProxy.getHandler: websocket not open',
+				{
+					resource,
+					request,
+					params,
+					readyState: websocket.readyState,
+				},
+			);
 			throw new Error('initClientProxy.getHandler: websocket not open');
 		}
 		return new Promise((resolve, reject) => {
@@ -80,9 +85,9 @@ export function initClientProxy(websocket) {
 					} else if (msg.type === 'GetResponse') {
 						resolve(msg.data);
 					} else {
-						console.error(
-							`Unexpected message type in get listener`,
-							msg,
+						reportInternalError(
+							'initClientProxy.getHandler: unexpected message type in get listener',
+							{ msg },
 						);
 					}
 				},
@@ -116,7 +121,7 @@ export function initClientProxy(websocket) {
 			/** @param {Error} error */
 			const cleanupAndReject = (error) => {
 				clearTimeout(operationTimeoutId);
-				if (requestId && listeners.has(requestId)) {
+				if (typeof requestId === 'number' && listeners.has(requestId)) {
 					listeners.delete(requestId);
 				}
 				rejectOuter(error);
@@ -175,9 +180,9 @@ export function initClientProxy(websocket) {
 							} else if (msg.type === 'SetSuccess') {
 								cleanupAndResolve(msg.data);
 							} else {
-								console.error(
-									`Unexpected message type in set listener`,
-									msg,
+								reportInternalError(
+									'initClientProxy.setHandler: unexpected message type in set listener',
+									{ msg },
 								);
 								cleanupAndReject(
 									new Error(
@@ -228,12 +233,13 @@ export function initClientProxy(websocket) {
 	 */
 	function subscribeHandler(resource, request, params, cache) {
 		if (websocket.readyState !== ReadyStates.OPEN) {
-			console.error(
+			reportInternalError(
 				'initClientProxy.subscribeHandler: websocket not open',
 				{
 					resource,
 					request,
 					params,
+					readyState: websocket.readyState,
 				},
 			);
 			throw new Error(
@@ -314,9 +320,9 @@ export function initClientProxy(websocket) {
 								} else if (msg.type === 'UnsubscribeAccept') {
 									observers.clear();
 								} else {
-									console.error(
-										`Unexpected message type in get listener`,
-										msg,
+									reportInternalError(
+										'initClientProxy.subscribeHandler: unexpected message type in unsubscribe listener',
+										{ msg },
 									);
 								}
 							},
@@ -340,9 +346,9 @@ export function initClientProxy(websocket) {
 						} else if (msg.type === 'SubscribeAccept') {
 							// Happy path. Nothing to do.
 						} else {
-							console.error(
-								`Unexpected message type in get listener`,
-								msg,
+							reportInternalError(
+								'initClientProxy.subscribeHandler: unexpected message type in subscribe listener',
+								{ msg },
 							);
 						}
 					},
@@ -431,7 +437,12 @@ export function initClientProxy(websocket) {
 	function onmessage(event) {
 		const response = json_parse(event.data);
 		if (response.type === 'Reject') {
-			console.error('Received Reject response', response);
+			reportInternalError(
+				'initClientProxy.onmessage: Received Reject response',
+				{
+					response,
+				},
+			);
 			return;
 		}
 		const id =
@@ -440,7 +451,10 @@ export function initClientProxy(websocket) {
 				: response.id;
 		const listener = listeners.get(id);
 		if (listener == null) {
-			console.error(`No listener found for response/event`, response);
+			reportInternalError(
+				'initClientProxy.onmessage: No listener found for response/event',
+				{ response, id },
+			);
 			return;
 		}
 		if (listener.type !== 'subscribe') {

@@ -191,29 +191,32 @@ declare module 'smolrpc' {
 		close: () => void;
 		open: () => void;
 	}
+	export interface ClientWebSocketEvents {
+		close?: (e: CloseEvent) => void;
+		error?: (e: Event) => void;
+		message?: (e: MessageEvent) => void;
+		open?: (e: Event) => void;
+		reconnect?: () => void;
+		send?: (request: Request<any>) => void;
+	}
 	export function initClient<Resources extends AnyResources>({
 		url,
 		createWebSocket,
-		onclose,
-		onerror,
-		onmessage,
-		onopen,
-		onreconnect,
-		onsend,
+		reportInternalError,
+		webSocketEvents,
 	}: {
 		url: string;
 		createWebSocket?: (url: string) => WebSocket;
-		onclose?: (e: CloseEvent) => void;
-		onerror?: (e: Event) => void;
-		onmessage?: (e: MessageEvent) => void;
-		onopen?: (e: Event) => void;
-		onreconnect?: () => void;
-		onsend?: (r: Request_1) => void;
+		reportInternalError: (
+			message: string,
+			data: Record<string, unknown>,
+		) => void;
+		webSocketEvents: ClientWebSocketEvents_1;
 	}): {
 		client: Client<Resources>;
 		clientMethods: ClientMethods;
 	};
-	type Request_1 = Request_1_2<any>;
+	type ClientWebSocketEvents_1 = ClientWebSocketEvents;
 	export function initServer<Resources extends AnyResources>(
 		router: Router<Resources>,
 		resources: AnyResources,
@@ -227,7 +230,7 @@ declare module 'smolrpc' {
 	};
 	type WS = WS_1;
 	type Params = Record<string, string> | null | undefined;
-	type Request_1_2<Resources extends AnyResources> =
+	type Request<Resources extends AnyResources> =
 		| GetRequest<Resources>
 		| SetRequest<Resources>
 		| SubscribeRequest<Resources>
@@ -239,7 +242,7 @@ declare module 'smolrpc' {
 		| UnsubscribeAccept<Resources>;
 	type RequestReject<Resources extends AnyResources> = {
 		error: string;
-		request: Request_1_2<Resources>;
+		request: Request<Resources>;
 		type: 'RequestReject';
 	};
 	type Reject = {
@@ -336,173 +339,173 @@ declare module 'smolrpc' {
 	type GetHandler_1<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1_2 extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request_1_2>
+		request: Request extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type GetHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1_2 extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request_1_2>
+		request: Request extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type PickGetHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = ResourceParams<Resource> extends null
-		? GetHandler_1<Resources, Resource, Request_1_2>
-		: GetHandlerWithParams<Resources, Resource, Request_1_2>;
+		? GetHandler_1<Resources, Resource, Request>
+		: GetHandlerWithParams<Resources, Resource, Request>;
 	type SetHandler_1<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1_2 extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request_1_2>
+		request: Request extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type SetHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1_2 extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request_1_2>
+		request: Request extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type PickSetHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = ResourceParams<Resource> extends null
-		? SetHandler_1<Resources, Resource, Request_1_2>
-		: SetHandlerWithParams<Resources, Resource, Request_1_2>;
+		? SetHandler_1<Resources, Resource, Request>
+		: SetHandlerWithParams<Resources, Resource, Request>;
 	type SubscribeHandler_1<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		resource: Resource;
-		request: Request_1_2 extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request_1_2>
+		request: Request extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request>
 			: undefined;
 	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type SubscribeHandlerWithParams<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = (args: {
 		clientId: number;
 		params: ResourceParams<Resource>;
 		resourceWithParams: string;
 		resource: Resource;
-		request: Request_1_2 extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request_1_2>
+		request: Request extends StandardSchemaV1
+			? StandardSchemaV1.InferInput<Request>
 			: undefined;
 	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type PickSubscribeHandler<
 		Resources extends AnyResources,
 		Resource extends keyof AnyResources,
-		Request_1_2 extends AnyResource['request'],
+		Request extends AnyResource['request'],
 	> = ResourceParams<Resource> extends null
-		? SubscribeHandler_1<Resources, Resource, Request_1_2>
-		: SubscribeHandlerWithParams<Resources, Resource, Request_1_2>;
+		? SubscribeHandler_1<Resources, Resource, Request>
+		: SubscribeHandlerWithParams<Resources, Resource, Request>;
 	export type Router<Resources extends AnyResources> = {
 		[R in keyof Resources & string]: Resources[R] extends {
 			type: 'get';
-			request?: infer Request_1_2 extends StandardSchemaV1;
+			request?: infer Request extends StandardSchemaV1;
 		}
 			? {
-					get: PickGetHandler<Resources, R, Request_1_2>;
+					get: PickGetHandler<Resources, R, Request>;
 			  }
 			: Resources[R] extends {
 					type: 'set';
-					request: infer Request_1_2 extends StandardSchemaV1;
+					request: infer Request extends StandardSchemaV1;
 			  }
 			? {
-					set: PickSetHandler<Resources, R, Request_1_2>;
+					set: PickSetHandler<Resources, R, Request>;
 			  }
 			: Resources[R] extends {
 					type: 'subscribe';
-					request?: infer Request_1_2 extends StandardSchemaV1;
+					request?: infer Request extends StandardSchemaV1;
 			  }
 			? {
-					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
+					subscribe: PickSubscribeHandler<Resources, R, Request>;
 			  }
 			: Resources[R] extends {
 					type: 'get|set';
-					request: infer Request_1_2 extends StandardSchemaV1;
+					request: infer Request extends StandardSchemaV1;
 			  }
 			? {
-					get: PickGetHandler<Resources, R, Request_1_2>;
-					set: PickSetHandler<Resources, R, Request_1_2>;
+					get: PickGetHandler<Resources, R, Request>;
+					set: PickSetHandler<Resources, R, Request>;
 			  }
 			: Resources[R] extends {
 					type: 'get|subscribe';
-					request?: infer Request_1_2 extends StandardSchemaV1;
+					request?: infer Request extends StandardSchemaV1;
 			  }
 			? {
-					get: PickGetHandler<Resources, R, Request_1_2>;
-					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
+					get: PickGetHandler<Resources, R, Request>;
+					subscribe: PickSubscribeHandler<Resources, R, Request>;
 			  }
 			: Resources[R] extends {
 					type: 'set|subscribe';
-					request: infer Request_1_2 extends StandardSchemaV1;
+					request: infer Request extends StandardSchemaV1;
 			  }
 			? {
-					set: PickSetHandler<Resources, R, Request_1_2>;
-					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
+					set: PickSetHandler<Resources, R, Request>;
+					subscribe: PickSubscribeHandler<Resources, R, Request>;
 			  }
 			: Resources[R] extends {
 					type: 'get|set|subscribe';
-					request: infer Request_1_2 extends StandardSchemaV1;
+					request: infer Request extends StandardSchemaV1;
 			  }
 			? {
-					get: PickGetHandler<Resources, R, Request_1_2>;
-					set: PickSetHandler<Resources, R, Request_1_2>;
-					subscribe: PickSubscribeHandler<Resources, R, Request_1_2>;
+					get: PickGetHandler<Resources, R, Request>;
+					set: PickSetHandler<Resources, R, Request>;
+					subscribe: PickSubscribeHandler<Resources, R, Request>;
 			  }
 			: never;
 	};
 	export interface ServerLogger {
 		receivedRequest: (
-			request: Request_1_2<any>,
+			request: Request<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
 		sentResponse: (
-			request: Request_1_2<any>,
+			request: Request<any>,
 			response: Response<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
 		sentEvent: (
-			request: Request_1_2<any>,
+			request: Request<any>,
 			event: SubscribeEvent<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
 		sentReject: (
-			request: Request_1_2<any> | undefined,
+			request: Request<any> | undefined,
 			reject: RequestReject<AnyResources> | Reject,
 			clientId: number,
 			remoteAddress: string | undefined,
