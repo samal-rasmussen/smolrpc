@@ -324,6 +324,14 @@ export function initServer(router, resources, options) {
 							issues: parsed.issues,
 						},
 					);
+					sendReject(
+						ws,
+						`response schema validation failed for ${request.resource}`,
+						request,
+						clientId,
+						remoteAddress,
+						options?.serverLogger,
+					);
 					return;
 				}
 				/** @type {import("./message.types.ts").GetResponse<any>} */
@@ -418,6 +426,14 @@ export function initServer(router, resources, options) {
 							result,
 							issues: parsed.issues,
 						},
+					);
+					sendReject(
+						ws,
+						`response schema validation failed for ${request.resource}`,
+						request,
+						clientId,
+						remoteAddress,
+						options?.serverLogger,
 					);
 					return;
 				}

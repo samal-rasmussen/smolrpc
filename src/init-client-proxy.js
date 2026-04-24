@@ -48,6 +48,18 @@ export function initClientProxy(websocket, reportInternalError) {
 	let onOpenCallbacks = [];
 
 	/**
+	 * @param {'Get' | 'Set'} method
+	 * @param {string} resource
+	 * @param {Params} params
+	 * @returns {string}
+	 */
+	function getRequestDescription(method, resource, params) {
+		return `${method} request on ${resource}${
+			params ? ` with params ${json_stringify(params)}` : ''
+		}`;
+	}
+
+	/**
 	 * @param {string} resource
 	 * @param {any} request
 	 * @param {Params} params
@@ -68,26 +80,43 @@ export function initClientProxy(websocket, reportInternalError) {
 		}
 		return new Promise((resolve, reject) => {
 			const requestId = ++id;
+			const timeoutId = setTimeout(() => {
+				listeners.delete(requestId);
+				reject(
+					new Error(
+						`${getRequestDescription(
+							'Get',
+							resource,
+							params,
+						)} timed out after 5 seconds.`,
+					),
+				);
+			}, 5000);
+
 			listeners.set(requestId, {
 				listener: (msg) => {
+					clearTimeout(timeoutId);
 					if (msg.type === 'RequestReject') {
-						const paramsErrMsg =
-							msg.request.params != null
-								? ` with params ${json_stringify(
-										msg.request.params,
-								  )}`
-								: '';
-						const errMsg =
-							`Get request on ${msg.request.resource}` +
-							paramsErrMsg +
-							` rejected with error: ${msg.error}`;
-						reject(new Error(errMsg));
+						reject(
+							new Error(
+								`${getRequestDescription(
+									'Get',
+									msg.request.resource,
+									msg.request.params,
+								)} rejected with error: ${msg.error}`,
+							),
+						);
 					} else if (msg.type === 'GetResponse') {
 						resolve(msg.data);
 					} else {
 						reportInternalError(
 							'initClientProxy.getHandler: unexpected message type in get listener',
 							{ msg },
+						);
+						reject(
+							new Error(
+								`Unexpected message type ${msg.type} in get listener`,
+							),
 						);
 					}
 				},
@@ -112,35 +141,44 @@ export function initClientProxy(websocket, reportInternalError) {
 	 * @returns {Promise<unknown>}
 	 */
 	function setHandler(resource, request, params) {
-		return new Promise((resolveOuter, rejectOuter) => {
-			/** @type {NodeJS.Timeout | number | undefined} */
-			let operationTimeoutId;
+		return new Promise((resolve, reject) => {
 			/** @type {number | undefined} */
-			let requestId; // Will be assigned when request is actually sent
+			let requestId;
+			let settled = false;
 
 			/** @param {Error} error */
-			const cleanupAndReject = (error) => {
-				clearTimeout(operationTimeoutId);
-				if (typeof requestId === 'number' && listeners.has(requestId)) {
+			const rejectOnce = (error) => {
+				if (settled) {
+					return;
+				}
+				settled = true;
+				clearTimeout(timeoutId);
+				if (requestId != null) {
 					listeners.delete(requestId);
 				}
-				rejectOuter(error);
+				reject(error);
 			};
 
 			/** @param {any} data */
-			const cleanupAndResolve = (data) => {
-				clearTimeout(operationTimeoutId);
-				// Listener is already removed by the message handler or would be if timeout occurred first.
-				resolveOuter(data);
+			const resolveOnce = (data) => {
+				if (settled) {
+					return;
+				}
+				settled = true;
+				clearTimeout(timeoutId);
+				resolve(data);
 			};
 
-			operationTimeoutId = setTimeout(() => {
-				const timeoutError = new Error(
-					`Set request on ${resource}${
-						params ? ` with params ${json_stringify(params)}` : ''
-					} timed out after 5 seconds.`,
+			const timeoutId = setTimeout(() => {
+				rejectOnce(
+					new Error(
+						`${getRequestDescription(
+							'Set',
+							resource,
+							params,
+						)} timed out after 5 seconds.`,
+					),
 				);
-				cleanupAndReject(timeoutError);
 			}, 5000);
 
 			async function execute() {
@@ -150,6 +188,9 @@ export function initClientProxy(websocket, reportInternalError) {
 						await new Promise((resolve) => {
 							onOpenCallbacks.push(resolve);
 						});
+					}
+					if (settled) {
+						return;
 					}
 
 					// If, after potentially waiting, the connection is still not open,
@@ -166,25 +207,23 @@ export function initClientProxy(websocket, reportInternalError) {
 					listeners.set(requestId, {
 						listener: (msg) => {
 							if (msg.type === 'RequestReject') {
-								const paramsErrMsg =
-									msg.request.params != null
-										? ` with params ${json_stringify(
-												msg.request.params,
-										  )}`
-										: '';
-								const errMsg =
-									`Set request on ${msg.request.resource}` +
-									paramsErrMsg +
-									` rejected with error: ${msg.error}`;
-								cleanupAndReject(new Error(errMsg));
+								rejectOnce(
+									new Error(
+										`${getRequestDescription(
+											'Set',
+											msg.request.resource,
+											msg.request.params,
+										)} rejected with error: ${msg.error}`,
+									),
+								);
 							} else if (msg.type === 'SetSuccess') {
-								cleanupAndResolve(msg.data);
+								resolveOnce(msg.data);
 							} else {
 								reportInternalError(
 									'initClientProxy.setHandler: unexpected message type in set listener',
 									{ msg },
 								);
-								cleanupAndReject(
+								rejectOnce(
 									new Error(
 										`Unexpected message type ${msg.type} in set listener`,
 									),
@@ -205,9 +244,9 @@ export function initClientProxy(websocket, reportInternalError) {
 					});
 				} catch (error) {
 					if (error instanceof Error) {
-						cleanupAndReject(error);
+						rejectOnce(error);
 					} else {
-						cleanupAndReject(
+						rejectOnce(
 							new Error(
 								String(
 									error ||
