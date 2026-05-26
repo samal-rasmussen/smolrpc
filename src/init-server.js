@@ -266,6 +266,7 @@ export function initServer(router, resources, options) {
 		if (request.type === 'GetRequest') {
 			try {
 				const requestSchema = resourceDefinition.request;
+				let parsedGetRequestValue = request.request;
 				if (requestSchema != null) {
 					const parsedRequest = validateSchema(
 						requestSchema,
@@ -283,6 +284,7 @@ export function initServer(router, resources, options) {
 						);
 						return;
 					}
+					parsedGetRequestValue = parsedRequest.value;
 				}
 				/** @type {Parameters<GetHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
@@ -290,7 +292,7 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 				});
 				if (request.request != null) {
-					args.request = request.request;
+					args.request = parsedGetRequestValue;
 				}
 				if (request.params != null) {
 					const resourceWithParams = getResourceWithParams(
@@ -371,6 +373,7 @@ export function initServer(router, resources, options) {
 		} else if (request.type === 'SetRequest') {
 			try {
 				const requestSchema = resourceDefinition.request;
+				let parsedSetRequestValue = request.request;
 				if (requestSchema != null) {
 					const parsedRequest = validateSchema(
 						requestSchema,
@@ -388,12 +391,13 @@ export function initServer(router, resources, options) {
 						);
 						return;
 					}
+					parsedSetRequestValue = parsedRequest.value;
 				}
 				/** @type {Parameters<SetHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
 					clientId,
 					resource: request.resource,
-					request: request.request,
+					request: parsedSetRequestValue,
 				});
 				if (request.params != null) {
 					const resourceWithParams = getResourceWithParams(
@@ -474,6 +478,7 @@ export function initServer(router, resources, options) {
 		} else if (request.type === 'SubscribeRequest') {
 			try {
 				const requestSchema = resourceDefinition.request;
+				let parsedSubscribeRequestValue = request.request;
 				if (requestSchema != null) {
 					const parsedRequest = validateSchema(
 						requestSchema,
@@ -491,6 +496,7 @@ export function initServer(router, resources, options) {
 						);
 						return;
 					}
+					parsedSubscribeRequestValue = parsedRequest.value;
 				}
 				/** @type {Parameters<SubscribeHandlerWithParams>[0]} */
 				const args = /** @type {any} */ ({
@@ -498,7 +504,7 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 				});
 				if (request.request != null) {
-					args.request = request.request;
+					args.request = parsedSubscribeRequestValue;
 				}
 				if (request.params != null) {
 					const resourceWithParams = getResourceWithParams(
