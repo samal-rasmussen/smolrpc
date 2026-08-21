@@ -16,6 +16,6 @@
 		"lib": ["es2022", "dom"],
 		"target": "esnext"
 	},
-	"include": ["src", "examples"],
+	"include": ["src", "examples", "tests"],
 	"exclude": ["examples/deno-server/index.ts"]
 }
