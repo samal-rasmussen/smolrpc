@@ -128,6 +128,8 @@ export function initClient({
 		clientMethods: {
 			open: clientWebSocket.open,
 			close: clientWebSocket.close,
+			restart: clientWebSocket.restart,
+			invalidate: clientWebSocket.invalidate,
 		},
 	};
 }

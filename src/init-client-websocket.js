@@ -41,7 +41,7 @@ const RECONNECT_JITTER_PERCENT = 20;
 /**
  * @typedef {object} ConstructionAttempt
  * @property {number} number
- * @property {'explicit' | 'automatic'} kind
+ * @property {'explicit' | 'restart' | 'automatic'} kind
  * @property {object} intent
  */
 
@@ -164,9 +164,9 @@ export function initClientWebSocket({
 
 	/**
 	 * @param {ConnectionGeneration} generation
-	 * @param {'stopped' | 'backoff'} destination
+	 * @param {'stopped' | 'backoff' | 'restart'} destination
 	 * @param {object} intent
-	 * @param {{ event?: CloseEvent, closeSocket?: boolean }} [options]
+	 * @param {{ event?: CloseEvent, closeSocket?: boolean, closeReason?: string }} [options]
 	 */
 	function retireGeneration(generation, destination, intent, options = {}) {
 		if (generation.retired) {
@@ -202,12 +202,17 @@ export function initClientWebSocket({
 				publishState('stopped');
 			} else if (destination === 'backoff' && runtime.running) {
 				scheduleReconnect(intent);
+			} else if (destination === 'restart' && runtime.running) {
+				startAttempt('restart', intent);
 			}
 		}
 
 		if (options.closeSocket) {
 			try {
-				generation.socket.close(NORMAL_CLOSE_CODE, 'close was called');
+				generation.socket.close(
+					NORMAL_CLOSE_CODE,
+					options.closeReason ?? 'close was called',
+				);
 			} catch {
 				reportInternalError(
 					'initClientWebSocket.close: native close failed',
@@ -291,7 +296,7 @@ export function initClientWebSocket({
 	}
 
 	/**
-	 * @param {'explicit' | 'automatic'} kind
+	 * @param {'explicit' | 'restart' | 'automatic'} kind
 	 * @param {object} intent
 	 */
 	function startAttempt(kind, intent) {
@@ -322,7 +327,7 @@ export function initClientWebSocket({
 				throw error;
 			}
 			reportInternalError(
-				'initClientWebSocket: automatic socket construction failed',
+				'initClientWebSocket: managed socket construction failed',
 				{ readyState: ReadyStates.CLOSED },
 			);
 			if (!ownsAttempt(attempt)) {
@@ -437,6 +442,11 @@ export function initClientWebSocket({
 		}
 	}
 
+	/**
+	 * Stops automatic connection management, retires current work, and cancels
+	 * any construction attempt or reconnect timer. Repeated calls while stopped
+	 * are no-ops.
+	 */
 	function close() {
 		if (!runtime.running && runtime.state === 'stopped') {
 			return;
@@ -456,6 +466,11 @@ export function initClientWebSocket({
 		});
 	}
 
+	/**
+	 * Starts automatic connection management only when stopped, resets reconnect
+	 * backoff, and makes an immediate explicit connection attempt. It does not
+	 * bypass an in-progress connection or reconnect backoff.
+	 */
 	function open() {
 		if (runtime.running) {
 			return;
@@ -466,6 +481,60 @@ export function initClientWebSocket({
 		runtime.reopenCount = 0;
 		cancelReconnect();
 		startAttempt('explicit', intent);
+	}
+
+	/**
+	 * Immediately replaces the current connection attempt or generation, or
+	 * bypasses reconnect backoff, while connection management is running. It is
+	 * a no-op while stopped and, unlike close followed by open, never publishes
+	 * an intermediate stopped intent.
+	 */
+	function restart() {
+		if (!runtime.running) {
+			return;
+		}
+		const intent = {};
+		runtime.intent = intent;
+		runtime.reopenCount = 0;
+		runtime.currentAttempt = undefined;
+		cancelReconnect();
+		const generation = runtime.currentGeneration;
+		if (generation == null) {
+			startAttempt('restart', intent);
+			return;
+		}
+		retireGeneration(generation, 'restart', intent, {
+			closeReason: 'restart was called',
+			closeSocket: true,
+		});
+	}
+
+	/**
+	 * Marks the running connection attempt or generation unhealthy and enters
+	 * normal delayed reconnect backoff without resetting its history. A call
+	 * while already in backoff preserves the existing timer and delay; a call
+	 * while stopped is a no-op.
+	 */
+	function invalidate() {
+		if (!runtime.running) {
+			return;
+		}
+		if (runtime.state === 'backoff' && runtime.reconnectToken != null) {
+			return;
+		}
+		const intent = {};
+		runtime.intent = intent;
+		runtime.currentAttempt = undefined;
+		cancelReconnect();
+		const generation = runtime.currentGeneration;
+		if (generation == null) {
+			scheduleReconnect(intent);
+			return;
+		}
+		retireGeneration(generation, 'backoff', intent, {
+			closeReason: 'connection was invalidated',
+			closeSocket: true,
+		});
 	}
 
 	/** @returns {ConnectionGeneration | undefined} */
@@ -517,6 +586,8 @@ export function initClientWebSocket({
 		isCurrent,
 		isCurrentOpen,
 		open,
+		restart,
+		invalidate,
 		sendFrame,
 		get readyState() {
 			const generation = runtime.currentGeneration;

@@ -268,20 +268,23 @@ Parameters:
 -   `url`: WebSocket server URL
 -   `createWebSocket?`: Function to create a WebSocket instance (required in environments without native WebSocket)
 -   `reportInternalError`: Callback for internal smolrpc client errors that were previously written to `console.error`
--   `webSocketEvents`: Object with raw WebSocket event handlers
+-   `webSocketEvents`: Object with logical lifecycle and raw WebSocket event handlers
     -   `open?`: Event handler for connection open
     -   `message?`: Event handler for raw messages
-    -   `reconnect?`: Event handler for reconnection attempts
-    -   `close?`: Event handler for connection close
-    -   `error?`: Event handler for socket errors
-    -   `send?`: Event handler when sending a request
+    -   `statechange?`: Logical transport state handler (`stopped`, `connecting`, `open`, `unavailable`, or `backoff`)
+    -   `reconnect?`: Raw notification after a successful automatic backoff attempt constructs and publishes a socket
+    -   `close?`: Raw native connection-close handler
+    -   `error?`: Raw native socket-error handler
+    -   `send?`: Raw handler invoked before sending a request
 
 Returns:
 
 -   `client`: The proxy object for making API calls
--   `clientMethods`: Helper methods for managing the connection
-    -   `open()`: Open the connection
-    -   `close()`: Close the connection
+-   `clientMethods`: Connection lifecycle controls
+    -   `close()`: Stop connection management and cancel current/backoff work
+    -   `open()`: Start only from stopped and attempt immediately
+    -   `restart()`: Replace immediately while management is running
+    -   `invalidate()`: Mark the running transport unhealthy and recover through normal backoff
 
 #### Client Methods
 
@@ -330,13 +333,50 @@ Returns:
 
 ### Connection Lifecycle
 
-smolrpc handles the WebSocket connection lifecycle automatically:
+The client starts connection management during initialization. Unexpected native closes retire all work owned by that connection and recover using jittered backoff. Use the lifecycle method that matches the application's intent:
 
-1. **Initialization**: The client attempts to connect to the server when created
-2. **Open**: The connection is established and ready for communication
-3. **Message Exchange**: Requests/responses flow between client and server
-4. **Reconnection**: Automatic reconnection attempts with exponential backoff if the connection is lost
-5. **Close**: The connection is explicitly closed by the client or server
+| Intent                           | Method         | Recovery behavior                                           | Typical reason                                                          |
+| -------------------------------- | -------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Deliberately stop management     | `close()`      | Retire/cancel current work and remain stopped               | The application no longer wants a connection                            |
+| Deliberately start management    | `open()`       | From stopped, reset backoff and attempt immediately         | Resume a stopped client                                                 |
+| Replace the connection now       | `restart()`    | While running, reset/bypass backoff and attempt immediately | Authentication, identity, tenant, or connection inputs changed          |
+| Declare the connection unhealthy | `invalidate()` | While running, preserve/enter normal delayed backoff        | Immediate replacement may repeat a transient health or protocol failure |
+
+`restart()` is a no-op while deliberately stopped. Unlike `close(); open()`, it has no intermediate stopped intent and a replacement-constructor failure continues through automatic backoff. `close(); open()` resets backoff, attempts immediately, and an explicit-open constructor failure is rethrown while the client remains stopped. `invalidate()` is delayed, preserves backoff history, and keeps an existing backoff timer instead of creating another one.
+
+#### Logical and raw lifecycle events
+
+`webSocketEvents.statechange` reports logical client states independently of native events:
+
+-   `stopped`: automatic connection management is disabled;
+-   `connecting`: a socket is being constructed or is awaiting native open;
+-   `open`: the current generation is authoritative and open;
+-   `unavailable`: a generation was retired and its transport-owned work was detached; and
+-   `backoff`: management is running but waiting before another attempt.
+
+`stopped` and `backoff` are intentionally different: `open()` starts only from stopped, while `restart()` can bypass backoff and `invalidate()` preserves it. The `open`, `message`, `error`, and `close` callbacks are raw events from only the current socket. A socket retired by `close()`, `restart()`, or `invalidate()` does not later emit a raw `close` callback. A native `error` does not trigger recovery without a native close.
+
+The raw `reconnect` hook runs only after a still-current **automatic backoff attempt** successfully constructs a socket, installs handlers, and publishes it. It does not mean that native open has fired, and it does not run for initialization, explicit `open()`, the immediate attempt made by `restart()`, failed construction, or superseded attempts.
+
+#### Recovering an application lifecycle root
+
+An application may designate a GET such as readiness or current identity as the root of its own lifecycle. If that request times out while the socket still appears open, the application can branch on the stable error code and invalidate the generation:
+
+```ts
+import { SmolRpcError } from 'smolrpc';
+
+try {
+	await client['/readiness'].get();
+} catch (error) {
+	if (error instanceof SmolRpcError && error.code === 'SMOLRPC_TIMEOUT') {
+		clientMethods.invalidate();
+		return;
+	}
+	throw error;
+}
+```
+
+Do not invalidate automatically for ordinary RPC timeout or rejection: those failures are operation-local unless the application knows the resource is lifecycle-critical. `invalidate()` only performs the transport action. It does not replay the GET, revive a terminated stream, or reconstruct subscriptions. After a later logical `open`, application recovery code must explicitly issue a fresh root request and create fresh subscriptions.
 
 ## Advanced Usage
 
@@ -364,9 +404,17 @@ const unsubscribable = subscription.subscribe({
 unsubscribable.unsubscribe();
 ```
 
+Creating a subscribable requires a currently open connection and otherwise throws `SmolRpcError` with code `SMOLRPC_UNAVAILABLE`. Reactive code that wants this failure delivered through its reactive error channel should construct it lazily inside that channel (for example with the reactive library's `defer` operator), rather than eagerly calling `client[path].subscribe()` first. Subscriptions belong to one connection generation and terminate when it is retired; they are never replayed on a replacement.
+
+### Client Errors
+
+Client operations fail with `SmolRpcError`. Branch on `error.code`, not message text. Codes include unavailable transport, timeout, server rejection, protocol error, serialization failure, native send failure, and `SMOLRPC_MUTATION_OUTCOME_UNKNOWN`.
+
+A GET made without an open connection returns a rejected Promise and is never retried. A SET created while its current generation is connecting may wait only for that generation; it never moves to or replays on a replacement. A SET that was accepted by native `send()` is never retried automatically. A later timeout, retirement, or malformed response produces `SMOLRPC_MUTATION_OUTCOME_UNKNOWN` because the server may already have applied the mutation. Treat that outcome as ambiguous rather than assuming a retry is safe.
+
 ### Client Error Logging
 
-`reportInternalError` is only for internal smolrpc client errors. Raw transport activity still belongs in `webSocketEvents`.
+`reportInternalError` is only for non-operation diagnostics and failures that cannot be returned to a caller, such as unsubscribe acknowledgement timeout. It receives sanitized metadata, not request payloads or credentials. Raw transport activity still belongs in `webSocketEvents`.
 
 ```ts
 const { client } = initClient<Resources>({
@@ -419,7 +467,7 @@ Run these commands in separate terminals:
 
 ```bash
 # Type checking
-npm run check
+npm run typecheck
 
 # Run the server
 npm run nodejs-server

@@ -181,6 +181,26 @@ export interface ClientMethods {
 }
 ```
 
+The methods represent four different lifecycle intents. Document them using this decision guide, not only as state transitions:
+
+| Intent                                   | Method         | Recovery behavior                                                      | Typical reason                                                           |
+| ---------------------------------------- | -------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Deliberately stop connection management  | `close()`      | Retire/cancel current work and remain stopped                          | The application no longer wants a connection                             |
+| Deliberately start connection management | `open()`       | From stopped, reset backoff and attempt immediately                    | Resume a previously stopped client                                       |
+| Replace the connection now               | `restart()`    | Keep management running, reset/bypass backoff, and attempt immediately | Authentication, identity, tenant, or connection inputs changed           |
+| Declare the connection unhealthy         | `invalidate()` | Keep management running and enter/preserve normal delayed backoff      | Immediate reconnection may repeat a transient health or protocol failure |
+
+The essential distinction is recovery policy:
+
+-   `restart()` means **replace now**. It retires/supersedes current work, resets backoff, and starts an immediate attempt.
+-   `invalidate()` means **recover gradually**. It retires/supersedes current work, preserves backoff history, and schedules the normal jittered retry; if already in backoff, it preserves the existing timer and delay.
+-   `close(); open()` is not equivalent to `invalidate()`: it exposes an intermediate stopped intent, cancels recovery, resets backoff, attempts immediately, and an explicit-open constructor failure rethrows and remains stopped instead of continuing automatic retries.
+-   `close(); open()` may resemble `restart()` in the simplest open-state case, but `restart()` is one replacement intent without an observable stopped transition, can bypass an existing backoff timer, and follows automatic-recovery constructor-failure behavior. It remains a no-op when deliberately stopped.
+
+A validated motivating use case is an application-designated lifecycle-root GET, such as readiness or current-identity bootstrap, timing out while the native WebSocket still appears open. The application knows that continuing on that generation is unsafe, while immediate replacement may repeat a transient server, event-loop, network, or listener-state failure. Application code catches the typed `SMOLRPC_TIMEOUT`, calls `invalidate()`, and reconstructs its lifecycle root after a later open generation. SMOLRPC must not automatically classify particular resources or generic GET timeouts as unhealthy: ordinary RPC timeout/rejection remains operation-local, and the application owns the decision to invalidate.
+
+`invalidate()` performs only the transport action. It does not revive a terminal reactive stream, replay the timed-out GET, or reconstruct subscriptions. The application must keep the timeout inside a recoverable lifecycle branch and explicitly recreate identity/readiness requests and dependent subscriptions after recovery. This division preserves the out-of-scope rule against library-owned application recovery policy and subscription replay.
+
 | Current state     | `close()`                                    | `open()`                                    | `restart()`                                                       | `invalidate()`                               |
 | ----------------- | -------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------- | -------------------------------------------- |
 | stopped           | no-op                                        | start and immediately create one generation | no-op                                                             | no-op                                        |
@@ -190,6 +210,15 @@ export interface ClientMethods {
 `close()`, `open()`, and `invalidate()` are idempotent. Sequential `restart()` calls while running are distinct replacement requests: each supersedes an in-progress construction attempt or retires the current generation before creating another.
 
 `restart()` replaces connection intent only while automatic connection management is running. When stopped it remains stopped and constructs nothing; a later `open()` creates a connection using the then-current authentication/environment state. Do not document `restart()` as an unconditional “ensure connected” operation.
+
+Add clear public TSDoc/JSDoc to all four lifecycle methods at their source declarations and implementation-facing API. The comments must explain intent and the important state-dependent behavior, not merely restate the method names:
+
+-   `close()` stops automatic connection management and cancels current/backoff work;
+-   `open()` starts only from stopped and attempts immediately;
+-   `restart()` immediately replaces or bypasses backoff only while management is already running, remains a no-op while stopped, and differs from a `close()`/`open()` pair by avoiding an intermediate stopped intent; and
+-   `invalidate()` marks a running connection attempt/generation unhealthy and enters or preserves normal backoff rather than reconnecting immediately.
+
+These comments are part of the public API contract and must appear in generated declarations so editors surface the guidance. The README lifecycle section must reproduce the concise intent/decision guide above and explicitly compare `restart()`, `invalidate()`, and `close(); open()`, including immediate versus delayed retry, reset versus preserved backoff, stopped-state behavior, and constructor-failure recovery. Avoid relying on the state matrix alone to communicate when applications should use each method.
 
 Constructor failures:
 
@@ -412,10 +441,18 @@ Export `SmolRpcError` and its types from source/root declarations, then regenera
 
 ### PR 3: Recovery lifecycle, documentation, and release
 
-Add public `restart()` and `invalidate()` using the existing retirement/reconnect primitives. Complete the logical state-transition matrix plus lifecycle-specific constructor-failure and callback-reentrancy tests. Update:
+Add public `restart()` and `invalidate()` using the existing retirement/reconnect primitives. Complete the logical state-transition matrix plus lifecycle-specific constructor-failure and callback-reentrancy tests.
 
--   `src/client.types.ts`, `index.d.ts`, and generated declarations with the type-only `ClientTransportState` export and `statechange` callback; update `index.js` only for applicable runtime exports;
--   `readme.md` with logical versus raw lifecycle events, stopped versus backoff, exact `reconnect` semantics, errors, mutation ambiguity, unavailable subscription construction/lazy reactive guidance, stopped-state `restart()`, and application-owned recovery;
+Use a red/green workflow for the validated lifecycle-root recovery scenario before considering `invalidate()` complete:
+
+1. Add and run a deterministic test that suppresses responses for an application-designated lifecycle-root GET while leaving the controlled socket open; confirm it fails for the expected missing/incorrect invalidation behavior.
+2. Implement `invalidate()` and make the test green by proving timeout → application catch → invalidation → one preserved-backoff recovery path → replacement open → application-owned root/subscription reconstruction.
+3. Keep the red test out of merged intermediate states if required by CI, but record the red run in the PR description. The final test must exercise the public API rather than an internal retirement helper.
+
+Update:
+
+-   `src/client.types.ts`, `index.d.ts`, and generated declarations with all four lifecycle methods, their public TSDoc/JSDoc guidance, the type-only `ClientTransportState` export, and the `statechange` callback; update `index.js` only for applicable runtime exports;
+-   `readme.md` with a concise lifecycle-method decision guide, the lifecycle-root timeout use case (using generic readiness/identity examples rather than Bókin-specific resource names), a warning not to invalidate on ordinary RPC failures, logical versus raw lifecycle events, stopped versus backoff, exact `reconnect` semantics, errors, mutation ambiguity, unavailable subscription construction/lazy reactive guidance, stopped-state `restart()`, and application-owned recovery;
 -   `authentication.md` to use `restart()` after cookie/identity changes; and
 -   package version/scripts/lockfile for `0.56.0`.
 
@@ -502,6 +539,7 @@ Keep one regression matrix rather than duplicating test lists in every PR and ac
 46. Every lifecycle matrix entry is covered, including repeated calls, restart during backoff, and `restart()` remaining a no-op while stopped until later `open()`.
 47. Runtime and type-only package imports expose `SmolRpcError`, its code/types, `ClientTransportState`/`statechange`, and all four lifecycle methods.
 48. Packed output includes runtime/declarations but excludes `src/tests`, top-level tests, and plans.
+49. Lifecycle-root recovery regression: while the native socket remains open, suppress two designated root GET responses until timeout; application test code branches on typed `SMOLRPC_TIMEOUT` and calls `invalidate()`; concurrent invalidations coalesce into one existing-backoff timer with no immediate socket; after the timer and replacement open, the application recovery branch explicitly reissues its root request and creates a fresh subscription, both succeed, and no old operation/subscription is replayed automatically. Assert the ordered `unavailable → backoff → connecting → open` states and that delayed old-generation frames cannot affect the rebuilt branch.
 
 Use fake timers and controlled sockets; do not use real network timing for race tests.
 
@@ -522,7 +560,7 @@ The release is complete when:
 -   `reconnect` is limited to still-owned automatic-backoff attempts;
 -   callers can branch on stable `SmolRpcError.code` values without unsafe metadata;
 -   the wire protocol and typed resource API remain compatible;
--   all required deterministic regressions pass; and
+-   all required deterministic regressions pass, including the public-API lifecycle-root timeout → invalidate → backoff → application reconstruction scenario developed red/green; and
 -   `npm run verify` and the packed-file audit pass for `0.56.0`.
 
 ## Out of scope

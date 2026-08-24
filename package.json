@@ -1,10 +1,14 @@
 {
 	"name": "smolrpc",
-	"version": "0.55.0",
+	"version": "0.56.0",
 	"description": "A smol typesafe rpc implementation over websockets",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/samal-rasmussen/smolrpc.git"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org/"
 	},
 	"license": "MIT",
 	"type": "module",
@@ -21,16 +25,17 @@
 	],
 	"types": "./types/index.d.ts",
 	"scripts": {
-		"build": "dts-buddy && npm run format",
-		"check": "tsc -w --noEmit",
+		"build": "dts-buddy && prettier --write types",
 		"deno-server": "deno run --watch --allow-net examples/deno-server/index.ts",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"nodejs-client": "tsx --watch examples/nodejs-client/index.ts",
 		"nodejs-server": "tsx --watch examples/nodejs-server/index.ts",
-		"publish": "tsc --noEmit && publint && npm publish --registry https://registry.npmjs.org/ --access public",
+		"prepublishOnly": "npm run verify",
 		"test": "vitest run",
-		"test:watch": "vitest"
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit",
+		"verify": "npm test && npm run typecheck && npm run build && npm run lint && publint && npm pack --dry-run"
 	},
 	"dependencies": {
 		"@standard-schema/spec": "1.0.0"

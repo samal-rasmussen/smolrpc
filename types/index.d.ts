@@ -188,8 +188,32 @@ declare module 'smolrpc' {
 			: never;
 	};
 	export interface ClientMethods {
-		close: () => void;
-		open: () => void;
+		/**
+		 * Stops automatic connection management, retires current work, and cancels
+		 * any in-progress connection attempt or reconnect timer.
+		 */
+		close(): void;
+		/**
+		 * Starts connection management only when stopped, resets backoff, and makes
+		 * an immediate connection attempt. It is a no-op while already running,
+		 * including while connecting or waiting in reconnect backoff.
+		 */
+		open(): void;
+		/**
+		 * Immediately replaces the connection attempt or generation, or bypasses
+		 * reconnect backoff, only while connection management is already running.
+		 * It is a no-op while stopped and differs from `close(); open()` by avoiding
+		 * an intermediate stopped intent and by recovering automatically if the
+		 * replacement constructor fails.
+		 */
+		restart(): void;
+		/**
+		 * Marks a running connection attempt or generation unhealthy and enters
+		 * normal delayed reconnect backoff without resetting its history. While
+		 * already in backoff, the existing timer and delay are preserved. It is a
+		 * no-op while stopped.
+		 */
+		invalidate(): void;
 	}
 	export type ClientTransportState =
 		| 'stopped'
