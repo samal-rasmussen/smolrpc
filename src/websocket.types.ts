@@ -2,8 +2,7 @@ export type Data =
 	| string
 	| ArrayBufferLike
 	| ArrayBufferView
-	| Buffer
-	| Buffer[];
+	| ArrayBufferView[];
 
 interface WSErrorEvent {
 	error: any;

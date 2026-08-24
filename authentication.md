@@ -219,16 +219,16 @@ The `close` hook receives the browser's [`CloseEvent`](https://developer.mozilla
 
 Common standard codes include:
 
-| Code | Meaning | Authentication/recovery guidance |
-| --- | --- | --- |
-| `1000` | Normal closure | Usually an intentional shutdown, but interpret it in application context. |
-| `1001` | Endpoint going away | Common during navigation, shutdown, or server restart; it is not necessarily an error. |
-| `1002`–`1003` | Protocol error or unsupported data | Usually indicates an incompatibility or implementation problem. |
-| `1007`–`1009` | Invalid payload, policy violation, or message too large | `1008` can represent an authorization policy failure, but that meaning is not standardized. |
-| `1011` | Unexpected server condition | Usually transient, although repeated failures should be investigated. |
-| `1012`–`1013` | Service restart or temporary overload | Normally suitable for delayed retry. |
-| `3000`–`3999` | Registered library/framework codes | Interpret according to the component that defines the code. |
-| `4000`–`4999` | Private application codes | Define explicit codes for conditions such as session expiry or account replacement. There is no generic WebSocket “4xx authentication” meaning. |
+| Code          | Meaning                                                 | Authentication/recovery guidance                                                                                                                |
+| ------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `1000`        | Normal closure                                          | Usually an intentional shutdown, but interpret it in application context.                                                                       |
+| `1001`        | Endpoint going away                                     | Common during navigation, shutdown, or server restart; it is not necessarily an error.                                                          |
+| `1002`–`1003` | Protocol error or unsupported data                      | Usually indicates an incompatibility or implementation problem.                                                                                 |
+| `1007`–`1009` | Invalid payload, policy violation, or message too large | `1008` can represent an authorization policy failure, but that meaning is not standardized.                                                     |
+| `1011`        | Unexpected server condition                             | Usually transient, although repeated failures should be investigated.                                                                           |
+| `1012`–`1013` | Service restart or temporary overload                   | Normally suitable for delayed retry.                                                                                                            |
+| `3000`–`3999` | Registered library/framework codes                      | Interpret according to the component that defines the code.                                                                                     |
+| `4000`–`4999` | Private application codes                               | Define explicit codes for conditions such as session expiry or account replacement. There is no generic WebSocket “4xx authentication” meaning. |
 
 Codes `1005`, `1006`, and `1015` are reserved status values and are never sent in a WebSocket close frame. A browser may report `1005` when no status was supplied, `1006` when the connection ended without a valid close handshake, or `1015` for a TLS-handshake failure. In particular, a rejected HTTP upgrade may appear to browser code only as `1006`; the HTTP status is not reliably exposed through `CloseEvent`.
 

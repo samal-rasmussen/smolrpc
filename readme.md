@@ -342,7 +342,7 @@ The client starts connection management during initialization. Unexpected native
 | Replace the connection now       | `restart()`    | While running, reset/bypass backoff and attempt immediately | Authentication, identity, tenant, or connection inputs changed          |
 | Declare the connection unhealthy | `invalidate()` | While running, preserve/enter normal delayed backoff        | Immediate replacement may repeat a transient health or protocol failure |
 
-`restart()` is a no-op while deliberately stopped. Unlike `close(); open()`, it has no intermediate stopped intent and a replacement-constructor failure continues through automatic backoff. `close(); open()` resets backoff, attempts immediately, and an explicit-open constructor failure is rethrown while the client remains stopped. `invalidate()` is delayed, preserves backoff history, and keeps an existing backoff timer instead of creating another one.
+`restart()` is a no-op while deliberately stopped. Unlike `close(); open()`, it has no intermediate stopped intent and a replacement-constructor failure continues through automatic backoff. `close(); open()` resets backoff, attempts immediately, and an explicit-open constructor failure is rethrown while the client remains stopped. `invalidate()` is delayed, preserves backoff history, and keeps an existing backoff timer instead of creating another one; constructor failures during that automatic recovery remain contained and continue through backoff.
 
 #### Logical and raw lifecycle events
 

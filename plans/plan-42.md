@@ -2,7 +2,7 @@
 
 Date: 2026-08-21
 
-Status: In progress — PRs 1 and 2 complete
+Status: Complete — PRs 1, 2, and 3 complete; release verification passed
 
 Based on: `plans/plan-41.md`
 
@@ -440,6 +440,8 @@ Export `SmolRpcError` and its types from source/root declarations, then regenera
 **Done when:** stale generations cannot affect current state, every operation is represented by one generation-owned record, retirement and terminal paths detach exactly once before delivery, ordinary subscription events retain their active indexes, failed send leaves no registration, and no operation is retried or replayed.
 
 ### PR 3: Recovery lifecycle, documentation, and release
+
+**Status: Complete.**
 
 Add public `restart()` and `invalidate()` using the existing retirement/reconnect primitives. Complete the logical state-transition matrix plus lifecycle-specific constructor-failure and callback-reentrancy tests.
 

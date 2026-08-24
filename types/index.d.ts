@@ -662,7 +662,7 @@ declare module 'smolrpc' {
 	export function dummyClient<
 		Resources extends AnyResources,
 	>(): Client<Resources>;
-	type Data = string | ArrayBufferLike | ArrayBufferView | Buffer | Buffer[];
+	type Data = string | ArrayBufferLike | ArrayBufferView | ArrayBufferView[];
 	interface WSErrorEvent {
 		error: any;
 		message: string;
