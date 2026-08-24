@@ -7,7 +7,11 @@
 		"SubscribeHandler",
 		"Client",
 		"ClientMethods",
+		"ClientTransportState",
 		"ClientWebSocketEvents",
+		"SmolRpcError",
+		"SmolRpcErrorCode",
+		"SmolRpcErrorMetadata",
 		"initClient",
 		"initServer",
 		"WS",
@@ -51,6 +55,8 @@
 		"../src/server.types.ts",
 		"../src/client.types.ts",
 		"../src/init-client.js",
+		"../src/client-errors.js",
+		"../src/client-errors.d.ts",
 		"../src/init-server.js",
 		"../src/websocket.types.ts",
 		"../src/message.types.ts",
@@ -67,8 +73,10 @@
 		null,
 		null,
 		null,
+		null,
+		null,
 		null
 	],
-	"mappings": ";;MAkCYA,UAAUA;;;;;;;;;MAkCVC,UAAUA;;;;;;MAkCVC,gBAAgBA;;;;;;;;;;;;;;aCEhBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;WAyEDC,aAAaA;;;;kBC3KQC,qBAAqBA;;;;;;;;iBAgB3CC,UAAUA;;;;;;;;;;iBCuDVC,UAAUA;;;;;MC7CdC,EAAEA;MC5BFC,MAAMA;MAENC,OAAOA;aAKPC,QAAQA;MAKRC,aAAaA;;;;;MAKbC,MAAMA;;;;MAKNC,UAAUA;;;;;;;MASVC,WAAWA;;;;;;MAMXC,UAAUA;;;;;;;MASVC,UAAUA;;;;;;MAMVC,gBAAgBA;;;;;;;MAShBC,eAAeA;;;;;aAKfC,cAAcA;;;;;;;MAOdC,kBAAkBA;;;;;;;MAOlBC,iBAAiBA;;;;;MLpEjBC,eAAeA;MAOfC,wBAAwBA;;;;;;MAuBxBC,oBAAoBA;;;;;;;MAcpBC,cAAcA;;;;;;MAoBdC,oBAAoBA;;;;;;;MAcpBC,cAAcA;;;;;;MAoBdC,0BAA0BA;;;;;;;MAc1BC,oBAAoBA;aAQpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;kBAoDDC,YAAYA;;;;;;;;;;;;;;;;;;iBMzIhBC,cAAcA;iBAUdC,UAAUA;;;;;aCpDXC,cAAcA;;;;;MAOdC,WAAWA;;;;;;aAaXC,YAAYA;;;WAIPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBCodFC,WAAWA;MJngBfC,IAAIA",
+	"mappings": ";;MAkCYA,UAAUA;;;;;;;;;MAkCVC,UAAUA;;;;;;MAkCVC,gBAAgBA;;;;;;;;;;;;;;aCEhBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;kBAyEDC,aAAaA;;;;aAKlBC,oBAAoBA;kBCjLMC,qBAAqBA;;;;;;;;;;cCU9CC,YAAYA;;;;;;;;;;;;;;;aAd8KC,gBAAgBA;aCgC3MC,oBAAoBA;;;;;;;;iBFZhBC,UAAUA;;;;;;;;;;iBGwDVC,UAAUA;;;;;MC7CdC,EAAEA;MC5BFC,MAAMA;MAENC,OAAOA;aAKPC,QAAQA;MAKRC,aAAaA;;;;;MAKbC,MAAMA;;;;MAKNC,UAAUA;;;;;;;MASVC,WAAWA;;;;;;MAMXC,UAAUA;;;;;;;MASVC,UAAUA;;;;;;MAMVC,gBAAgBA;;;;;;;MAShBC,eAAeA;;;;;aAKfC,cAAcA;;;;;;;MAOdC,kBAAkBA;;;;;;;MAOlBC,iBAAiBA;;;;;MPpEjBC,eAAeA;MAOfC,wBAAwBA;;;;;;MAuBxBC,oBAAoBA;;;;;;;MAcpBC,cAAcA;;;;;;MAoBdC,oBAAoBA;;;;;;;MAcpBC,cAAcA;;;;;;MAoBdC,0BAA0BA;;;;;;;MAc1BC,oBAAoBA;aAQpBC,MAAMA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;kBAoDDC,YAAYA;;;;;;;;;;;;;;;;;;iBQzIhBC,cAAcA;iBAUdC,UAAUA;;;;;aCpDXC,cAAcA;;;;;MAOdC,WAAWA;;;;;;aAaXC,YAAYA;;;WAIPC,QAAQA;;;;;WAMRC,cAAcA;;;kBAIdC,YAAYA;;;aAIjBC,MAAMA;iBC21CFC,WAAWA;MJ14CfC,IAAIA",
 	"ignoreList": []
 }

@@ -180,6 +180,13 @@ export interface ClientMethods {
 	open: () => void;
 }
 
+export type ClientTransportState =
+	| 'stopped'
+	| 'connecting'
+	| 'open'
+	| 'unavailable'
+	| 'backoff';
+
 export interface ClientWebSocketEvents {
 	close?: (e: CloseEvent) => void;
 	error?: (e: Event) => void;
@@ -187,4 +194,5 @@ export interface ClientWebSocketEvents {
 	open?: (e: Event) => void;
 	reconnect?: () => void;
 	send?: (request: Request<any>) => void;
+	statechange?: (state: ClientTransportState) => void;
 }

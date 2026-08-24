@@ -1,8 +1,7 @@
 /**
  * @typedef {import("./message.types").Request<any>} Request
+ * @typedef {import("./client.types").ClientTransportState} ClientTransportState
  */
-
-import { json_stringify } from './shared.js';
 
 export const ReadyStates = Object.freeze({
 	CONNECTING: 0,
@@ -12,13 +11,54 @@ export const ReadyStates = Object.freeze({
 });
 /** @typedef {typeof ReadyStates[keyof typeof ReadyStates]} ReadyState */
 
+export const NORMAL_CLOSE_CODE = 1000;
+export const RECONNECT_DELAYS_MS = Object.freeze([1_000, 2_000, 5_000, 10_000]);
+const RECONNECT_JITTER_PERCENT = 20;
+
+/**
+ * @typedef {object} ClientOperation
+ * @property {'get' | 'set' | 'subscribe' | 'unsubscribe'} kind
+ * @property {ConnectionGeneration} generation
+ * @property {number} requestId
+ * @property {'unsent' | 'sending' | 'sent'} phase
+ * @property {() => void} detach
+ * @property {() => (() => void) | undefined} prepareRetirement
+ * @property {() => void} [onOpen]
+ */
+
+/**
+ * @typedef {object} ConnectionGeneration
+ * @property {number} number
+ * @property {WebSocket} socket
+ * @property {ReadyState} readyState
+ * @property {boolean} retired
+ * @property {number} nextRequestId
+ * @property {Map<number, ClientOperation>} operations
+ * @property {Set<ClientOperation>} setWaiters
+ * @property {Map<string, ClientOperation>} subscriptions
+ */
+
+/**
+ * @typedef {object} ConstructionAttempt
+ * @property {number} number
+ * @property {'explicit' | 'automatic'} kind
+ * @property {object} intent
+ */
+
+/**
+ * @typedef {object} ReconnectToken
+ * @property {number} number
+ * @property {object} intent
+ * @property {ReturnType<typeof setTimeout> | undefined} timer
+ */
+
 /**
  * @param {number} number
  * @param {number} jitterPercentage
  * @returns {number}
  */
 function addRandomJitter(number, jitterPercentage) {
-	var jitter =
+	const jitter =
 		Math.random() * (jitterPercentage / 100) * 2 * number -
 		(jitterPercentage / 100) * number;
 	return number + jitter;
@@ -26,150 +66,469 @@ function addRandomJitter(number, jitterPercentage) {
 
 /**
  * @param {{
- * 	url: string,
+ *  url: string,
  *  createWebSocket: (url: string) => WebSocket,
- *  onopen: (e: Event) => void,
- *  onmessage: (e: MessageEvent) => void,
+ *  onopen?: (e: Event) => void,
+ *  onmessage?: (e: MessageEvent) => void,
+ *  dispatchMessage: (generation: ConnectionGeneration, e: MessageEvent) => void,
+ *  onstatechange?: (state: ClientTransportState) => void,
  *  onreconnect?: () => void,
  *  onclose?: (e: CloseEvent) => void,
  *  onerror?: (e: Event) => void,
  *  onsend?: (r: Request) => void,
  *  reportInternalError: (message: string, data: Record<string, unknown>) => void,
  * }} args
- * @return {{
- *  close: () => void
- *  open: () => void
- *  send: (request: Request) => void,
- *  readyState: ReadyState
- * }}
  */
 export function initClientWebSocket({
 	url,
 	createWebSocket,
 	onopen,
 	onmessage,
+	dispatchMessage,
+	onstatechange,
 	onreconnect,
 	onclose,
 	onerror,
 	onsend,
 	reportInternalError,
 }) {
-	/** @type {WebSocket | undefined} */
-	let websocket;
-	let reopenCount = 0;
-	/** @type {NodeJS.Timeout | undefined} */
-	let reopenTimeoutHandler;
-	const reopenTimeouts = [1000, 2000, 5000, 10000];
+	const runtime = {
+		running: false,
+		/** @type {ClientTransportState} */
+		state: 'stopped',
+		/** @type {ConnectionGeneration | undefined} */
+		currentGeneration: undefined,
+		nextGeneration: 1,
+		/** @type {ConstructionAttempt | undefined} */
+		currentAttempt: undefined,
+		nextAttempt: 1,
+		/** @type {ReconnectToken | undefined} */
+		reconnectToken: undefined,
+		nextReconnectToken: 1,
+		reopenCount: 0,
+		intent: {},
+	};
 
-	function close() {
-		if (reopenTimeoutHandler) {
-			clearTimeout(reopenTimeoutHandler);
-			reopenTimeoutHandler = undefined;
+	/** @param {ClientTransportState} state */
+	function publishState(state) {
+		if (runtime.state === state) {
+			return;
 		}
+		runtime.state = state;
+		onstatechange?.(state);
+	}
 
-		if (websocket != null) {
-			// Mark the websocket as closed, so we know not to run the reopen timer
-			// in the onclose handler.
-			/**@type {WebSocket & {isClosed: boolean}} */ (
-				websocket
-			).isClosed = true;
-			returnObject.readyState = ReadyStates.CLOSED;
-			websocket.close(1000, 'close was called');
-			websocket = undefined;
+	function cancelReconnect() {
+		const token = runtime.reconnectToken;
+		if (token == null) {
+			return;
+		}
+		runtime.reconnectToken = undefined;
+		if (token.timer != null) {
+			clearTimeout(token.timer);
 		}
 	}
 
-	/**
-	 * @returns {number}
-	 */
-	function getWaitTime() {
-		const n = reopenCount;
-		reopenCount++;
+	/** @param {WebSocket} socket */
+	function discardSocket(socket) {
+		try {
+			socket.close(
+				NORMAL_CLOSE_CODE,
+				'connection attempt was superseded',
+			);
+		} catch {
+			reportInternalError(
+				'initClientWebSocket: failed to close a superseded socket',
+				{ readyState: socket.readyState },
+			);
+		}
+	}
 
-		const timeout =
-			reopenTimeouts[
-				n >= reopenTimeouts.length - 1 ? reopenTimeouts.length - 1 : n
+	/** @param {ConnectionGeneration} generation */
+	function isCurrent(generation) {
+		return (
+			runtime.running &&
+			runtime.currentGeneration === generation &&
+			!generation.retired
+		);
+	}
+
+	/** @param {ConnectionGeneration} generation */
+	function isCurrentOpen(generation) {
+		return (
+			isCurrent(generation) &&
+			generation.readyState === ReadyStates.OPEN &&
+			generation.socket.readyState === ReadyStates.OPEN
+		);
+	}
+
+	/**
+	 * @param {ConnectionGeneration} generation
+	 * @param {'stopped' | 'backoff'} destination
+	 * @param {object} intent
+	 * @param {{ event?: CloseEvent, closeSocket?: boolean }} [options]
+	 */
+	function retireGeneration(generation, destination, intent, options = {}) {
+		if (generation.retired) {
+			return;
+		}
+
+		generation.retired = true;
+		generation.readyState = ReadyStates.CLOSED;
+		if (runtime.currentGeneration === generation) {
+			runtime.currentGeneration = undefined;
+		}
+
+		const records = new Set([
+			...generation.operations.values(),
+			...generation.subscriptions.values(),
+		]);
+		/** @type {(() => void)[]} */
+		const deliveries = [];
+		for (const record of records) {
+			const delivery = record.prepareRetirement();
+			if (delivery != null) {
+				deliveries.push(delivery);
+			}
+		}
+		generation.operations.clear();
+		generation.subscriptions.clear();
+		generation.setWaiters.clear();
+
+		publishState('unavailable');
+
+		if (runtime.intent === intent) {
+			if (destination === 'stopped' && !runtime.running) {
+				publishState('stopped');
+			} else if (destination === 'backoff' && runtime.running) {
+				scheduleReconnect(intent);
+			}
+		}
+
+		if (options.closeSocket) {
+			try {
+				generation.socket.close(NORMAL_CLOSE_CODE, 'close was called');
+			} catch {
+				reportInternalError(
+					'initClientWebSocket.close: native close failed',
+					{
+						generation: generation.number,
+						readyState: generation.socket.readyState,
+					},
+				);
+			}
+		}
+
+		if (options.event != null) {
+			onclose?.(options.event);
+		}
+
+		for (const deliver of deliveries) {
+			deliver();
+		}
+	}
+
+	/** @param {object} intent */
+	function scheduleReconnect(intent) {
+		if (
+			!runtime.running ||
+			runtime.intent !== intent ||
+			runtime.currentGeneration != null
+		) {
+			return;
+		}
+		cancelReconnect();
+
+		const n = runtime.reopenCount++;
+		const base =
+			RECONNECT_DELAYS_MS[
+				n >= RECONNECT_DELAYS_MS.length
+					? RECONNECT_DELAYS_MS.length - 1
+					: n
 			];
-		const withJitter = addRandomJitter(timeout, 20);
-		return withJitter;
+		const wait = addRandomJitter(base, RECONNECT_JITTER_PERCENT);
+		/** @type {ReconnectToken} */
+		const token = {
+			number: runtime.nextReconnectToken++,
+			intent,
+			timer: undefined,
+		};
+		runtime.reconnectToken = token;
+		publishState('backoff');
+		if (
+			runtime.reconnectToken !== token ||
+			!runtime.running ||
+			runtime.intent !== intent ||
+			runtime.currentGeneration != null
+		) {
+			return;
+		}
+		token.timer = setTimeout(() => {
+			if (
+				runtime.reconnectToken !== token ||
+				!runtime.running ||
+				runtime.intent !== token.intent ||
+				runtime.currentGeneration != null
+			) {
+				return;
+			}
+			runtime.reconnectToken = undefined;
+			startAttempt('automatic', token.intent);
+		}, wait);
+	}
+
+	/**
+	 * @param {ConstructionAttempt} attempt
+	 * @returns {boolean}
+	 */
+	function ownsAttempt(attempt) {
+		return (
+			runtime.running &&
+			runtime.intent === attempt.intent &&
+			runtime.currentAttempt === attempt &&
+			runtime.currentGeneration == null
+		);
+	}
+
+	/**
+	 * @param {'explicit' | 'automatic'} kind
+	 * @param {object} intent
+	 */
+	function startAttempt(kind, intent) {
+		/** @type {ConstructionAttempt} */
+		const attempt = {
+			number: runtime.nextAttempt++,
+			kind,
+			intent,
+		};
+		runtime.currentAttempt = attempt;
+		publishState('connecting');
+		if (!ownsAttempt(attempt)) {
+			return;
+		}
+
+		/** @type {WebSocket} */
+		let socket;
+		try {
+			socket = createWebSocket(url);
+		} catch (error) {
+			if (!ownsAttempt(attempt)) {
+				return;
+			}
+			if (kind === 'explicit') {
+				runtime.currentAttempt = undefined;
+				runtime.running = false;
+				publishState('stopped');
+				throw error;
+			}
+			reportInternalError(
+				'initClientWebSocket: automatic socket construction failed',
+				{ readyState: ReadyStates.CLOSED },
+			);
+			if (!ownsAttempt(attempt)) {
+				return;
+			}
+			runtime.currentAttempt = undefined;
+			scheduleReconnect(intent);
+			return;
+		}
+
+		if (!ownsAttempt(attempt)) {
+			discardSocket(socket);
+			return;
+		}
+
+		/** @type {ConnectionGeneration} */
+		const generation = {
+			number: runtime.nextGeneration++,
+			socket,
+			readyState: ReadyStates.CONNECTING,
+			retired: false,
+			nextRequestId: 1,
+			operations: new Map(),
+			setWaiters: new Set(),
+			subscriptions: new Map(),
+		};
+
+		try {
+			socket.onopen = (event) => {
+				if (!isCurrent(generation)) {
+					return;
+				}
+				generation.readyState = ReadyStates.OPEN;
+				runtime.reopenCount = 0;
+				publishState('open');
+				if (!isCurrentOpen(generation)) {
+					return;
+				}
+				onopen?.(event);
+				if (!isCurrentOpen(generation)) {
+					return;
+				}
+				for (const waiter of [...generation.setWaiters]) {
+					if (!isCurrentOpen(generation)) {
+						return;
+					}
+					if (generation.setWaiters.has(waiter)) {
+						waiter.onOpen?.();
+					}
+				}
+			};
+			socket.onmessage = (event) => {
+				if (!isCurrent(generation)) {
+					return;
+				}
+				onmessage?.(event);
+				if (!isCurrent(generation)) {
+					return;
+				}
+				dispatchMessage(generation, event);
+			};
+			socket.onerror = (event) => {
+				if (!isCurrent(generation)) {
+					return;
+				}
+				onerror?.(event);
+			};
+			socket.onclose = (event) => {
+				if (!isCurrent(generation)) {
+					return;
+				}
+				generation.readyState = ReadyStates.CLOSED;
+				const closeIntent = {};
+				runtime.intent = closeIntent;
+				retireGeneration(generation, 'backoff', closeIntent, {
+					event,
+				});
+			};
+		} catch (error) {
+			generation.retired = true;
+			discardSocket(socket);
+			if (!ownsAttempt(attempt)) {
+				return;
+			}
+			if (kind === 'explicit') {
+				runtime.currentAttempt = undefined;
+				runtime.running = false;
+				publishState('stopped');
+				throw error;
+			}
+			reportInternalError(
+				'initClientWebSocket: socket handler installation failed',
+				{ readyState: socket.readyState },
+			);
+			if (!ownsAttempt(attempt)) {
+				return;
+			}
+			runtime.currentAttempt = undefined;
+			scheduleReconnect(intent);
+			return;
+		}
+
+		if (!ownsAttempt(attempt)) {
+			generation.retired = true;
+			discardSocket(socket);
+			return;
+		}
+		runtime.currentGeneration = generation;
+		runtime.currentAttempt = undefined;
+		if (kind === 'automatic') {
+			onreconnect?.();
+		}
+	}
+
+	function close() {
+		if (!runtime.running && runtime.state === 'stopped') {
+			return;
+		}
+		const intent = {};
+		runtime.intent = intent;
+		runtime.running = false;
+		runtime.currentAttempt = undefined;
+		cancelReconnect();
+		const generation = runtime.currentGeneration;
+		if (generation == null) {
+			publishState('stopped');
+			return;
+		}
+		retireGeneration(generation, 'stopped', intent, {
+			closeSocket: true,
+		});
 	}
 
 	function open() {
-		if (reopenTimeoutHandler) {
-			clearTimeout(reopenTimeoutHandler);
-			reopenTimeoutHandler = undefined;
+		if (runtime.running) {
+			return;
 		}
-		if (
-			websocket != null &&
-			!(
-				websocket?.readyState === ReadyStates.CLOSED ||
-				websocket?.readyState === ReadyStates.CLOSED
-			)
-		) {
-			throw new Error(`initClient.open: websocket isn't closed`);
-		}
-		websocket = createWebSocket(url);
-		websocket.onopen = (event) => {
-			returnObject.readyState = ReadyStates.OPEN;
-			reopenCount = 0;
-			onopen(event);
-		};
-		websocket.onclose = (event) => {
-			returnObject.readyState = ReadyStates.CLOSED;
-			const target = /**@type {WebSocket & {isClosed: boolean}} */ (
-				event.target
-			);
-			if (!target.isClosed) {
-				reopenTimeoutHandler = setTimeout(() => {
-					if (target.readyState !== ReadyStates.CLOSED) {
-						throw new Error(
-							`initClient.reconnect: websocket isn't closed ${target.readyState}`,
-						);
-					}
-					returnObject.readyState = ReadyStates.CONNECTING;
-					open();
-					onreconnect?.();
-				}, getWaitTime());
-			}
-			onclose?.(event);
-		};
-		websocket.onerror = (event) => {
-			returnObject.readyState = ReadyStates.CLOSING;
-			onerror?.(event);
-		};
-		websocket.onmessage = (event) => {
-			onmessage(event);
-		};
+		const intent = {};
+		runtime.intent = intent;
+		runtime.running = true;
+		runtime.reopenCount = 0;
+		cancelReconnect();
+		startAttempt('explicit', intent);
+	}
+
+	/** @returns {ConnectionGeneration | undefined} */
+	function getCurrentGeneration() {
+		return runtime.currentGeneration;
+	}
+
+	/** @param {ConnectionGeneration} generation */
+	function allocateRequestId(generation) {
+		return generation.nextRequestId++;
 	}
 
 	/**
+	 * @param {ConnectionGeneration} generation
+	 * @param {ClientOperation} operation
 	 * @param {Request} request
+	 * @param {string} serialized
+	 * @returns {{ kind: 'returned' | 'unavailable' | 'settled' } | { kind: 'threw', error: unknown }}
 	 */
-	function send(request) {
-		if (websocket == null) {
-			reportInternalError('initClientWebSocket.send:websocket is null', {
-				request,
-			});
-			throw new Error('initClientWebSocket.send:websocket is null');
+	function sendFrame(generation, operation, request, serialized) {
+		if (
+			!isCurrentOpen(generation) ||
+			generation.operations.get(operation.requestId) !== operation
+		) {
+			return { kind: 'unavailable' };
 		}
-		if (websocket.readyState !== ReadyStates.OPEN) {
-			reportInternalError('initClientWebSocket.send:websocket not open', {
-				request,
-				readyState: websocket.readyState,
-			});
-			throw new Error('initClientWebSocket.send:websocket not open');
-		}
-		// TODO: Add timeout that will console log error after 30s
 		onsend?.(request);
-		websocket.send(json_stringify(request));
+		if (
+			!isCurrentOpen(generation) ||
+			generation.operations.get(operation.requestId) !== operation
+		) {
+			return generation.operations.get(operation.requestId) === operation
+				? { kind: 'unavailable' }
+				: { kind: 'settled' };
+		}
+		operation.phase = 'sending';
+		try {
+			generation.socket.send(serialized);
+			return { kind: 'returned' };
+		} catch (error) {
+			return { kind: 'threw', error };
+		}
 	}
 
-	const returnObject = {
+	return {
+		allocateRequestId,
 		close,
+		getCurrentGeneration,
+		isCurrent,
+		isCurrentOpen,
 		open,
-		send,
-		/** @type {ReadyState} */
-		readyState: ReadyStates.CONNECTING,
+		sendFrame,
+		get readyState() {
+			const generation = runtime.currentGeneration;
+			if (generation != null) {
+				return generation.readyState;
+			}
+			return runtime.state === 'connecting'
+				? ReadyStates.CONNECTING
+				: ReadyStates.CLOSED;
+		},
+		get state() {
+			return runtime.state;
+		},
 	};
-	return returnObject;
 }

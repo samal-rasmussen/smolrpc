@@ -1,6 +1,16 @@
-import type { Client, ClientWebSocketEvents } from './src/client.types.js';
-export { Client, ClientWebSocketEvents };
+import type {
+	Client,
+	ClientMethods,
+	ClientTransportState,
+	ClientWebSocketEvents,
+} from './src/client.types.js';
+export { Client, ClientMethods, ClientTransportState, ClientWebSocketEvents };
 
+export {
+	SmolRpcError,
+	SmolRpcErrorCode,
+	SmolRpcErrorMetadata,
+} from './src/client-errors.js';
 export { dummyClient, initClient } from './src/init-client.js';
 export { initServer } from './src/init-server.js';
 export { Response, SubscribeEvent } from './src/message.types.ts';

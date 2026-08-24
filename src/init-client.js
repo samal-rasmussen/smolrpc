@@ -3,7 +3,6 @@ import { initClientWebSocket } from './init-client-websocket.js';
 import { safeInvoke } from './safe-invoke.js';
 
 /**
- * @typedef {import("./message.types").Request<any>} Request
  * @typedef {import("./client.types").ClientWebSocketEvents} ClientWebSocketEvents
  */
 
@@ -29,7 +28,7 @@ export function initClient({
 	if (createWebSocket == null && globalThis.WebSocket == null) {
 		throw new Error(
 			`initClient: globalThis.WebSocket not found. ` +
-				`When runnin initClient on runtimes like nodejs that don't have ` +
+				`When running initClient on runtimes like nodejs that don't have ` +
 				`a WebSocket client built in, you will need to pass in a createWebSocket ` +
 				`helper function that returns a new WebSocket client instance.`,
 		);
@@ -40,56 +39,54 @@ export function initClient({
 		);
 	}
 
-	const cWebSocket =
-		createWebSocket == null
-			? (createWebSocket = (url) => {
-					return new WebSocket(url);
-			  })
-			: createWebSocket;
+	const create =
+		createWebSocket ??
+		((socketUrl) => {
+			return new WebSocket(socketUrl);
+		});
+	/** @type {(message: string, data: Record<string, unknown>) => void} */
+	const report = (message, data) => {
+		safeInvoke(
+			'initClient.reportInternalError',
+			reportInternalError,
+			message,
+			data,
+		);
+	};
 
+	/**
+	 * Assigned before the initial connection attempt. Native messages cannot be
+	 * accepted until a generation has been published.
+	 * @type {(generation: any, event: MessageEvent) => void}
+	 */
+	let dispatchMessage;
 	const clientWebSocket = initClientWebSocket({
 		url,
-		createWebSocket: cWebSocket,
-		reportInternalError: (message, data) => {
+		createWebSocket: create,
+		reportInternalError: report,
+		dispatchMessage: (generation, event) => {
+			dispatchMessage(generation, event);
+		},
+		onstatechange: (state) => {
 			safeInvoke(
-				'initClient.reportInternalError',
-				reportInternalError,
-				message,
-				data,
+				'initClient.webSocketEvents.statechange',
+				webSocketEvents.statechange,
+				state,
 			);
 		},
-		onopen: (e) => {
-			/**
-			 * clientProxyOnopen must be called before webSocketEvents.open
-			 *
-			 * clientProxyOnopen will reset the client and set it to be ready to use.
-			 * webSocketEvents.open will notify the user that the client is ready to use.
-			 *
-			 * Calling webSocketEvents.open before clientProxyOnopen will cause lost messages,
-			 * because it may trigger the user to make requests, which will be lost when
-			 * clientProxy will be reset when calling clientProxyOnopen.
-			 */
-			clientProxyOnopen(e);
+		onopen: (event) => {
 			safeInvoke(
 				'initClient.webSocketEvents.open',
 				webSocketEvents.open,
-				e,
+				event,
 			);
 		},
-		onmessage: (e) => {
-			/**
-			 * webSocketEvents.message must be called before clientProxyOnmessage
-			 *
-			 * webSocketEvents.message is only meant for debug logging.
-			 * clientProxyOnmessage will process the message and trigger the listeners.
-			 * We want to see the raw messages logged before they are processed by the client.
-			 */
+		onmessage: (event) => {
 			safeInvoke(
 				'initClient.webSocketEvents.message',
 				webSocketEvents.message,
-				e,
+				event,
 			);
-			clientProxyOnmessage(e);
 		},
 		onreconnect: () => {
 			safeInvoke(
@@ -97,18 +94,18 @@ export function initClient({
 				webSocketEvents.reconnect,
 			);
 		},
-		onclose: (e) => {
+		onclose: (event) => {
 			safeInvoke(
 				'initClient.webSocketEvents.close',
 				webSocketEvents.close,
-				e,
+				event,
 			);
 		},
-		onerror: (e) => {
+		onerror: (event) => {
 			safeInvoke(
 				'initClient.webSocketEvents.error',
 				webSocketEvents.error,
-				e,
+				event,
 			);
 		},
 		onsend: (request) => {
@@ -120,22 +117,13 @@ export function initClient({
 		},
 	});
 
-	const {
-		proxy,
-		onmessage: clientProxyOnmessage,
-		onopen: clientProxyOnopen,
-	} = initClientProxy(clientWebSocket, (message, data) => {
-		safeInvoke(
-			'initClient.reportInternalError',
-			reportInternalError,
-			message,
-			data,
-		);
-	});
+	const clientProxy = initClientProxy(clientWebSocket, report);
+	dispatchMessage = clientProxy.onmessage;
 	clientWebSocket.open();
+
 	return {
 		client: /** @type {import("./client.types").Client<Resources>} */ (
-			proxy
+			clientProxy.proxy
 		),
 		clientMethods: {
 			open: clientWebSocket.open,

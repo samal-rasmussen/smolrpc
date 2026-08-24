@@ -187,10 +187,16 @@ declare module 'smolrpc' {
 			  }
 			: never;
 	};
-	interface ClientMethods {
+	export interface ClientMethods {
 		close: () => void;
 		open: () => void;
 	}
+	export type ClientTransportState =
+		| 'stopped'
+		| 'connecting'
+		| 'open'
+		| 'unavailable'
+		| 'backoff';
 	export interface ClientWebSocketEvents {
 		close?: (e: CloseEvent) => void;
 		error?: (e: Event) => void;
@@ -198,7 +204,50 @@ declare module 'smolrpc' {
 		open?: (e: Event) => void;
 		reconnect?: () => void;
 		send?: (request: Request<any>) => void;
+		statechange?: (state: ClientTransportState) => void;
 	}
+	/** A stable, sanitised error produced by the SMOLRPC client. */
+	export class SmolRpcError extends Error {
+		constructor(
+			code: SmolRpcErrorCode,
+			message: string,
+			metadata?: SmolRpcErrorMetadata | undefined,
+		);
+
+		readonly code: SmolRpcErrorCode;
+
+		readonly metadata:
+			| {
+					operation?:
+						| 'get'
+						| 'set'
+						| 'subscribe'
+						| 'unsubscribe'
+						| undefined;
+					resource?: string | undefined;
+					requestId?: number | undefined;
+					generation?: number | undefined;
+					readyState?: number | undefined;
+					elapsedMs?: number | undefined;
+			  }
+			| undefined;
+	}
+	export type SmolRpcErrorCode =
+		| 'SMOLRPC_UNAVAILABLE'
+		| 'SMOLRPC_TIMEOUT'
+		| 'SMOLRPC_SERVER_REJECTION'
+		| 'SMOLRPC_PROTOCOL_ERROR'
+		| 'SMOLRPC_MUTATION_OUTCOME_UNKNOWN'
+		| 'SMOLRPC_SERIALIZATION'
+		| 'SMOLRPC_SEND_FAILED';
+	export type SmolRpcErrorMetadata = {
+		operation?: 'get' | 'set' | 'subscribe' | 'unsubscribe' | undefined;
+		resource?: string | undefined;
+		requestId?: number | undefined;
+		generation?: number | undefined;
+		readyState?: number | undefined;
+		elapsedMs?: number | undefined;
+	};
 	export function initClient<Resources extends AnyResources>({
 		url,
 		createWebSocket,

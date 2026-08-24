@@ -1,62 +1,175 @@
+import { SmolRpcError } from './client-errors.js';
 import { ReadyStates } from './init-client-websocket.js';
 import { getResourceWithParams, json_parse, json_stringify } from './shared.js';
+
+export const OPERATION_TIMEOUT_MS = 5_000;
+const OPERATION_TIMEOUT_SECONDS = OPERATION_TIMEOUT_MS / 1_000;
 
 /**
  * @typedef {import("./types").Subscribable<any>} Subscribable
  * @typedef {import("./message.types").Params} Params
- * @typedef {import("./message.types").RequestReject<any>} RequestReject
- * @typedef {import("./message.types").Reject} Reject
  * @typedef {import("./message.types").Request<any>} Request
- * @typedef {import("./message.types").Response<any>} Response
- * @typedef {import("./message.types").SubscribeEvent<any>} SubscribeEvent
+ * @typedef {NonNullable<ReturnType<ReturnType<import("./init-client-websocket").initClientWebSocket>["getCurrentGeneration"]>>} Generation
+ * @typedef {ReturnType<import("./init-client-websocket").initClientWebSocket>} ClientWebSocket
+ * @typedef {ConstructorParameters<typeof SmolRpcError>[0]} ErrorCode
  */
+
+/** @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isRecord(value) {
+	return typeof value === 'object' && value != null;
+}
+
+/**
+ * @param {unknown} message
+ * @returns {number | undefined}
+ */
+function extractRequestId(message) {
+	if (!isRecord(message)) {
+		return undefined;
+	}
+	if (Number.isSafeInteger(message.id)) {
+		return /** @type {number} */ (message.id);
+	}
+	if (
+		message.type === 'RequestReject' &&
+		isRecord(message.request) &&
+		Number.isSafeInteger(message.request.id)
+	) {
+		return /** @type {number} */ (message.request.id);
+	}
+	return undefined;
+}
+
+/**
+ * @param {unknown} message
+ * @param {number} requestId
+ * @param {string} requestType
+ * @param {string} resource
+ */
+function isMatchingRejection(message, requestId, requestType, resource) {
+	return (
+		isRecord(message) &&
+		message.type === 'RequestReject' &&
+		isRecord(message.request) &&
+		message.request.id === requestId &&
+		message.request.type === requestType &&
+		message.request.resource === resource &&
+		typeof message.error === 'string'
+	);
+}
 
 /**
  * @template {import("./types").AnyResources} Resources
- * @param {ReturnType<import("./init-client-websocket").initClientWebSocket>} websocket
+ * @param {ClientWebSocket} websocket
  * @param {(message: string, data: Record<string, unknown>) => void} reportInternalError
  * @return {{
  *  proxy: import("./client.types").Client<Resources>,
- *  onopen: (e: Event) => void,
- *  onmessage: (e: MessageEvent) => void,
+ *  onmessage: (generation: Generation, e: MessageEvent) => void,
  * }}
  */
 export function initClientProxy(websocket, reportInternalError) {
 	/**
-	 * @type {Map<number, {
-	 * 	listener: (msg: Response | SubscribeEvent | RequestReject) => void,
-	 * 	params: Params,
-	 * 	resource: string,
-	 *  type: 'get' | 'set' | 'subscribe' | 'unsubscribe'
-	 * }>}
+	 * @param {'get' | 'set' | 'subscribe' | 'unsubscribe'} operation
+	 * @param {string} resource
+	 * @param {Generation | undefined} generation
+	 * @param {number | undefined} [requestId]
+	 * @param {number | undefined} [startedAt]
 	 */
-	let listeners = new Map();
-
-	/** @type {number} */
-	let id = 0;
-
-	/** @type {number} */
-	let connection_number = 0;
-
-	/** @type {Map<string, {
-	 * 	subscribable: Subscribable,
-	 * 	requestId: number | undefined
-	 * }>} */
-	let subscriptions = new Map();
-
-	/** @type {((value?: unknown) => void)[]} */
-	let onOpenCallbacks = [];
+	function metadata(operation, resource, generation, requestId, startedAt) {
+		return {
+			operation,
+			resource,
+			...(requestId == null ? {} : { requestId }),
+			...(generation == null
+				? {}
+				: {
+						generation: generation.number,
+						readyState: generation.socket.readyState,
+				  }),
+			...(startedAt == null
+				? {}
+				: { elapsedMs: Math.max(0, Date.now() - startedAt) }),
+		};
+	}
 
 	/**
-	 * @param {'Get' | 'Set'} method
+	 * @param {ErrorCode} code
+	 * @param {string} message
+	 * @param {'get' | 'set' | 'subscribe' | 'unsubscribe'} operation
 	 * @param {string} resource
-	 * @param {Params} params
-	 * @returns {string}
+	 * @param {Generation | undefined} generation
+	 * @param {number | undefined} [requestId]
+	 * @param {number | undefined} [startedAt]
 	 */
-	function getRequestDescription(method, resource, params) {
-		return `${method} request on ${resource}${
-			params ? ` with params ${json_stringify(params)}` : ''
-		}`;
+	function clientError(
+		code,
+		message,
+		operation,
+		resource,
+		generation,
+		requestId,
+		startedAt,
+	) {
+		return new SmolRpcError(
+			code,
+			message,
+			metadata(operation, resource, generation, requestId, startedAt),
+		);
+	}
+
+	/**
+	 * @param {string} label
+	 * @param {'get' | 'set' | 'subscribe' | 'unsubscribe'} operation
+	 * @param {string} resource
+	 * @param {Generation | undefined} generation
+	 * @param {number | undefined} [requestId]
+	 * @param {number | undefined} [startedAt]
+	 */
+	function diagnose(
+		label,
+		operation,
+		resource,
+		generation,
+		requestId,
+		startedAt,
+	) {
+		reportInternalError(
+			label,
+			metadata(operation, resource, generation, requestId, startedAt),
+		);
+	}
+
+	/**
+	 * @param {unknown} frame
+	 * @param {'get' | 'set' | 'subscribe' | 'unsubscribe'} operation
+	 * @param {string} resource
+	 * @param {Generation} generation
+	 * @param {number} requestId
+	 * @param {number} startedAt
+	 */
+	function serialize(
+		frame,
+		operation,
+		resource,
+		generation,
+		requestId,
+		startedAt,
+	) {
+		try {
+			return json_stringify(frame);
+		} catch {
+			throw clientError(
+				'SMOLRPC_SERIALIZATION',
+				`${operation.toUpperCase()} request on ${resource} could not be serialized.`,
+				operation,
+				resource,
+				generation,
+				requestId,
+				startedAt,
+			);
+		}
 	}
 
 	/**
@@ -66,71 +179,229 @@ export function initClientProxy(websocket, reportInternalError) {
 	 * @returns {Promise<unknown>}
 	 */
 	function getHandler(resource, request, params) {
-		if (websocket.readyState !== ReadyStates.OPEN) {
-			reportInternalError(
-				'initClientProxy.getHandler: websocket not open',
-				{
+		const generation = websocket.getCurrentGeneration();
+		const startedAt = Date.now();
+		if (generation == null || !websocket.isCurrentOpen(generation)) {
+			return Promise.reject(
+				clientError(
+					'SMOLRPC_UNAVAILABLE',
+					`GET request on ${resource} could not be sent because the connection is unavailable.`,
+					'get',
 					resource,
-					request,
-					params,
-					readyState: websocket.readyState,
-				},
+					generation,
+					undefined,
+					startedAt,
+				),
 			);
-			throw new Error('initClientProxy.getHandler: websocket not open');
 		}
-		return new Promise((resolve, reject) => {
-			const requestId = ++id;
-			const timeoutId = setTimeout(() => {
-				listeners.delete(requestId);
-				reject(
-					new Error(
-						`${getRequestDescription(
-							'Get',
-							resource,
-							params,
-						)} timed out after 5 seconds.`,
-					),
-				);
-			}, 5000);
 
-			listeners.set(requestId, {
-				listener: (msg) => {
-					clearTimeout(timeoutId);
-					if (msg.type === 'RequestReject') {
-						reject(
-							new Error(
-								`${getRequestDescription(
-									'Get',
-									msg.request.resource,
-									msg.request.params,
-								)} rejected with error: ${msg.error}`,
-							),
-						);
-					} else if (msg.type === 'GetResponse') {
-						resolve(msg.data);
-					} else {
-						reportInternalError(
-							'initClientProxy.getHandler: unexpected message type in get listener',
-							{ msg },
-						);
-						reject(
-							new Error(
-								`Unexpected message type ${msg.type} in get listener`,
-							),
-						);
-					}
-				},
-				params,
-				resource,
-				type: 'get',
-			});
-			websocket.send({
+		return new Promise((resolve, reject) => {
+			const requestId = websocket.allocateRequestId(generation);
+			/** @type {Request} */
+			const frame = {
 				id: requestId,
 				type: 'GetRequest',
 				resource,
 				params,
-				request: request,
-			});
+				request,
+			};
+			/** @type {string} */
+			let serialized;
+			try {
+				serialized = serialize(
+					frame,
+					'get',
+					resource,
+					generation,
+					requestId,
+					startedAt,
+				);
+			} catch (error) {
+				reject(error);
+				return;
+			}
+			if (!websocket.isCurrentOpen(generation)) {
+				reject(
+					clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`GET request on ${resource} could not be sent because the connection is unavailable.`,
+						'get',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+				);
+				return;
+			}
+
+			let settled = false;
+			/** @type {SmolRpcError | undefined} */
+			let pendingError;
+			/** @type {ReturnType<typeof setTimeout> | undefined} */
+			let timer;
+
+			const record = {
+				kind: /** @type {const} */ ('get'),
+				generation,
+				requestId,
+				phase: /** @type {'unsent' | 'sending' | 'sent'} */ ('unsent'),
+				detach() {
+					if (generation.operations.get(requestId) === record) {
+						generation.operations.delete(requestId);
+					}
+					if (timer != null) {
+						clearTimeout(timer);
+						timer = undefined;
+					}
+				},
+				/** @param {SmolRpcError} error */
+				fail(error) {
+					if (settled) return;
+					settled = true;
+					record.detach();
+					reject(error);
+				},
+				/** @param {SmolRpcError} error */
+				failNonDefinitive(error) {
+					if (settled) return;
+					record.detach();
+					if (record.phase === 'sending') {
+						pendingError = error;
+						return;
+					}
+					record.fail(error);
+				},
+				/** @param {unknown} value */
+				succeed(value) {
+					if (settled) return;
+					settled = true;
+					record.detach();
+					resolve(value);
+				},
+				prepareRetirement() {
+					if (settled) return undefined;
+					const error = clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`GET request on ${resource} was interrupted because the connection became unavailable.`,
+						'get',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					);
+					record.detach();
+					if (record.phase === 'sending') {
+						pendingError = error;
+						return undefined;
+					}
+					settled = true;
+					return () => reject(error);
+				},
+				/** @param {unknown} message */
+				handleMessage(message) {
+					if (settled) return;
+					if (
+						isMatchingRejection(
+							message,
+							requestId,
+							'GetRequest',
+							resource,
+						)
+					) {
+						const rejection = /** @type {Record<string, any>} */ (
+							message
+						);
+						record.fail(
+							clientError(
+								'SMOLRPC_SERVER_REJECTION',
+								`Get request on ${resource} rejected with error: ${rejection.error}`,
+								'get',
+								resource,
+								generation,
+								requestId,
+								startedAt,
+							),
+						);
+						return;
+					}
+					if (
+						isRecord(message) &&
+						message.type === 'GetResponse' &&
+						message.id === requestId &&
+						message.resource === resource
+					) {
+						record.succeed(message.data);
+						return;
+					}
+					record.failNonDefinitive(
+						clientError(
+							'SMOLRPC_PROTOCOL_ERROR',
+							`GET request on ${resource} received an unexpected response.`,
+							'get',
+							resource,
+							generation,
+							requestId,
+							startedAt,
+						),
+					);
+				},
+			};
+
+			timer = setTimeout(() => {
+				record.failNonDefinitive(
+					clientError(
+						'SMOLRPC_TIMEOUT',
+						`Get request on ${resource} timed out after ${OPERATION_TIMEOUT_SECONDS} seconds.`,
+						'get',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+				);
+			}, OPERATION_TIMEOUT_MS);
+			generation.operations.set(requestId, record);
+
+			const result = websocket.sendFrame(
+				generation,
+				record,
+				frame,
+				serialized,
+			);
+			if (settled || result.kind === 'settled') return;
+			if (result.kind === 'threw') {
+				record.fail(
+					clientError(
+						'SMOLRPC_SEND_FAILED',
+						`GET request on ${resource} failed during native send.`,
+						'get',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+				);
+				return;
+			}
+			if (result.kind === 'unavailable') {
+				record.fail(
+					clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`GET request on ${resource} could not be sent because the connection is unavailable.`,
+						'get',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+				);
+				return;
+			}
+			record.phase = 'sent';
+			if (pendingError != null) {
+				record.fail(pendingError);
+			}
 		});
 	}
 
@@ -141,129 +412,294 @@ export function initClientProxy(websocket, reportInternalError) {
 	 * @returns {Promise<unknown>}
 	 */
 	function setHandler(resource, request, params) {
+		const currentGeneration = websocket.getCurrentGeneration();
+		const startedAt = Date.now();
+		if (
+			currentGeneration == null ||
+			!websocket.isCurrent(currentGeneration) ||
+			(currentGeneration.readyState !== ReadyStates.CONNECTING &&
+				currentGeneration.readyState !== ReadyStates.OPEN)
+		) {
+			return Promise.reject(
+				clientError(
+					'SMOLRPC_UNAVAILABLE',
+					`SET request on ${resource} could not be sent because the connection is unavailable.`,
+					'set',
+					resource,
+					currentGeneration,
+					undefined,
+					startedAt,
+				),
+			);
+		}
+		const generation = currentGeneration;
+
 		return new Promise((resolve, reject) => {
-			/** @type {number | undefined} */
-			let requestId;
-			let settled = false;
-
-			/** @param {Error} error */
-			const rejectOnce = (error) => {
-				if (settled) {
-					return;
-				}
-				settled = true;
-				clearTimeout(timeoutId);
-				if (requestId != null) {
-					listeners.delete(requestId);
-				}
+			const requestId = websocket.allocateRequestId(generation);
+			/** @type {Request} */
+			const frame = {
+				id: requestId,
+				type: 'SetRequest',
+				resource,
+				params,
+				request,
+			};
+			/** @type {string} */
+			let serialized;
+			try {
+				serialized = serialize(
+					frame,
+					'set',
+					resource,
+					generation,
+					requestId,
+					startedAt,
+				);
+			} catch (error) {
 				reject(error);
-			};
-
-			/** @param {any} data */
-			const resolveOnce = (data) => {
-				if (settled) {
-					return;
-				}
-				settled = true;
-				clearTimeout(timeoutId);
-				resolve(data);
-			};
-
-			const timeoutId = setTimeout(() => {
-				rejectOnce(
-					new Error(
-						`${getRequestDescription(
-							'Set',
-							resource,
-							params,
-						)} timed out after 5 seconds.`,
+				return;
+			}
+			if (
+				!websocket.isCurrent(generation) ||
+				(generation.readyState !== ReadyStates.CONNECTING &&
+					generation.readyState !== ReadyStates.OPEN)
+			) {
+				reject(
+					clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`SET request on ${resource} could not be sent because the connection is unavailable.`,
+						'set',
+						resource,
+						generation,
+						requestId,
+						startedAt,
 					),
 				);
-			}, 5000);
+				return;
+			}
 
-			async function execute() {
-				try {
-					if (websocket.readyState !== ReadyStates.OPEN) {
-						// Wait for the connection to open, bounded by the outer 5s timeout
-						await new Promise((resolve) => {
-							onOpenCallbacks.push(resolve);
-						});
+			let settled = false;
+			/** @type {SmolRpcError | undefined} */
+			let pendingError;
+			/** @type {ReturnType<typeof setTimeout> | undefined} */
+			let timer;
+
+			/** @param {string} reason */
+			const outcomeUnknown = (reason) =>
+				clientError(
+					'SMOLRPC_MUTATION_OUTCOME_UNKNOWN',
+					`SET request on ${resource} was accepted by native send, but its mutation outcome is unknown: ${reason}.`,
+					'set',
+					resource,
+					generation,
+					requestId,
+					startedAt,
+				);
+
+			const record = {
+				kind: /** @type {const} */ ('set'),
+				generation,
+				requestId,
+				phase: /** @type {'unsent' | 'sending' | 'sent'} */ ('unsent'),
+				detach() {
+					if (generation.operations.get(requestId) === record) {
+						generation.operations.delete(requestId);
 					}
-					if (settled) {
+					generation.setWaiters.delete(record);
+					if (timer != null) {
+						clearTimeout(timer);
+						timer = undefined;
+					}
+				},
+				/** @param {SmolRpcError} error */
+				fail(error) {
+					if (settled) return;
+					settled = true;
+					record.detach();
+					reject(error);
+				},
+				/** @param {SmolRpcError} error */
+				failNonDefinitive(error) {
+					if (settled) return;
+					record.detach();
+					if (record.phase === 'sending') {
+						pendingError = error;
 						return;
 					}
-
-					// If, after potentially waiting, the connection is still not open,
-					// it implies the timeout likely occurred while waiting for onopen,
-					// or onopen didn't actually result in an OPEN state.
-					if (websocket.readyState !== ReadyStates.OPEN) {
-						throw new Error(
-							`WebSocket is not OPEN (state: ${websocket.readyState}) after waiting for connection. Request cannot be sent.`,
-						);
+					record.fail(
+						record.phase === 'sent'
+							? outcomeUnknown(error.message)
+							: error,
+					);
+				},
+				/** @param {unknown} value */
+				succeed(value) {
+					if (settled) return;
+					settled = true;
+					record.detach();
+					resolve(value);
+				},
+				prepareRetirement() {
+					if (settled) return undefined;
+					const unavailable = clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`SET request on ${resource} was interrupted because the connection became unavailable.`,
+						'set',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					);
+					record.detach();
+					if (record.phase === 'sending') {
+						pendingError = unavailable;
+						return undefined;
 					}
-
-					requestId = ++id;
-
-					listeners.set(requestId, {
-						listener: (msg) => {
-							if (msg.type === 'RequestReject') {
-								rejectOnce(
-									new Error(
-										`${getRequestDescription(
-											'Set',
-											msg.request.resource,
-											msg.request.params,
-										)} rejected with error: ${msg.error}`,
-									),
-								);
-							} else if (msg.type === 'SetSuccess') {
-								resolveOnce(msg.data);
-							} else {
-								reportInternalError(
-									'initClientProxy.setHandler: unexpected message type in set listener',
-									{ msg },
-								);
-								rejectOnce(
-									new Error(
-										`Unexpected message type ${msg.type} in set listener`,
-									),
-								);
-							}
-						},
-						params,
-						resource,
-						type: 'set',
-					});
-
-					websocket.send({
-						id: requestId,
-						type: 'SetRequest',
-						resource,
-						params,
-						request: request,
-					});
-				} catch (error) {
-					if (error instanceof Error) {
-						rejectOnce(error);
-					} else {
-						rejectOnce(
-							new Error(
-								String(
-									error ||
-										'Unknown error in setHandler.execute',
-								),
+					settled = true;
+					const error =
+						record.phase === 'sent'
+							? outcomeUnknown(
+									'the connection became unavailable',
+							  )
+							: unavailable;
+					return () => reject(error);
+				},
+				/** @param {unknown} message */
+				handleMessage(message) {
+					if (settled) return;
+					if (
+						isMatchingRejection(
+							message,
+							requestId,
+							'SetRequest',
+							resource,
+						)
+					) {
+						const rejection = /** @type {Record<string, any>} */ (
+							message
+						);
+						record.fail(
+							clientError(
+								'SMOLRPC_SERVER_REJECTION',
+								`Set request on ${resource} rejected with error: ${rejection.error}`,
+								'set',
+								resource,
+								generation,
+								requestId,
+								startedAt,
 							),
 						);
+						return;
 					}
+					if (
+						isRecord(message) &&
+						message.type === 'SetSuccess' &&
+						message.id === requestId &&
+						message.resource === resource
+					) {
+						record.succeed(message.data);
+						return;
+					}
+					record.failNonDefinitive(
+						clientError(
+							'SMOLRPC_PROTOCOL_ERROR',
+							`SET request on ${resource} received an unexpected response.`,
+							'set',
+							resource,
+							generation,
+							requestId,
+							startedAt,
+						),
+					);
+				},
+				onOpen() {
+					if (settled) return;
+					generation.setWaiters.delete(record);
+					sendSet();
+				},
+			};
+
+			function sendSet() {
+				if (settled) return;
+				const result = websocket.sendFrame(
+					generation,
+					record,
+					frame,
+					serialized,
+				);
+				if (settled || result.kind === 'settled') return;
+				if (result.kind === 'threw') {
+					record.fail(
+						clientError(
+							'SMOLRPC_SEND_FAILED',
+							`SET request on ${resource} failed during native send.`,
+							'set',
+							resource,
+							generation,
+							requestId,
+							startedAt,
+						),
+					);
+					return;
+				}
+				if (result.kind === 'unavailable') {
+					record.fail(
+						clientError(
+							'SMOLRPC_UNAVAILABLE',
+							`SET request on ${resource} could not be sent because the connection is unavailable.`,
+							'set',
+							resource,
+							generation,
+							requestId,
+							startedAt,
+						),
+					);
+					return;
+				}
+				record.phase = 'sent';
+				if (pendingError != null) {
+					record.fail(outcomeUnknown(pendingError.message));
 				}
 			}
 
-			execute();
+			timer = setTimeout(() => {
+				record.failNonDefinitive(
+					clientError(
+						'SMOLRPC_TIMEOUT',
+						`Set request on ${resource} timed out after ${OPERATION_TIMEOUT_SECONDS} seconds.`,
+						'set',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+				);
+			}, OPERATION_TIMEOUT_MS);
+			generation.operations.set(requestId, record);
+			if (websocket.isCurrentOpen(generation)) {
+				sendSet();
+			} else if (
+				websocket.isCurrent(generation) &&
+				generation.readyState === ReadyStates.CONNECTING
+			) {
+				generation.setWaiters.add(record);
+			} else {
+				record.fail(
+					clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`SET request on ${resource} could not be sent because the connection is unavailable.`,
+						'set',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+				);
+			}
 		});
 	}
 
 	/**
-	 *
 	 * @param {string} resource
 	 * @param {any} request
 	 * @param {Params} params
@@ -271,161 +707,642 @@ export function initClientProxy(websocket, reportInternalError) {
 	 * @returns {Subscribable}
 	 */
 	function subscribeHandler(resource, request, params, cache) {
-		if (websocket.readyState !== ReadyStates.OPEN) {
-			reportInternalError(
-				'initClientProxy.subscribeHandler: websocket not open',
-				{
-					resource,
-					request,
-					params,
-					readyState: websocket.readyState,
-				},
-			);
-			throw new Error(
-				'initClientProxy.subscribeHandler: websocket not open',
+		const currentGeneration = websocket.getCurrentGeneration();
+		if (
+			currentGeneration == null ||
+			!websocket.isCurrentOpen(currentGeneration)
+		) {
+			throw clientError(
+				'SMOLRPC_UNAVAILABLE',
+				`Subscription on ${resource} could not be created because the connection is unavailable.`,
+				'subscribe',
+				resource,
+				currentGeneration,
 			);
 		}
+		const generation = currentGeneration;
+
 		const resourceWithParams = getResourceWithParams(resource, params);
+		/** @type {string | undefined} */
+		let cacheKey;
 		if (cache) {
-			const cacheKey = getCacheKey(resourceWithParams, request);
-			const existing = subscriptions.get(cacheKey);
-			if (existing) {
-				return existing.subscribable;
+			try {
+				cacheKey = getCacheKey(resourceWithParams, request);
+			} catch {
+				throw clientError(
+					'SMOLRPC_SERIALIZATION',
+					`Subscription on ${resource} could not be serialized.`,
+					'subscribe',
+					resource,
+					generation,
+				);
 			}
 		}
-		let current_connection_number = connection_number;
-		/** @type {Set<Partial<import("./types").Observer<any>>>} */
+		if (!websocket.isCurrentOpen(generation)) {
+			throw clientError(
+				'SMOLRPC_UNAVAILABLE',
+				`Subscription on ${resource} could not be created because the connection is unavailable.`,
+				'subscribe',
+				resource,
+				generation,
+			);
+		}
+		if (cacheKey != null) {
+			const existing = generation.subscriptions.get(cacheKey);
+			if (existing != null) {
+				return /** @type {any} */ (existing).subscribable;
+			}
+		}
+
+		/** @type {Set<{ observer: Partial<import("./types").Observer<any>> }>} */
 		const observers = new Set();
-		/** @type {(() => void) | undefined} */
-		let unsubscribeFn = undefined;
-		/** @type {Subscribable} */
-		const subscribable = {
-			subscribe: (observer) => {
-				if (observers.size > 0) {
-					// Reuse the existing subscription
-					observers.add(observer);
-					if (subscriptionData.lastVal !== undefined) {
-						observer.next?.(subscriptionData.lastVal);
-					}
-					return {
-						unsubscribe: () => {
-							observers.delete(observer);
-							unsubscribeFn?.();
-						},
-					};
-				}
-				// No existing subscription, create new
-				subscriptionData.requestId = ++id;
-				observers.add(observer);
-				unsubscribeFn = () => {
-					if (observers.size > 0) {
-						return;
-					}
-					if (typeof subscriptionData.requestId !== 'number') {
-						throw new Error(
-							`initClient: Unsubscribe error. No requestId found. requestId was${subscriptionData.requestId}`,
-						);
-					}
-					if (current_connection_number !== connection_number) {
-						// The connection has been closed and reopened since this subscription was created.
-						// All subscription are cleared on disconnect, so we don't need to send an unsubscribe request.
-						return;
-					}
-					listeners.delete(subscriptionData.requestId);
-					if (cache) {
-						const cacheKey = getCacheKey(
-							resourceWithParams,
-							request,
-						);
-						subscriptions.delete(cacheKey);
-					}
-					const unsubRequestId = ++id;
-					if (websocket.readyState === ReadyStates.OPEN) {
-						// No need to send unsubscribe request if the websocket is closed.
-						// The server will clear all subscriptions on disconnect.
-						websocket.send({
-							id: unsubRequestId,
-							subscriptionId: subscriptionData.requestId,
-							type: 'UnsubscribeRequest',
-							resource,
-							params,
-						});
-						listeners.set(unsubRequestId, {
-							listener: (msg) => {
-								if (msg.type === 'RequestReject') {
-									for (const obs of observers) {
-										obs.error?.(msg.error);
-									}
-								} else if (msg.type === 'UnsubscribeAccept') {
-									observers.clear();
-								} else {
-									reportInternalError(
-										'initClientProxy.subscribeHandler: unexpected message type in unsubscribe listener',
-										{ msg },
-									);
-								}
-							},
-							params,
-							resource,
-							type: 'unsubscribe',
-						});
-					}
-				};
-				listeners.set(subscriptionData.requestId, {
-					listener: (msg) => {
-						if (msg.type === 'RequestReject') {
-							for (const obs of observers) {
-								obs.error?.(msg.error);
-							}
-						} else if (msg.type === 'SubscribeEvent') {
-							subscriptionData.lastVal = msg.data;
-							for (const obs of observers) {
-								obs.next?.(msg.data);
-							}
-						} else if (msg.type === 'SubscribeAccept') {
-							// Happy path. Nothing to do.
-						} else {
-							reportInternalError(
-								'initClientProxy.subscribeHandler: unexpected message type in subscribe listener',
-								{ msg },
-							);
-						}
-					},
-					params,
+		let status = /** @type {'idle' | 'active' | 'terminal'} */ ('idle');
+		let requestId = 0;
+		let startedAt = Date.now();
+		let hasValue = false;
+		/** @type {any} */
+		let lastValue;
+		/** @type {SmolRpcError | undefined} */
+		let terminalError;
+		/** @type {SmolRpcError | undefined} */
+		let pendingError;
+		/** @type {{ observer: Partial<import("./types").Observer<any>> }[] | undefined} */
+		let pendingObservers;
+		let definiteResponse = false;
+
+		/**
+		 * @param {Partial<import("./types").Observer<any>>} observer
+		 * @param {'next' | 'error'} method
+		 * @param {unknown} value
+		 */
+		function invokeObserver(observer, method, value) {
+			try {
+				observer[method]?.(value);
+			} catch {
+				diagnose(
+					`initClientProxy: subscription observer ${method} callback threw`,
+					'subscribe',
 					resource,
-					type: 'subscribe',
-				});
-				if (typeof subscriptionData.requestId !== 'number') {
-					throw new Error(
-						`initClient: Send subscription request error. No requestId found. requestId was ${subscriptionData.requestId}`,
+					generation,
+					requestId || undefined,
+					startedAt,
+				);
+			}
+		}
+
+		/**
+		 * @param {{ observer: Partial<import("./types").Observer<any>> }[]} recipients
+		 * @param {SmolRpcError} error
+		 */
+		function deliverErrors(recipients, error) {
+			for (const recipient of recipients) {
+				invokeObserver(recipient.observer, 'error', error);
+			}
+		}
+
+		const record = {
+			kind: /** @type {const} */ ('subscribe'),
+			generation,
+			get requestId() {
+				return requestId;
+			},
+			set requestId(value) {
+				requestId = value;
+			},
+			phase: /** @type {'unsent' | 'sending' | 'sent'} */ ('unsent'),
+			/** @type {Subscribable} */
+			subscribable: /** @type {any} */ (undefined),
+			detach() {
+				if (
+					requestId !== 0 &&
+					generation.operations.get(requestId) === record
+				) {
+					generation.operations.delete(requestId);
+				}
+				if (
+					cacheKey != null &&
+					generation.subscriptions.get(cacheKey) === record
+				) {
+					generation.subscriptions.delete(cacheKey);
+				}
+			},
+			/**
+			 * @param {SmolRpcError} error
+			 * @param {boolean} deferWhileSending
+			 */
+			fail(error, deferWhileSending) {
+				if (status === 'terminal') return;
+				const recipients = [...observers];
+				observers.clear();
+				record.detach();
+				status = 'terminal';
+				terminalError = error;
+				if (deferWhileSending && record.phase === 'sending') {
+					pendingError = error;
+					pendingObservers = recipients;
+					return;
+				}
+				deliverErrors(recipients, error);
+			},
+			prepareRetirement() {
+				if (status === 'terminal') return undefined;
+				const error = clientError(
+					'SMOLRPC_UNAVAILABLE',
+					`Subscription on ${resource} ended because the connection became unavailable.`,
+					'subscribe',
+					resource,
+					generation,
+					requestId || undefined,
+					startedAt,
+				);
+				const recipients = [...observers];
+				observers.clear();
+				record.detach();
+				status = 'terminal';
+				terminalError = error;
+				if (record.phase === 'sending') {
+					pendingError = error;
+					pendingObservers = recipients;
+					return undefined;
+				}
+				return () => deliverErrors(recipients, error);
+			},
+			/** @param {unknown} message */
+			handleMessage(message) {
+				if (status !== 'active') return;
+				if (
+					isMatchingRejection(
+						message,
+						requestId,
+						'SubscribeRequest',
+						resource,
+					)
+				) {
+					definiteResponse = true;
+					const rejection = /** @type {Record<string, any>} */ (
+						message
 					);
+					record.fail(
+						clientError(
+							'SMOLRPC_SERVER_REJECTION',
+							`Subscription on ${resource} rejected with error: ${rejection.error}`,
+							'subscribe',
+							resource,
+							generation,
+							requestId,
+							startedAt,
+						),
+						false,
+					);
+					return;
 				}
-				websocket.send({
-					id: subscriptionData.requestId,
-					type: 'SubscribeRequest',
-					resource,
-					params,
-					request: request,
-				});
-				return {
-					unsubscribe: () => {
-						observers.delete(observer);
-						unsubscribeFn?.();
-					},
-				};
+				if (
+					isRecord(message) &&
+					message.id === requestId &&
+					message.resource === resource &&
+					message.type === 'SubscribeAccept'
+				) {
+					return;
+				}
+				if (
+					isRecord(message) &&
+					message.id === requestId &&
+					message.resource === resource &&
+					message.type === 'SubscribeEvent'
+				) {
+					hasValue = true;
+					lastValue = message.data;
+					const recipients = [...observers];
+					for (const recipient of recipients) {
+						if (
+							status !== 'active' ||
+							!websocket.isCurrent(generation) ||
+							!observers.has(recipient)
+						) {
+							continue;
+						}
+						invokeObserver(
+							recipient.observer,
+							'next',
+							message.data,
+						);
+					}
+					return;
+				}
+				record.fail(
+					clientError(
+						'SMOLRPC_PROTOCOL_ERROR',
+						`Subscription on ${resource} received an unexpected response.`,
+						'subscribe',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+					true,
+				);
 			},
 		};
-		/** @type {{lastVal: any, requestId: number | undefined, subscribable: Subscribable}} */
-		const subscriptionData = {
-			lastVal: undefined,
-			requestId: undefined,
-			subscribable,
-		};
-		if (cache) {
-			const cacheKey = getCacheKey(resourceWithParams, request);
-			subscriptions.set(cacheKey, subscriptionData);
+
+		/** @param {SmolRpcError} error */
+		function finishPending(error) {
+			const recipients = pendingObservers ?? [];
+			pendingObservers = undefined;
+			pendingError = undefined;
+			terminalError = error;
+			deliverErrors(recipients, error);
 		}
-		return subscribable;
+
+		function sendSubscription() {
+			startedAt = Date.now();
+			requestId = websocket.allocateRequestId(generation);
+			/** @type {Request} */
+			const frame = {
+				id: requestId,
+				type: 'SubscribeRequest',
+				resource,
+				params,
+				request,
+			};
+			/** @type {string} */
+			let serialized;
+			try {
+				serialized = serialize(
+					frame,
+					'subscribe',
+					resource,
+					generation,
+					requestId,
+					startedAt,
+				);
+			} catch (error) {
+				record.fail(/** @type {SmolRpcError} */ (error), false);
+				return;
+			}
+			if (!websocket.isCurrentOpen(generation)) {
+				record.fail(
+					clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`Subscription on ${resource} could not be sent because the connection is unavailable.`,
+						'subscribe',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+					false,
+				);
+				return;
+			}
+
+			status = 'active';
+			record.phase = 'unsent';
+			definiteResponse = false;
+			generation.operations.set(requestId, record);
+			const result = websocket.sendFrame(
+				generation,
+				record,
+				frame,
+				serialized,
+			);
+			if (result.kind === 'settled') return;
+			if (result.kind === 'threw') {
+				if (definiteResponse && pendingObservers == null) {
+					return;
+				}
+				const error = clientError(
+					'SMOLRPC_SEND_FAILED',
+					`Subscription on ${resource} failed during native send.`,
+					'subscribe',
+					resource,
+					generation,
+					requestId,
+					startedAt,
+				);
+				if (pendingObservers != null) {
+					finishPending(error);
+				} else {
+					record.fail(error, false);
+				}
+				return;
+			}
+			if (result.kind === 'unavailable') {
+				record.fail(
+					clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`Subscription on ${resource} could not be sent because the connection is unavailable.`,
+						'subscribe',
+						resource,
+						generation,
+						requestId,
+						startedAt,
+					),
+					false,
+				);
+				return;
+			}
+			if (status === 'active') record.phase = 'sent';
+			if (pendingError != null) {
+				finishPending(pendingError);
+			}
+		}
+
+		/** @param {number} subscriptionId */
+		function sendUnsubscribe(subscriptionId) {
+			if (!websocket.isCurrentOpen(generation)) return;
+			const ackStartedAt = Date.now();
+			const ackId = websocket.allocateRequestId(generation);
+			/** @type {Request} */
+			const frame = {
+				id: ackId,
+				subscriptionId,
+				type: 'UnsubscribeRequest',
+				resource,
+				params,
+			};
+			/** @type {string} */
+			let serialized;
+			try {
+				serialized = serialize(
+					frame,
+					'unsubscribe',
+					resource,
+					generation,
+					ackId,
+					ackStartedAt,
+				);
+			} catch {
+				diagnose(
+					'initClientProxy: unsubscribe serialization failed',
+					'unsubscribe',
+					resource,
+					generation,
+					ackId,
+					ackStartedAt,
+				);
+				return;
+			}
+			if (!websocket.isCurrentOpen(generation)) {
+				diagnose(
+					'initClientProxy: unsubscribe connection unavailable',
+					'unsubscribe',
+					resource,
+					generation,
+					ackId,
+					ackStartedAt,
+				);
+				return;
+			}
+
+			let settled = false;
+			let retirementPending = false;
+			/** @type {SmolRpcError | undefined} */
+			let ackPendingError;
+			/** @type {ReturnType<typeof setTimeout> | undefined} */
+			let timer;
+			const ack = {
+				kind: /** @type {const} */ ('unsubscribe'),
+				generation,
+				requestId: ackId,
+				phase: /** @type {'unsent' | 'sending' | 'sent'} */ ('unsent'),
+				detach() {
+					if (generation.operations.get(ackId) === ack) {
+						generation.operations.delete(ackId);
+					}
+					if (timer != null) {
+						clearTimeout(timer);
+						timer = undefined;
+					}
+				},
+				prepareRetirement() {
+					if (settled) return undefined;
+					ack.detach();
+					if (ack.phase === 'sending') {
+						retirementPending = true;
+					} else {
+						settled = true;
+					}
+					return undefined;
+				},
+				/** @param {unknown} message */
+				handleMessage(message) {
+					if (settled) return;
+					if (
+						isRecord(message) &&
+						message.type === 'UnsubscribeAccept' &&
+						message.id === ackId &&
+						message.resource === resource
+					) {
+						settled = true;
+						ack.detach();
+						return;
+					}
+					if (
+						isMatchingRejection(
+							message,
+							ackId,
+							'UnsubscribeRequest',
+							resource,
+						)
+					) {
+						settled = true;
+						ack.detach();
+						diagnose(
+							'initClientProxy: unsubscribe acknowledgement rejected',
+							'unsubscribe',
+							resource,
+							generation,
+							ackId,
+							ackStartedAt,
+						);
+						return;
+					}
+					const error = clientError(
+						'SMOLRPC_PROTOCOL_ERROR',
+						`Unsubscribe on ${resource} received an unexpected response.`,
+						'unsubscribe',
+						resource,
+						generation,
+						ackId,
+						ackStartedAt,
+					);
+					ack.detach();
+					if (ack.phase === 'sending') {
+						ackPendingError = error;
+						return;
+					}
+					settled = true;
+					diagnose(
+						'initClientProxy: unsubscribe acknowledgement failed',
+						'unsubscribe',
+						resource,
+						generation,
+						ackId,
+						ackStartedAt,
+					);
+				},
+			};
+
+			timer = setTimeout(() => {
+				if (settled) return;
+				ack.detach();
+				if (ack.phase === 'sending') {
+					ackPendingError = clientError(
+						'SMOLRPC_TIMEOUT',
+						`Unsubscribe on ${resource} timed out.`,
+						'unsubscribe',
+						resource,
+						generation,
+						ackId,
+						ackStartedAt,
+					);
+					return;
+				}
+				settled = true;
+				diagnose(
+					'initClientProxy: unsubscribe acknowledgement timed out',
+					'unsubscribe',
+					resource,
+					generation,
+					ackId,
+					ackStartedAt,
+				);
+			}, OPERATION_TIMEOUT_MS);
+			generation.operations.set(ackId, ack);
+			const result = websocket.sendFrame(
+				generation,
+				ack,
+				frame,
+				serialized,
+			);
+			if (settled || result.kind === 'settled') return;
+			if (result.kind === 'threw') {
+				ack.detach();
+				settled = true;
+				diagnose(
+					'initClientProxy: unsubscribe native send failed',
+					'unsubscribe',
+					resource,
+					generation,
+					ackId,
+					ackStartedAt,
+				);
+				return;
+			}
+			if (result.kind === 'unavailable') {
+				ack.detach();
+				settled = true;
+				diagnose(
+					'initClientProxy: unsubscribe connection unavailable',
+					'unsubscribe',
+					resource,
+					generation,
+					ackId,
+					ackStartedAt,
+				);
+				return;
+			}
+			ack.phase = 'sent';
+			if (retirementPending || !websocket.isCurrent(generation)) {
+				settled = true;
+				ackPendingError = undefined;
+				return;
+			}
+			if (ackPendingError != null) {
+				settled = true;
+				diagnose(
+					'initClientProxy: unsubscribe acknowledgement failed',
+					'unsubscribe',
+					resource,
+					generation,
+					ackId,
+					ackStartedAt,
+				);
+			}
+		}
+
+		function beginLocalUnsubscribe() {
+			if (status !== 'active') return;
+			const subscriptionId = requestId;
+			record.detach();
+			status = 'idle';
+			requestId = 0;
+			record.phase = 'unsent';
+			pendingError = undefined;
+			pendingObservers = undefined;
+			definiteResponse = false;
+			sendUnsubscribe(subscriptionId);
+		}
+
+		/**
+		 * @param {{ observer: Partial<import("./types").Observer<any>> }} recipient
+		 */
+		function createHandle(recipient) {
+			let unsubscribed = false;
+			return {
+				unsubscribe() {
+					if (unsubscribed) return;
+					unsubscribed = true;
+					observers.delete(recipient);
+					if (observers.size === 0) {
+						beginLocalUnsubscribe();
+					}
+				},
+			};
+		}
+
+		record.subscribable = {
+			subscribe(observer) {
+				if (status === 'terminal') {
+					invokeObserver(
+						observer,
+						'error',
+						terminalError ??
+							clientError(
+								'SMOLRPC_UNAVAILABLE',
+								`Subscription on ${resource} is no longer available.`,
+								'subscribe',
+								resource,
+								generation,
+							),
+					);
+					return { unsubscribe() {} };
+				}
+				if (!websocket.isCurrentOpen(generation)) {
+					const error = clientError(
+						'SMOLRPC_UNAVAILABLE',
+						`Subscription on ${resource} is no longer owned by the current connection.`,
+						'subscribe',
+						resource,
+						generation,
+					);
+					record.fail(error, false);
+					invokeObserver(observer, 'error', error);
+					return { unsubscribe() {} };
+				}
+				const recipient = { observer };
+				observers.add(recipient);
+				const handle = createHandle(recipient);
+				if (status === 'active') {
+					if (
+						hasValue &&
+						status === 'active' &&
+						observers.has(recipient) &&
+						websocket.isCurrent(generation)
+					) {
+						invokeObserver(observer, 'next', lastValue);
+					}
+					return handle;
+				}
+				sendSubscription();
+				return handle;
+			},
+		};
+
+		if (cacheKey != null) {
+			generation.subscriptions.set(cacheKey, record);
+		}
+		return record.subscribable;
 	}
 
 	/** @type {import("./client.types").Client<Resources>} */
@@ -433,19 +1350,19 @@ export function initClientProxy(websocket, reportInternalError) {
 		new Proxy(
 			{},
 			{
-				get(target, /** @type {string} */ p) {
+				get(_target, /** @type {string} */ resource) {
 					return {
 						get: (
 							/** @type {{ params: Params; request: any } | undefined} */ args,
-						) => getHandler(p, args?.request, args?.params),
+						) => getHandler(resource, args?.request, args?.params),
 						set: (
 							/** @type {{ params: Params; request: any }} */ args,
-						) => setHandler(p, args.request, args.params),
+						) => setHandler(resource, args.request, args.params),
 						subscribe: (
 							/** @type {{ params: Params; request: any, cache: boolean } | undefined} */ args,
 						) =>
 							subscribeHandler(
-								p,
+								resource,
 								args?.request,
 								args?.params,
 								args?.cache ?? true,
@@ -456,57 +1373,43 @@ export function initClientProxy(websocket, reportInternalError) {
 		)
 	);
 
-	function onopen() {
-		// The server clears all pending requests and subscriptions on disconnect,
-		// so we need to start from scratch on the client.
-		id = 0;
-		listeners = new Map();
-		subscriptions = new Map();
-		connection_number++;
-
-		for (const callback of onOpenCallbacks) {
-			callback();
-		}
-		onOpenCallbacks = [];
-	}
-
 	/**
+	 * @param {Generation} generation
 	 * @param {MessageEvent} event
 	 */
-	function onmessage(event) {
-		const response = json_parse(event.data);
-		if (response.type === 'Reject') {
+	function onmessage(generation, event) {
+		let message;
+		try {
+			message = json_parse(event.data);
+		} catch {
 			reportInternalError(
-				'initClientProxy.onmessage: Received Reject response',
-				{
-					response,
-				},
+				'initClientProxy.onmessage: malformed or unaddressable frame',
+				{ generation: generation.number },
 			);
 			return;
 		}
-		const id =
-			response.type === 'RequestReject'
-				? response.request.id
-				: response.id;
-		const listener = listeners.get(id);
-		if (listener == null) {
+		const requestId = extractRequestId(message);
+		if (requestId == null) {
 			reportInternalError(
-				'initClientProxy.onmessage: No listener found for response/event',
-				{ response, id },
+				'initClientProxy.onmessage: unaddressable frame',
+				{ generation: generation.number },
 			);
 			return;
 		}
-		if (listener.type !== 'subscribe') {
-			listeners.delete(id);
+		const operation = generation.operations.get(requestId);
+		if (operation == null) {
+			reportInternalError(
+				'initClientProxy.onmessage: no operation found for response',
+				{ generation: generation.number, requestId },
+			);
+			return;
 		}
-		listener.listener(response);
+		/** @type {{ handleMessage?: (message: unknown) => void }} */ (
+			operation
+		).handleMessage?.(message);
 	}
 
-	return {
-		onmessage,
-		onopen,
-		proxy,
-	};
+	return { onmessage, proxy };
 }
 
 /**
@@ -516,9 +1419,7 @@ export function initClientProxy(websocket, reportInternalError) {
 export function dummyClient() {
 	const noopPromise = new Promise(() => {});
 	const noopSubscribable = /** @type {Subscribable} */ ({
-		subscribe: () => ({
-			unsubscribe: () => {},
-		}),
+		subscribe: () => ({ unsubscribe: () => {} }),
 	});
 	/** @type {any} */
 	const proxy = new Proxy(
@@ -533,7 +1434,6 @@ export function dummyClient() {
 			},
 		},
 	);
-
 	return proxy;
 }
 
@@ -543,8 +1443,6 @@ export function dummyClient() {
  * @returns {string}
  */
 function getCacheKey(resourceWithParams, request) {
-	if (request == null) {
-		return `${resourceWithParams}`;
-	}
+	if (request == null) return resourceWithParams;
 	return `${resourceWithParams}-${json_stringify(request)}`;
 }
