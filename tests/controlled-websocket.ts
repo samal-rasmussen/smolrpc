@@ -1,3 +1,5 @@
+import { json_parse, json_stringify } from '../index.js';
+
 const READY_STATES = {
 	CLOSED: 3,
 	CLOSING: 2,
@@ -96,7 +98,7 @@ export class ControlledWebSocket {
 
 	message(data: unknown) {
 		const serialized =
-			typeof data === 'string' ? data : JSON.stringify(data);
+			typeof data === 'string' ? data : json_stringify(data);
 		this.messageHandler?.(
 			this.event('message', { data: serialized }) as MessageEvent,
 		);
@@ -131,7 +133,7 @@ export class ControlledWebSocket {
 	}
 
 	sentFrames<T = Record<string, unknown>>() {
-		return this.sent.map((frame) => JSON.parse(frame) as T);
+		return this.sent.map((frame) => json_parse(frame) as T);
 	}
 
 	private event(type: string, properties: Record<string, unknown> = {}) {
@@ -149,7 +151,9 @@ export class ControlledWebSocket {
 
 /** A queue-driven WebSocket factory used to deterministically control attempts. */
 export class ControlledWebSocketFactory {
+	/** Every constructor attempt, including attempts that throw or are superseded. */
 	readonly attempts: ControlledWebSocket[] = [];
+	/** Sockets whose constructors returned successfully, in return order. */
 	readonly sockets: ControlledWebSocket[] = [];
 
 	private readonly plans: ControlledSocketPlan[] = [];
@@ -171,6 +175,10 @@ export class ControlledWebSocketFactory {
 		return socket as unknown as WebSocket;
 	};
 
+	/**
+	 * The most recently returned socket. This is a convenience for non-reentrant
+	 * tests, not evidence that the socket owns the current runtime generation.
+	 */
 	get latest() {
 		const socket = this.sockets.at(-1);
 		if (socket == null) {

@@ -13,12 +13,12 @@ type GetHandler<
 	Resource extends keyof AnyResources,
 > = ResourceParams<Resource> extends null | undefined
 	? () => Promise<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >
 	: (args: {
 			params: ResourceParams<Resource>;
 	  }) => Promise<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >;
 
 type GetHandlerWithRequest<
@@ -31,7 +31,7 @@ type GetHandlerWithRequest<
 				? StandardSchemaV1.InferInput<Request>
 				: undefined;
 	  }) => Promise<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >
 	: (args: {
 			request: Request extends StandardSchemaV1
@@ -39,7 +39,7 @@ type GetHandlerWithRequest<
 				: undefined;
 			params: ResourceParams<Resource>;
 	  }) => Promise<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >;
 
 type SetHandler<
@@ -52,7 +52,7 @@ type SetHandler<
 				? StandardSchemaV1.InferInput<Request>
 				: undefined;
 	  }) => Promise<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >
 	: (args: {
 			request: Request extends StandardSchemaV1
@@ -60,7 +60,7 @@ type SetHandler<
 				: undefined;
 			params: ResourceParams<Resource>;
 	  }) => Promise<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >;
 
 type SubscribeHandler<
@@ -70,13 +70,13 @@ type SubscribeHandler<
 	? (args?: {
 			cache?: boolean;
 	  }) => Subscribable<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >
 	: (args: {
 			cache?: boolean;
 			params: ResourceParams<Resource>;
 	  }) => Subscribable<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >;
 
 type SubscribeHandlerWithRequest<
@@ -90,7 +90,7 @@ type SubscribeHandlerWithRequest<
 				? StandardSchemaV1.InferInput<Request>
 				: undefined;
 	  }) => Subscribable<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >
 	: (args: {
 			cache?: boolean;
@@ -99,7 +99,7 @@ type SubscribeHandlerWithRequest<
 				: undefined;
 			params: ResourceParams<Resource>;
 	  }) => Subscribable<
-			StandardSchemaV1.InferInput<Resources[Resource]['response']>
+			StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 	  >;
 
 export type Client<Resources extends AnyResources> = {
@@ -207,6 +207,7 @@ export interface ClientMethods {
 	invalidate(): void;
 }
 
+/** Logical transport state, reported independently of raw WebSocket events. */
 export type ClientTransportState =
 	| 'stopped'
 	| 'connecting'
@@ -215,11 +216,22 @@ export type ClientTransportState =
 	| 'backoff';
 
 export interface ClientWebSocketEvents {
+	/** Raw close event from the current socket. Retired sockets are ignored. */
 	close?: (e: CloseEvent) => void;
+	/** Raw error event from the current socket. An error alone does not start recovery. */
 	error?: (e: Event) => void;
+	/** Raw message event from the current socket, before protocol dispatch. */
 	message?: (e: MessageEvent) => void;
+	/** Raw open event from the current socket. */
 	open?: (e: Event) => void;
+	/**
+	 * Runs after a current automatic backoff attempt successfully constructs and
+	 * publishes a socket, before native open. Initialization, explicit open, and
+	 * restart attempts do not invoke this hook.
+	 */
 	reconnect?: () => void;
+	/** Raw request notification immediately before native send. */
 	send?: (request: Request<any>) => void;
+	/** Reports logical transport state independently of raw WebSocket events. */
 	statechange?: (state: ClientTransportState) => void;
 }

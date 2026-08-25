@@ -2,7 +2,7 @@ import type { StandardSchemaV1 } from '@standard-schema/spec';
 
 import type { AnyResources } from './types';
 
-export type Params = Record<string, string> | null | undefined;
+export type Params = Record<string, string | number> | null | undefined;
 
 export type Request<Resources extends AnyResources> =
 	| GetRequest<Resources>
@@ -34,7 +34,7 @@ export type GetRequest<Resources extends AnyResources> = {
 	type: 'GetRequest';
 };
 export type GetResponse<Resources extends AnyResources> = {
-	data: StandardSchemaV1.InferInput<Resources[keyof Resources]['response']>;
+	data: StandardSchemaV1.InferOutput<Resources[keyof Resources]['response']>;
 	id: number;
 	resource: keyof Resources & string;
 	type: 'GetResponse';
@@ -51,7 +51,7 @@ export type SetRequest<Resources extends AnyResources> = {
 export type SetSuccess<Resources extends AnyResources> = {
 	id: number;
 	resource: keyof Resources & string;
-	data: StandardSchemaV1.InferInput<Resources[keyof Resources]['response']>;
+	data: StandardSchemaV1.InferOutput<Resources[keyof Resources]['response']>;
 	type: 'SetSuccess';
 };
 export type SubscribeRequest<Resources extends AnyResources> = {
@@ -72,7 +72,7 @@ export type SubscribeEvent<Resources extends AnyResources> = {
 	id: number;
 	params?: Params;
 	resource: keyof Resources & string;
-	data: StandardSchemaV1.InferInput<Resources[keyof Resources]['response']>;
+	data: StandardSchemaV1.InferOutput<Resources[keyof Resources]['response']>;
 	type: 'SubscribeEvent';
 };
 export type UnsubscribeRequest<Resources extends AnyResources> = {

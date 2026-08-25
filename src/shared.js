@@ -2,14 +2,26 @@
  * @typedef {import("./message.types.ts").Params} Params
  */
 
+const RESOURCE_PARAM_PATTERN = /:([^/]+)/g;
+
+/**
+ * @param {string} resource
+ * @returns {string[]}
+ */
+export function getResourceParamNames(resource) {
+	return [...resource.matchAll(RESOURCE_PARAM_PATTERN)].map(
+		(match) => match[1],
+	);
+}
+
 /**
  * @type {(resource: string, params: Params) => string}
  */
 export function getResourceWithParams(resource, params) {
-	Object.entries(params ?? {}).forEach(([key, value]) => {
-		resource = resource.replace(`:${key}`, value);
-	});
-	return resource;
+	if (params == null) return resource;
+	return resource.replace(RESOURCE_PARAM_PATTERN, (placeholder, key) =>
+		Object.hasOwn(params, key) ? String(params[key]) : placeholder,
+	);
 }
 
 // https://github.com/GoogleChromeLabs/jsbi/issues/30#issuecomment-1694399308
@@ -62,6 +74,14 @@ export const json_stringify = (obj, space) => {
 export const json_parse = (s) => {
 	return JSON.parse(s, reviver);
 };
+
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+export function isRecord(value) {
+	return typeof value === 'object' && value != null && !Array.isArray(value);
+}
 
 /** @type {(value: any) => value is Promise<any>} */
 export function isPromise(value) {

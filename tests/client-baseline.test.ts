@@ -1,49 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ClientWebSocketEvents } from '../src/client.types.ts';
-import { initClient } from '../src/init-client.js';
 import {
-	ControlledWebSocket,
-	ControlledWebSocketFactory,
-} from './controlled-websocket.ts';
-import type { Resources } from './resources.ts';
-
-type Frame = {
-	data?: unknown;
-	error?: string;
-	id: number;
-	params?: Record<string, string> | null;
-	request?: unknown;
-	resource: string;
-	subscriptionId?: number;
-	type: string;
-};
-
-function setupClient() {
-	const factory = new ControlledWebSocketFactory();
-	const events = {
-		close: vi.fn(),
-		error: vi.fn(),
-		message: vi.fn(),
-		open: vi.fn(),
-		reconnect: vi.fn(),
-		send: vi.fn(),
-	} satisfies ClientWebSocketEvents;
-	const reportInternalError = vi.fn();
-	const result = initClient<Resources>({
-		createWebSocket: factory.createWebSocket,
-		reportInternalError,
-		url: 'ws://smolrpc.test',
-		webSocketEvents: events,
-	});
-	const socket = factory.latest;
-	socket.open();
-	return { ...result, events, factory, reportInternalError, socket };
-}
-
-function frames(socket: ControlledWebSocket) {
-	return socket.sentFrames<Frame>();
-}
+	createOpenClient as setupClient,
+	frames,
+} from './client-test-helpers.ts';
 
 beforeEach(() => {
 	vi.useFakeTimers();

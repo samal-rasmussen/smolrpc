@@ -7,7 +7,7 @@ import { Response } from '../../src/message.types.js';
 import { Resources, resources } from '../resources.js';
 import { router } from './router.js';
 
-const smolrpcServer = initServer<Resources>(router, resources, {
+const smolrpcServer = initServer(router, resources, {
 	serverLogger: {
 		receivedRequest: (request, clientId, remoteAddress) => {
 			console.log(

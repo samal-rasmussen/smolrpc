@@ -22,7 +22,7 @@ This file is the always-loaded project overview for coding agents working on **s
     -   `client-errors.js`, `safe-invoke.js`, and `shared.js` contain stable client errors, callback isolation, path handling, and the BigInt-aware JSON codec.
     -   `*.types.ts` and `types.ts` define the public API, router, protocol, resource, and WebSocket types.
 -   `types/` contains generated declarations published to npm. Change declaration sources instead of hand-editing generated output, then run `npm run build`.
--   `tests/` contains Vitest client behavior/correctness/lifecycle suites, a deterministic WebSocket test double, and shared test resources.
+-   `tests/` contains focused client lifecycle, hook, operation, subscription, and protocol suites; deterministic server dispatch/subscription suites; codec and public-type regressions; the installed packed-artifact contract; and small transport helpers.
 -   `examples/` contains shared contracts plus Node client/server and Deno server examples. These are examples, not deployed services.
 -   `readme.md` is the primary user and API guide; `authentication.md` covers cookie-authentication integration.
 -   `plans/` records design analysis. Treat implemented source, tests, and current user documentation as authoritative when an older plan differs.
@@ -110,14 +110,13 @@ npm run deno-server      # Run the Deno server example in watch mode
 
 ## Suite architecture
 
--   Vitest discovers `tests/*.test.ts` in its default Node environment; there is no custom Vitest configuration.
--   `tests/client-baseline.test.ts` covers normal GET/SET, cached and uncached subscriptions, rejection, close/open, and ordinary reconnect behavior.
--   `tests/client-correctness.test.ts` covers generation ownership, stale/reentrant callbacks, transactional operations, stable errors, protocol failures, subscription semantics, and cleanup.
--   `tests/client-lifecycle.test.ts` covers lifecycle methods and state sequences, backoff, constructor failures, callback reentrancy, and application-owned recovery/reconstruction.
--   `tests/controlled-websocket.ts` is the central deterministic fake transport. It can schedule construction/send failures, synchronous callbacks, and events delivered after close to exercise stale-generation handling.
--   `tests/resources.ts` defines the shared Zod-backed test contract. Tests use fresh clients, fake timers, and a fixed `Math.random()` when asserting timeout/backoff behavior.
--   Assert public outcomes, exact state/event ordering, serialized wire frames, stable `SmolRpcError.code` values, and important non-events. Avoid snapshots and nondeterministic timing.
--   The current suite has no dedicated server, real-WebSocket integration, browser, snapshot, or coverage suite. Do not assume those areas are covered by `npm test`.
+-   Vitest discovers `tests/*.test.ts` in its default Node environment; there is no custom Vitest configuration. `tests/public-types.test-d.ts` is compile-only coverage included by TypeScript.
+-   Client coverage is split among baseline, lifecycle, lifecycle-hook, operation, subscription, and protocol suites. Server dispatch and subscription suites use deterministic in-memory sockets. Shared-codec tests cover BigInt traffic, and package-contract tests install and compile the real tarball.
+-   `tests/controlled-websocket.ts` is the central deterministic client transport. It can schedule construction/send failures, synchronous callbacks, and events delivered after close. `sendAttempts` records every native send call; `sent` records only calls that returned successfully.
+-   Nested socket construction return order does not establish runtime generation ownership. Retain attempted, returned, and winning socket identities explicitly in reentrant tests.
+-   Tests use fresh clients, fake timers, and fixed `Math.random()` when asserting timeout/backoff behavior. Assert public outcomes, exact state/event ordering, frame destinations, stable error codes, cleanup, and important non-events.
+-   Never execute `expect()` inside a hook, observer, diagnostic, socket factory, or callback that production intentionally catches. Record observations there and assert afterward in the test body.
+-   The suite deliberately has no real-network, browser, snapshot, performance, fuzzing, or coverage-percentage test infrastructure.
 
 ## Running tests
 
@@ -137,8 +136,8 @@ Use Vitest's `-t` filter for a named suite or test. Restore fake timers and mock
 -   For behavior changes, run `npm test` and `npm run typecheck` at minimum.
 -   Run `npm run lint` for all changes.
 -   Run `npm run build` when declaration sources or public types change, and inspect generated `types/` changes.
--   Run `npm run verify` before release or when changing exports, package metadata, declarations, or publishing behavior.
--   The Deno example is excluded from normal TypeScript checking. `publint` and `npm pack --dry-run` are part of `npm run verify`, not `npm run lint`.
+-   Run `npm run verify` before release or when changing exports, package metadata, declarations, or publishing behavior. The release order is source typecheck, declaration build, tests including the packed consumer, lint, `publint`, then the final pack audit.
+-   Ordinary `npm test` does not rebuild declarations. The Deno example is excluded from normal TypeScript checking. `publint` and the final `npm pack --dry-run` are part of `npm run verify`, not `npm run lint`.
 
 # 7. Git operations policy
 

@@ -1,6 +1,11 @@
 import { SmolRpcError } from './client-errors.js';
 import { ReadyStates } from './init-client-websocket.js';
-import { getResourceWithParams, json_parse, json_stringify } from './shared.js';
+import {
+	getResourceWithParams,
+	isRecord,
+	json_parse,
+	json_stringify,
+} from './shared.js';
 
 export const OPERATION_TIMEOUT_MS = 5_000;
 const OPERATION_TIMEOUT_SECONDS = OPERATION_TIMEOUT_MS / 1_000;
@@ -13,13 +18,6 @@ const OPERATION_TIMEOUT_SECONDS = OPERATION_TIMEOUT_MS / 1_000;
  * @typedef {ReturnType<import("./init-client-websocket").initClientWebSocket>} ClientWebSocket
  * @typedef {ConstructorParameters<typeof SmolRpcError>[0]} ErrorCode
  */
-
-/** @param {unknown} value
- * @returns {value is Record<string, unknown>}
- */
-function isRecord(value) {
-	return typeof value === 'object' && value != null;
-}
 
 /**
  * @param {unknown} message
@@ -760,6 +758,7 @@ export function initClientProxy(websocket, reportInternalError) {
 		let requestId = 0;
 		let startedAt = Date.now();
 		let hasValue = false;
+		let deliveryDepth = 0;
 		/** @type {any} */
 		let lastValue;
 		/** @type {SmolRpcError | undefined} */
@@ -913,19 +912,24 @@ export function initClientProxy(websocket, reportInternalError) {
 					hasValue = true;
 					lastValue = message.data;
 					const recipients = [...observers];
-					for (const recipient of recipients) {
-						if (
-							status !== 'active' ||
-							!websocket.isCurrent(generation) ||
-							!observers.has(recipient)
-						) {
-							continue;
+					deliveryDepth++;
+					try {
+						for (const recipient of recipients) {
+							if (
+								status !== 'active' ||
+								!websocket.isCurrent(generation) ||
+								!observers.has(recipient)
+							) {
+								continue;
+							}
+							invokeObserver(
+								recipient.observer,
+								'next',
+								message.data,
+							);
 						}
-						invokeObserver(
-							recipient.observer,
-							'next',
-							message.data,
-						);
+					} finally {
+						deliveryDepth--;
 					}
 					return;
 				}
@@ -1326,6 +1330,7 @@ export function initClientProxy(websocket, reportInternalError) {
 				if (status === 'active') {
 					if (
 						hasValue &&
+						deliveryDepth === 0 &&
 						status === 'active' &&
 						observers.has(recipient) &&
 						websocket.isCurrent(generation)

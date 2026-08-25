@@ -16,6 +16,11 @@ export const resources = {
 		response: z.string(),
 		type: 'get',
 	},
+	'/teams/:teamId/items/:itemId': {
+		request: z.number(),
+		response: z.number(),
+		type: 'get|set|subscribe',
+	},
 } as const satisfies AnyResources;
 
 export type Resources = typeof resources;

@@ -1,51 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ClientTransportState, ClientWebSocketEvents } from '../index.js';
-import { initClient, SmolRpcError } from '../index.js';
+import { SmolRpcError } from '../index.js';
 import { OPERATION_TIMEOUT_MS } from '../src/init-client-proxy.js';
 import { RECONNECT_DELAYS_MS } from '../src/init-client-websocket.js';
-import {
-	type ControlledSocketPlan,
-	ControlledWebSocket,
-	ControlledWebSocketFactory,
-} from './controlled-websocket.ts';
-import type { Resources } from './resources.ts';
-
-type Frame = {
-	data?: unknown;
-	id: number;
-	resource: string;
-	type: string;
-};
-
-function createClient(plans: ControlledSocketPlan[] = []) {
-	const factory = new ControlledWebSocketFactory();
-	for (const plan of plans) factory.enqueue(plan);
-	const states: ClientTransportState[] = [];
-	const events = {
-		close: vi.fn(),
-		error: vi.fn(),
-		message: vi.fn(),
-		open: vi.fn(),
-		reconnect: vi.fn(),
-		send: vi.fn(),
-		statechange: vi.fn((state: ClientTransportState) => {
-			states.push(state);
-		}),
-	} satisfies ClientWebSocketEvents;
-	const reportInternalError = vi.fn();
-	const result = initClient<Resources>({
-		createWebSocket: factory.createWebSocket,
-		reportInternalError,
-		url: 'ws://smolrpc.test',
-		webSocketEvents: events,
-	});
-	return { ...result, events, factory, reportInternalError, states };
-}
-
-function frames(socket: ControlledWebSocket) {
-	return socket.sentFrames<Frame>();
-}
+import { createClient, frames } from './client-test-helpers.ts';
 
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -59,6 +17,87 @@ afterEach(() => {
 });
 
 describe('recovery lifecycle methods', () => {
+	it('drops all stale callbacks without disturbing fresh replacement work', async () => {
+		const setup = createClient();
+		const retired = setup.factory.latest;
+		retired.open();
+		setup.clientMethods.close();
+		setup.clientMethods.open();
+		const replacement = setup.factory.latest;
+		replacement.open();
+		const pending = setup.client['/counter'].get();
+		const request = frames(replacement).at(-1);
+		if (request == null) throw new Error('missing replacement request');
+		const hooks = {
+			close: setup.events.close.mock.calls.length,
+			error: setup.events.error.mock.calls.length,
+			message: setup.events.message.mock.calls.length,
+			open: setup.events.open.mock.calls.length,
+		};
+		const states = [...setup.states];
+		const attempts = setup.factory.attempts.length;
+		const sendAttempts = replacement.sendAttempts.length;
+		const timers = vi.getTimerCount();
+
+		retired.open();
+		retired.message({
+			data: 1,
+			id: request.id,
+			resource: request.resource,
+			type: 'GetResponse',
+		});
+		retired.error();
+		retired.peerClose();
+		expect(setup.events.open).toHaveBeenCalledTimes(hooks.open);
+		expect(setup.events.message).toHaveBeenCalledTimes(hooks.message);
+		expect(setup.events.error).toHaveBeenCalledTimes(hooks.error);
+		expect(setup.events.close).toHaveBeenCalledTimes(hooks.close);
+		expect(setup.states).toEqual(states);
+		expect(setup.factory.attempts).toHaveLength(attempts);
+		expect(replacement.sendAttempts).toHaveLength(sendAttempts);
+		expect(vi.getTimerCount()).toBe(timers);
+
+		replacement.message({
+			data: 2,
+			id: request.id,
+			resource: request.resource,
+			type: 'GetResponse',
+		});
+		await expect(pending).resolves.toBe(2);
+	});
+
+	it('advances and caps backoff, then resets it after open', () => {
+		const failure = () => ({ constructorError: new Error('failed') });
+		const setup = createClient([
+			{},
+			failure(),
+			failure(),
+			failure(),
+			failure(),
+			failure(),
+			{},
+			{},
+		]);
+		setup.factory.latest.open();
+		setup.factory.latest.peerClose();
+
+		const delays = [1_000, 2_000, 5_000, 10_000, 10_000, 10_000];
+		for (const [index, delay] of delays.entries()) {
+			vi.advanceTimersByTime(delay - 1);
+			expect(setup.factory.attempts).toHaveLength(index + 1);
+			vi.advanceTimersByTime(1);
+			expect(setup.factory.attempts).toHaveLength(index + 2);
+		}
+		expect(setup.events.reconnect).toHaveBeenCalledOnce();
+
+		setup.factory.latest.open();
+		setup.factory.latest.peerClose();
+		vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0] - 1);
+		expect(setup.factory.attempts).toHaveLength(7);
+		vi.advanceTimersByTime(1);
+		expect(setup.factory.attempts).toHaveLength(8);
+	});
+
 	it('restarts an open generation immediately without a stopped transition', () => {
 		const setup = createClient();
 		const oldSocket = setup.factory.latest;

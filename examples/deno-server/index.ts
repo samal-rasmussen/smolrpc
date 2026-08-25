@@ -1,8 +1,8 @@
 import { initServer } from '../../src/init-server.js';
 import { router } from '../nodejs-server/router.js';
-import { type Resources, resources } from '../resources.ts';
+import { resources } from '../resources.ts';
 
-const server = initServer<Resources>(router, resources, {
+const server = initServer(router, resources, {
 	serverLogger: {
 		receivedRequest: (request, clientId, remoteAddress) => {
 			console.log(

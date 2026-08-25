@@ -17,7 +17,8 @@ export type Frame = {
 	data?: unknown;
 	error?: string;
 	id: number;
-	request?: Frame;
+	params?: Record<string, string | number> | null;
+	request?: unknown;
 	resource: string;
 	subscriptionId?: number;
 	type: string;
@@ -46,6 +47,13 @@ export function createClient(plans: ControlledSocketPlan[] = []) {
 		webSocketEvents: events,
 	});
 	return { ...result, events, factory, reportInternalError, states };
+}
+
+export function createOpenClient() {
+	const setup = createClient();
+	const socket = setup.factory.latest;
+	socket.open();
+	return { ...setup, socket };
 }
 
 export function frames(socket: ControlledWebSocket) {

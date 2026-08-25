@@ -1,12 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type {
-	ClientMethods,
-	ClientTransportState,
-	ClientWebSocketEvents,
-	SmolRpcErrorCode,
-	SmolRpcErrorMetadata,
-} from '../index.js';
 import { SmolRpcError } from '../index.js';
 import { RECONNECT_DELAYS_MS } from '../src/init-client-websocket.js';
 import { createClient, errorCode, frames } from './client-test-helpers.ts';
@@ -23,6 +16,109 @@ afterEach(() => {
 });
 
 describe('client lifecycle hooks and method matrix', () => {
+	it.each([
+		'statechange',
+		'open',
+		'message',
+		'send',
+		'error',
+		'close',
+		'reconnect',
+	] as const)(
+		'isolates a throwing %s hook and preserves continuation',
+		async (hook) => {
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			const setup = createClient([{}, {}]);
+			const firstSocket = setup.factory.latest;
+			setup.events[hook].mockImplementation(() => {
+				throw new Error(`${hook} failed`);
+			});
+
+			if (hook === 'statechange') {
+				setup.clientMethods.close();
+				setup.clientMethods.open();
+				setup.factory.latest.open();
+			} else if (hook === 'open') {
+				firstSocket.open();
+			} else if (hook === 'message') {
+				firstSocket.open();
+				firstSocket.message('{');
+			} else if (hook === 'send') {
+				firstSocket.open();
+				const pending = setup.client['/counter'].get();
+				const request = frames(firstSocket).at(-1);
+				if (request == null) throw new Error('missing request');
+				firstSocket.message({
+					data: 1,
+					id: request.id,
+					resource: request.resource,
+					type: 'GetResponse',
+				});
+				await expect(pending).resolves.toBe(1);
+			} else if (hook === 'error') {
+				firstSocket.open();
+				firstSocket.error();
+			} else if (hook === 'close') {
+				firstSocket.open();
+				firstSocket.peerClose();
+				setup.clientMethods.restart();
+				setup.factory.latest.open();
+			} else {
+				firstSocket.open();
+				firstSocket.peerClose();
+				vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]);
+				setup.factory.latest.open();
+			}
+
+			expect(consoleError).toHaveBeenCalledWith(
+				expect.stringContaining(`webSocketEvents.${hook} hook threw`),
+				expect.objectContaining({ error: expect.any(Error) }),
+			);
+			if (setup.states.at(-1) !== 'open') setup.factory.latest.open();
+			const socket = setup.factory.latest;
+			const fresh = setup.client['/counter'].get();
+			const request = frames(socket).at(-1);
+			if (request == null) throw new Error('missing fresh request');
+			socket.message({
+				data: 2,
+				id: request.id,
+				resource: request.resource,
+				type: 'GetResponse',
+			});
+			await expect(fresh).resolves.toBe(2);
+		},
+	);
+
+	it('isolates a throwing internal diagnostic callback', async () => {
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => {});
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		setup.reportInternalError.mockImplementation(() => {
+			throw new Error('diagnostic failed');
+		});
+		socket.message('{');
+		expect(consoleError).toHaveBeenCalledWith(
+			expect.stringContaining('reportInternalError hook threw'),
+			expect.objectContaining({ error: expect.any(Error) }),
+		);
+
+		const result = setup.client['/counter'].get();
+		const request = frames(socket).at(-1);
+		if (request == null) throw new Error('missing request');
+		socket.message({
+			data: 3,
+			id: request.id,
+			resource: request.resource,
+			type: 'GetResponse',
+		});
+		await expect(result).resolves.toBe(3);
+	});
+
 	it('lifecycle changes in message and open hooks stop stale continuation', async () => {
 		const messageSetup = createClient();
 		const messageSocket = messageSetup.factory.latest;
@@ -96,23 +192,27 @@ describe('client lifecycle hooks and method matrix', () => {
 	});
 
 	it('detaches before unavailable, then rejects SET and subscription', async () => {
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => {});
 		const setup = createClient();
 		const socket = setup.factory.latest;
 		socket.open();
 		const order: string[] = [];
+		const unavailableSendCounts: number[] = [];
 		const subscription = setup.client['/counter'].subscribe();
 		const handle = subscription.subscribe({
 			error(error: SmolRpcError) {
 				order.push(`subscription:${error.code}`);
 			},
 		});
-		const sentBeforeRetirement = socket.sendAttempts.length;
 		setup.events.statechange.mockImplementation((state) => {
 			setup.states.push(state);
 			order.push(`state:${state}`);
 			if (state === 'unavailable') {
+				unavailableSendCounts.push(socket.sendAttempts.length);
 				handle.unsubscribe();
-				expect(socket.sendAttempts).toHaveLength(sentBeforeRetirement);
+				unavailableSendCounts.push(socket.sendAttempts.length);
 			}
 		});
 		const set = setup.client['/counter/set']
@@ -121,17 +221,36 @@ describe('client lifecycle hooks and method matrix', () => {
 				order.push(`set:${error.code}`);
 				throw error;
 			});
+		const sentBeforeRetirement = socket.sendAttempts.length;
 
 		setup.clientMethods.close();
 		await expect(set).rejects.toEqual(
 			errorCode('SMOLRPC_MUTATION_OUTCOME_UNKNOWN'),
 		);
+		expect(unavailableSendCounts).toEqual([
+			sentBeforeRetirement,
+			sentBeforeRetirement,
+		]);
+		expect(
+			frames(socket).filter(({ type }) => type === 'UnsubscribeRequest'),
+		).toEqual([]);
 		expect(order.indexOf('state:unavailable')).toBeLessThan(
 			order.indexOf('subscription:SMOLRPC_UNAVAILABLE'),
 		);
 		expect(order.indexOf('state:unavailable')).toBeLessThan(
 			order.indexOf('set:SMOLRPC_MUTATION_OUTCOME_UNKNOWN'),
 		);
+		expect(
+			order.filter(
+				(entry) => entry === 'subscription:SMOLRPC_UNAVAILABLE',
+			),
+		).toHaveLength(1);
+		expect(
+			order.filter(
+				(entry) => entry === 'set:SMOLRPC_MUTATION_OUTCOME_UNKNOWN',
+			),
+		).toHaveLength(1);
+		expect(consoleError).not.toHaveBeenCalled();
 	});
 
 	it.each(['close', 'restart', 'invalidate', 'unexpected'] as const)(
@@ -307,32 +426,5 @@ describe('client lifecycle hooks and method matrix', () => {
 		closeBackoff.clientMethods.close();
 		vi.advanceTimersByTime(20_000);
 		expect(closeBackoff.factory.attempts).toHaveLength(1);
-	});
-
-	it('exposes runtime and type-only package-root client API', () => {
-		const code: SmolRpcErrorCode = 'SMOLRPC_UNAVAILABLE';
-		const metadata: SmolRpcErrorMetadata = {
-			generation: 1,
-			operation: 'get',
-			resource: '/counter',
-		};
-		const state: ClientTransportState = 'connecting';
-		const statechange: NonNullable<ClientWebSocketEvents['statechange']> = (
-			nextState,
-		) => expect(nextState).toBe(state);
-		statechange(state);
-		expect(new SmolRpcError(code, 'unavailable', metadata)).toMatchObject({
-			code,
-			metadata,
-		});
-
-		const setup = createClient();
-		const methods: ClientMethods = setup.clientMethods;
-		expect(Object.keys(methods).sort()).toEqual([
-			'close',
-			'invalidate',
-			'open',
-			'restart',
-		]);
 	});
 });

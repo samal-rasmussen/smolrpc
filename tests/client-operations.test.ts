@@ -24,39 +24,26 @@ afterEach(() => {
 });
 
 describe('client generation and operations', () => {
-	it('advances and caps backoff, then resets it after open', () => {
-		const failure = () => ({ constructorError: new Error('failed') });
-		const setup = createClient([
-			{},
-			failure(),
-			failure(),
-			failure(),
-			failure(),
-			failure(),
-			{},
-			{},
-		]);
-		setup.factory.latest.open();
-		setup.factory.latest.peerClose();
-
-		const delays = [1_000, 2_000, 5_000, 10_000, 10_000, 10_000];
-		for (const [index, delay] of delays.entries()) {
-			vi.advanceTimersByTime(delay - 1);
-			expect(setup.factory.attempts).toHaveLength(index + 1);
-			vi.advanceTimersByTime(1);
-			expect(setup.factory.attempts).toHaveLength(index + 2);
-		}
-		expect(setup.events.reconnect).toHaveBeenCalledOnce();
-
-		setup.factory.latest.open();
-		setup.factory.latest.peerClose();
-		vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0] - 1);
-		expect(setup.factory.attempts).toHaveLength(7);
-		vi.advanceTimersByTime(1);
-		expect(setup.factory.attempts).toHaveLength(8);
-	});
-
 	it('terminalizes and cleans every GET terminal path exactly once', async () => {
+		function expectLateDiagnostic(
+			setup: ReturnType<typeof createClient>,
+			frame: Record<string, unknown>,
+		) {
+			const diagnostics = setup.reportInternalError.mock.calls.length;
+			const requestId =
+				typeof frame.id === 'number'
+					? frame.id
+					: (frame.request as { id?: number } | undefined)?.id;
+			setup.factory.latest.message(frame);
+			expect(setup.reportInternalError).toHaveBeenCalledTimes(
+				diagnostics + 1,
+			);
+			expect(setup.reportInternalError).toHaveBeenLastCalledWith(
+				expect.stringContaining('no operation found'),
+				expect.objectContaining({ requestId }),
+			);
+		}
+
 		async function expectOneSettlement<T>(
 			promise: Promise<T>,
 			settle: () => void,
@@ -77,6 +64,7 @@ describe('client generation and operations', () => {
 			if (expectedCode == null) await expect(observed).resolves.toBe(1);
 			else
 				await expect(observed).rejects.toEqual(errorCode(expectedCode));
+			expect(vi.getTimerCount()).toBe(0);
 			vi.advanceTimersByTime(OPERATION_TIMEOUT_MS);
 			await Promise.resolve();
 			expect(settlements).toBe(1);
@@ -95,6 +83,12 @@ describe('client generation and operations', () => {
 			});
 		});
 		expect(vi.getTimerCount()).toBe(0);
+		expectLateDiagnostic(response, {
+			data: 1,
+			id: responseRequest.id,
+			resource: responseRequest.resource,
+			type: 'GetResponse',
+		});
 
 		const rejection = createClient();
 		rejection.factory.latest.open();
@@ -112,15 +106,28 @@ describe('client generation and operations', () => {
 			'SMOLRPC_SERVER_REJECTION',
 		);
 		expect(vi.getTimerCount()).toBe(0);
+		expectLateDiagnostic(rejection, {
+			error: 'denied',
+			request: rejectionRequest,
+			type: 'RequestReject',
+		});
 
 		const timeout = createClient();
 		timeout.factory.latest.open();
+		const timeoutPromise = timeout.client['/counter'].get();
+		const [timeoutRequest] = frames(timeout.factory.latest);
 		await expectOneSettlement(
-			timeout.client['/counter'].get(),
+			timeoutPromise,
 			() => vi.advanceTimersByTime(OPERATION_TIMEOUT_MS),
 			'SMOLRPC_TIMEOUT',
 		);
 		expect(vi.getTimerCount()).toBe(0);
+		expectLateDiagnostic(timeout, {
+			data: 1,
+			id: timeoutRequest.id,
+			resource: timeoutRequest.resource,
+			type: 'GetResponse',
+		});
 
 		const retirement = createClient();
 		retirement.factory.latest.open();
@@ -142,6 +149,12 @@ describe('client generation and operations', () => {
 		);
 		expect(serialization.factory.latest.sendAttempts).toHaveLength(0);
 		expect(vi.getTimerCount()).toBe(0);
+		expectLateDiagnostic(serialization, {
+			data: 1,
+			id: 1,
+			resource: '/counter',
+			type: 'GetResponse',
+		});
 
 		const sendFailure = createClient([
 			{ sendError: new Error('native send failed') },
@@ -155,6 +168,15 @@ describe('client generation and operations', () => {
 		expect(sendFailure.factory.latest.sendAttempts).toHaveLength(1);
 		expect(sendFailure.factory.latest.sent).toHaveLength(0);
 		expect(vi.getTimerCount()).toBe(0);
+		const failedRequest = JSON.parse(
+			sendFailure.factory.latest.sendAttempts[0] ?? '{}',
+		) as Frame;
+		expectLateDiagnostic(sendFailure, {
+			data: 1,
+			id: failedRequest.id,
+			resource: failedRequest.resource,
+			type: 'GetResponse',
+		});
 	});
 
 	it('times out a waiting SET without later sending it', async () => {
@@ -166,6 +188,26 @@ describe('client generation and operations', () => {
 		await expect(result).rejects.toEqual(errorCode('SMOLRPC_TIMEOUT'));
 		socket.open();
 		expect(socket.sendAttempts).toHaveLength(0);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it('lets a valid synchronous GET response win over send unwind', async () => {
+		const setup = createClient([
+			{
+				onSend(socket, data) {
+					const request = JSON.parse(data) as Frame;
+					socket.message({
+						data: 44,
+						id: request.id,
+						resource: request.resource,
+						type: 'GetResponse',
+					});
+				},
+				sendError: new Error('after response'),
+			},
+		]);
+		setup.factory.latest.open();
+		await expect(setup.client['/counter'].get()).resolves.toBe(44);
 		expect(vi.getTimerCount()).toBe(0);
 	});
 
@@ -239,6 +281,20 @@ describe('client generation and operations', () => {
 				`rejected:${expected}`,
 			]);
 			expect(vi.getTimerCount()).toBe(0);
+
+			setup.clientMethods.open();
+			const replacement = setup.factory.latest;
+			replacement.open();
+			const fresh = setup.client['/counter'].get();
+			const request = frames(replacement).at(-1);
+			if (request == null) throw new Error('missing replacement request');
+			replacement.message({
+				data: 21,
+				id: request.id,
+				resource: request.resource,
+				type: 'GetResponse',
+			});
+			await expect(fresh).resolves.toBe(21);
 		},
 	);
 

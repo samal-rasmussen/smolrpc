@@ -6,14 +6,16 @@
  * @typedef {import('./server.types.ts').GetHandler<any, any, any>} GetHandler
  * @typedef {import('./server.types.ts').GetHandlerWithParams<any, any, any>} GetHandlerWithParams
  * @typedef {import('./server.types.ts').SetHandler<any, any, any>} SetHandler
- *  * @typedef {import('./server.types.ts').SetHandlerWithParams<any, any, any>} SetHandlerWithParams
+ * @typedef {import('./server.types.ts').SetHandlerWithParams<any, any, any>} SetHandlerWithParams
  * @typedef {import('./server.types.ts').SubscribeHandlerWithParams<any, any, any>} SubscribeHandlerWithParams
  * @typedef {import('./server.types.ts').SubscribeHandler<any, any, any>} SubscribeHandler
  * @typedef {import('./websocket.types.ts').WS} WS
  */
 import {
+	getResourceParamNames,
 	getResourceWithParams,
 	isPromise,
+	isRecord,
 	json_parse,
 	json_stringify,
 } from './shared.js';
@@ -45,7 +47,34 @@ function sendReject(
 		request,
 	};
 	ws.send(json_stringify(reject));
-	logger?.sentReject(request, reject, clientId, remoteAddress, error);
+	logger?.sentReject?.(request, reject, clientId, remoteAddress, error);
+}
+
+/**
+ * Sends a rejection only when no request can be safely associated with it.
+ *
+ * @param {WS} ws
+ * @param {string} message
+ * @param {number} clientId
+ * @param {string | undefined} remoteAddress
+ * @param {import('./server.types.ts').ServerLogger | undefined} logger
+ * @param {unknown} [error]
+ */
+function sendGenericReject(
+	ws,
+	message,
+	clientId,
+	remoteAddress,
+	logger,
+	error,
+) {
+	/** @type {import('./message.types.ts').Reject} */
+	const reject = {
+		type: 'Reject',
+		error: message,
+	};
+	ws.send(json_stringify(reject));
+	logger?.sentReject?.(undefined, reject, clientId, remoteAddress, error);
 }
 
 /**
@@ -54,22 +83,34 @@ function sendReject(
  * @returns {boolean}
  */
 function validateParams(resource, params) {
-	const count = resource.split(':').length - 1;
-	if (count > 0) {
-		if (params == null) {
-			return false;
-		}
-		if (Object.keys(params).length !== count) {
-			return false;
-		}
-	}
-	return true;
+	const expected = [...new Set(getResourceParamNames(resource))].sort();
+	if (params == null) return expected.length === 0;
+	if (!isRecord(params)) return false;
+	const actual = Object.keys(params).sort();
+	return (
+		actual.length === expected.length &&
+		actual.every((name, index) => {
+			const value = params[name];
+			return (
+				name === expected[index] &&
+				(typeof value === 'string' || typeof value === 'number')
+			);
+		})
+	);
+}
+
+/**
+ * @param {string} resourceType
+ * @param {'get' | 'set' | 'subscribe'} operation
+ */
+function supportsOperation(resourceType, operation) {
+	return resourceType.split('|').includes(operation);
 }
 
 /**
  * @template {import("./types").AnyResources} Resources
  * @param {import("./server.types.ts").Router<Resources>} router
- * @param {import("./types.ts").AnyResources} resources
+ * @param {Resources} resources
  * @param {{serverLogger?: import('./server.types.ts').ServerLogger}} [options]
  * @returns {{
  * 	addConnection: (ws: WS, remoteAddress?: string | undefined) => number
@@ -134,15 +175,22 @@ export function initServer(router, resources, options) {
 		listeners.set(ws, listenerData);
 		ws.addEventListener('close', () => {
 			const existing = listeners.get(ws);
-			if (existing == null) {
-				throw new Error(
-					'initServer.onClose: Map of listeners for websocket connection not found',
-				);
-			}
-			for (const unsubscribable of existing.listeners.values()) {
-				unsubscribable.unsubscribe();
-			}
+			if (existing == null) return;
 			listeners.delete(ws);
+			const subscriptions = [...existing.listeners.values()];
+			existing.listeners.clear();
+			for (const unsubscribable of subscriptions) {
+				try {
+					unsubscribable.unsubscribe();
+				} catch (error) {
+					errorLogger(
+						'smolrpc.initServer.addConnection: subscription cleanup threw',
+						clientId,
+						remoteAddress,
+						{ error },
+					);
+				}
+			}
 		});
 		ws.addEventListener('error', (event) => {
 			errorLogger(
@@ -182,24 +230,54 @@ export function initServer(router, resources, options) {
 					data,
 				},
 			);
-			/** @type {import('./message.types.ts').Reject} */
-			const reject = {
-				type: 'Reject',
-				error: `Only string data supported. typeof event.data = ${typeof data}`,
-			};
-			ws.send(json_stringify(reject));
-			options?.serverLogger?.sentReject(
-				undefined,
-				reject,
+			sendGenericReject(
+				ws,
+				`Only string data supported. typeof event.data = ${typeof data}`,
 				clientId,
 				remoteAddress,
+				options?.serverLogger,
 			);
 			return;
 		}
 		// console.log('received: %s', data);
-		/** @type {Request} */
-		const request = json_parse(data);
-		request.params;
+		/** @type {unknown} */
+		let decoded;
+		try {
+			decoded = json_parse(data);
+		} catch (error) {
+			errorLogger(
+				'smolrpc.initServer.addConnection.handleWSMessage: Malformed JSON.',
+				clientId,
+				remoteAddress,
+				{ error },
+			);
+			sendGenericReject(
+				ws,
+				'Malformed JSON request.',
+				clientId,
+				remoteAddress,
+				options?.serverLogger,
+				error,
+			);
+			return;
+		}
+		if (!isRecord(decoded)) {
+			errorLogger(
+				'smolrpc.initServer.addConnection.handleWSMessage: Request must be an object.',
+				clientId,
+				remoteAddress,
+				{ type: typeof decoded },
+			);
+			sendGenericReject(
+				ws,
+				'Request must be an object.',
+				clientId,
+				remoteAddress,
+				options?.serverLogger,
+			);
+			return;
+		}
+		const request = /** @type {Request} */ (decoded);
 		if (typeof request.id !== 'number') {
 			sendReject(
 				ws,
@@ -211,7 +289,7 @@ export function initServer(router, resources, options) {
 			);
 			return;
 		}
-		options?.serverLogger?.receivedRequest(
+		options?.serverLogger?.receivedRequest?.(
 			request,
 			clientId,
 			remoteAddress,
@@ -265,6 +343,16 @@ export function initServer(router, resources, options) {
 		}
 		if (request.type === 'GetRequest') {
 			try {
+				const getHandler =
+					/** @type {{get?: GetHandler | GetHandlerWithParams}}*/ (
+						routerHandlers
+					).get;
+				if (
+					!supportsOperation(resourceDefinition.type, 'get') ||
+					typeof getHandler !== 'function'
+				) {
+					throw new TypeError('GET handler not found');
+				}
 				const requestSchema = resourceDefinition.request;
 				let parsedGetRequestValue = request.request;
 				if (requestSchema != null) {
@@ -304,10 +392,6 @@ export function initServer(router, resources, options) {
 				} else {
 					args.resourceWithParams = request.resource;
 				}
-				const getHandler =
-					/** @type {{get: GetHandler | GetHandlerWithParams}}*/ (
-						routerHandlers
-					).get;
 				const result = await getHandler(args);
 				const parsed = validateSchema(
 					responseSchema,
@@ -344,7 +428,7 @@ export function initServer(router, resources, options) {
 					data: parsed.value,
 				};
 				ws.send(json_stringify(response));
-				options?.serverLogger?.sentResponse(
+				options?.serverLogger?.sentResponse?.(
 					request,
 					response,
 					clientId,
@@ -372,6 +456,16 @@ export function initServer(router, resources, options) {
 			}
 		} else if (request.type === 'SetRequest') {
 			try {
+				const setHandler =
+					/** @type {{set?: SetHandler | SetHandlerWithParams}}*/ (
+						routerHandlers
+					).set;
+				if (
+					!supportsOperation(resourceDefinition.type, 'set') ||
+					typeof setHandler !== 'function'
+				) {
+					throw new TypeError('SET handler not found');
+				}
 				const requestSchema = resourceDefinition.request;
 				let parsedSetRequestValue = request.request;
 				if (requestSchema != null) {
@@ -409,10 +503,6 @@ export function initServer(router, resources, options) {
 				} else {
 					args.resourceWithParams = request.resource;
 				}
-				const setHandler =
-					/** @type {{set: SetHandler | SetHandlerWithParams}}*/ (
-						routerHandlers
-					).set;
 				const result = await setHandler(args);
 				const parsed = validateSchema(
 					responseSchema,
@@ -449,7 +539,7 @@ export function initServer(router, resources, options) {
 					data: parsed.value,
 				};
 				ws.send(json_stringify(response));
-				options?.serverLogger?.sentResponse(
+				options?.serverLogger?.sentResponse?.(
 					request,
 					response,
 					clientId,
@@ -477,6 +567,16 @@ export function initServer(router, resources, options) {
 			}
 		} else if (request.type === 'SubscribeRequest') {
 			try {
+				const subscribeHandler =
+					/** @type {{subscribe?: SubscribeHandlerWithParams | SubscribeHandler}}*/ (
+						routerHandlers
+					).subscribe;
+				if (
+					!supportsOperation(resourceDefinition.type, 'subscribe') ||
+					typeof subscribeHandler !== 'function'
+				) {
+					throw new TypeError('SUBSCRIBE handler not found');
+				}
 				const requestSchema = resourceDefinition.request;
 				let parsedSubscribeRequestValue = request.request;
 				if (requestSchema != null) {
@@ -517,11 +617,15 @@ export function initServer(router, resources, options) {
 					args.resourceWithParams = request.resource;
 				}
 
-				const subscribeHandler =
-					/** @type {{subscribe: SubscribeHandlerWithParams | SubscribeHandler}}*/ (
-						routerHandlers
-					).subscribe;
 				const subscribable = await subscribeHandler(args);
+				if (
+					subscribable == null ||
+					typeof subscribable.subscribe !== 'function'
+				) {
+					throw new TypeError(
+						'Subscribe handler did not return a subscribable',
+					);
+				}
 
 				// Send SubscribeAccept before calling subscribable.subscribe,
 				// because subscribable.subscribe will send the initial subscription event
@@ -532,7 +636,7 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 				};
 				ws.send(json_stringify(response));
-				options?.serverLogger?.sentResponse(
+				options?.serverLogger?.sentResponse?.(
 					request,
 					response,
 					clientId,
@@ -571,7 +675,7 @@ export function initServer(router, resources, options) {
 							event.params = request.params;
 						}
 						ws.send(json_stringify(event));
-						options?.serverLogger?.sentEvent(
+						options?.serverLogger?.sentEvent?.(
 							request,
 							event,
 							clientId,
@@ -582,6 +686,12 @@ export function initServer(router, resources, options) {
 				const websocketListeners = getWebSocketListeners(ws);
 				websocketListeners.set(request.id, subscription);
 			} catch (error) {
+				errorLogger(
+					`smolrpc.initServer.handleWSMessage: caught error while handling subscribe request`,
+					clientId,
+					remoteAddress,
+					{ request, error },
+				);
 				sendReject(
 					ws,
 					'500',
@@ -609,8 +719,8 @@ export function initServer(router, resources, options) {
 					);
 					return;
 				}
-				subscription.unsubscribe();
 				websocketListeners.delete(request.subscriptionId);
+				subscription.unsubscribe();
 				/** @type {import("./message.types.ts").UnsubscribeAccept<any>} */
 				const response = {
 					id: request.id,
@@ -618,13 +728,19 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 				};
 				ws.send(json_stringify(response));
-				options?.serverLogger?.sentResponse(
+				options?.serverLogger?.sentResponse?.(
 					request,
 					response,
 					clientId,
 					remoteAddress,
 				);
 			} catch (error) {
+				errorLogger(
+					`smolrpc.initServer.handleWSMessage: caught error while handling unsubscribe request`,
+					clientId,
+					remoteAddress,
+					{ request, error },
+				);
 				sendReject(
 					ws,
 					'500',
@@ -632,6 +748,7 @@ export function initServer(router, resources, options) {
 					clientId,
 					remoteAddress,
 					options?.serverLogger,
+					error,
 				);
 			}
 		} else {
@@ -670,22 +787,24 @@ function validateSchema(schema, value, logger) {
 	try {
 		const parsed = schema['~standard'].validate(value);
 		if (isPromise(parsed)) {
-			parsed.then((then_result) => {
-				logger?.asyncValidationResult(
-					'smolrpc.initServer: validateSchema found a promise in the parsed result and on .then it produced a value',
-					schema,
-					value,
-					{ type: 'then', then_result },
-				);
-			});
-			parsed.catch((catch_error) => {
-				logger?.asyncValidationResult(
-					'smolrpc.initServer: validateSchema found a promise in the parsed result on .catch it produced an error',
-					schema,
-					value,
-					{ type: 'catch', catch_error },
-				);
-			});
+			parsed.then(
+				(then_result) => {
+					logger?.asyncValidationResult?.(
+						'smolrpc.initServer: validateSchema found a promise in the parsed result and on .then it produced a value',
+						schema,
+						value,
+						{ type: 'then', then_result },
+					);
+				},
+				(catch_error) => {
+					logger?.asyncValidationResult?.(
+						'smolrpc.initServer: validateSchema found a promise in the parsed result on .catch it produced an error',
+						schema,
+						value,
+						{ type: 'catch', catch_error },
+					);
+				},
+			);
 			return {
 				issues: 'smolrpc.initServer: Schema validation must be synchronous',
 			};

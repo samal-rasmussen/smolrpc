@@ -40,7 +40,7 @@ export type GetHandler<
 	clientId: number;
 	resource: Resource;
 	request: Request extends StandardSchemaV1
-		? StandardSchemaV1.InferInput<Request>
+		? StandardSchemaV1.InferOutput<Request>
 		: undefined;
 }) => HandlerResponse<Resources, Resource>;
 
@@ -54,7 +54,7 @@ export type GetHandlerWithParams<
 	resourceWithParams: string;
 	resource: Resource;
 	request: Request extends StandardSchemaV1
-		? StandardSchemaV1.InferInput<Request>
+		? StandardSchemaV1.InferOutput<Request>
 		: undefined;
 }) => HandlerResponse<Resources, Resource>;
 
@@ -74,7 +74,7 @@ export type SetHandler<
 	clientId: number;
 	resource: Resource;
 	request: Request extends StandardSchemaV1
-		? StandardSchemaV1.InferInput<Request>
+		? StandardSchemaV1.InferOutput<Request>
 		: undefined;
 }) => HandlerResponse<Resources, Resource>;
 
@@ -88,7 +88,7 @@ export type SetHandlerWithParams<
 	resourceWithParams: string;
 	resource: Resource;
 	request: Request extends StandardSchemaV1
-		? StandardSchemaV1.InferInput<Request>
+		? StandardSchemaV1.InferOutput<Request>
 		: undefined;
 }) => HandlerResponse<Resources, Resource>;
 
@@ -108,7 +108,7 @@ export type SubscribeHandler<
 	clientId: number;
 	resource: Resource;
 	request: Request extends StandardSchemaV1
-		? StandardSchemaV1.InferInput<Request>
+		? StandardSchemaV1.InferOutput<Request>
 		: undefined;
 }) => SubscribeHandlerResponse<Resources, Resource>;
 
@@ -122,7 +122,7 @@ export type SubscribeHandlerWithParams<
 	resourceWithParams: string;
 	resource: Resource;
 	request: Request extends StandardSchemaV1
-		? StandardSchemaV1.InferInput<Request>
+		? StandardSchemaV1.InferOutput<Request>
 		: undefined;
 }) => SubscribeHandlerResponse<Resources, Resource>;
 
@@ -187,31 +187,31 @@ export type Router<Resources extends AnyResources> = {
 };
 
 export interface ServerLogger {
-	receivedRequest: (
+	receivedRequest?: (
 		request: Request<any>,
 		clientId: number,
 		remoteAddress: string | undefined,
 	) => void;
-	sentResponse: (
+	sentResponse?: (
 		request: Request<any>,
 		response: Response<any>,
 		clientId: number,
 		remoteAddress: string | undefined,
 	) => void;
-	sentEvent: (
+	sentEvent?: (
 		request: Request<any>,
 		event: SubscribeEvent<any>,
 		clientId: number,
 		remoteAddress: string | undefined,
 	) => void;
-	sentReject: (
+	sentReject?: (
 		request: Request<any> | undefined,
 		reject: RequestReject<AnyResources> | Reject,
 		clientId: number,
 		remoteAddress: string | undefined,
 		error?: unknown,
 	) => void;
-	error: (
+	error?: (
 		message: string,
 		clientId: number,
 		remoteAddress: string | undefined,
@@ -221,7 +221,7 @@ export interface ServerLogger {
 	 * Smolrpc only supports synchronous schema validation and fails the validation if a promise is returned.
 	 * But if the schema validation returns a promise, we need to log the result of the promise for debugging purposes.
 	 */
-	asyncValidationResult: (
+	asyncValidationResult?: (
 		message: string,
 		schema: StandardSchemaV1,
 		value: any,

@@ -5,12 +5,12 @@ declare module 'smolrpc' {
 		Resource extends keyof AnyResources,
 	> = ResourceParams<Resource> extends null | undefined
 		? () => Promise<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >
 		: (args: {
 				params: ResourceParams<Resource>;
 		  }) => Promise<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >;
 	type GetHandlerWithRequest<
 		Resources extends AnyResources,
@@ -22,7 +22,7 @@ declare module 'smolrpc' {
 					? StandardSchemaV1.InferInput<Request>
 					: undefined;
 		  }) => Promise<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >
 		: (args: {
 				request: Request extends StandardSchemaV1
@@ -30,7 +30,7 @@ declare module 'smolrpc' {
 					: undefined;
 				params: ResourceParams<Resource>;
 		  }) => Promise<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >;
 	type SetHandler<
 		Resources extends AnyResources,
@@ -42,7 +42,7 @@ declare module 'smolrpc' {
 					? StandardSchemaV1.InferInput<Request>
 					: undefined;
 		  }) => Promise<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >
 		: (args: {
 				request: Request extends StandardSchemaV1
@@ -50,7 +50,7 @@ declare module 'smolrpc' {
 					: undefined;
 				params: ResourceParams<Resource>;
 		  }) => Promise<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >;
 	type SubscribeHandler<
 		Resources extends AnyResources,
@@ -59,13 +59,13 @@ declare module 'smolrpc' {
 		? (args?: {
 				cache?: boolean;
 		  }) => Subscribable<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >
 		: (args: {
 				cache?: boolean;
 				params: ResourceParams<Resource>;
 		  }) => Subscribable<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >;
 	type SubscribeHandlerWithRequest<
 		Resources extends AnyResources,
@@ -78,7 +78,7 @@ declare module 'smolrpc' {
 					? StandardSchemaV1.InferInput<Request>
 					: undefined;
 		  }) => Subscribable<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >
 		: (args: {
 				cache?: boolean;
@@ -87,7 +87,7 @@ declare module 'smolrpc' {
 					: undefined;
 				params: ResourceParams<Resource>;
 		  }) => Subscribable<
-				StandardSchemaV1.InferInput<Resources[Resource]['response']>
+				StandardSchemaV1.InferOutput<Resources[Resource]['response']>
 		  >;
 	export type Client<Resources extends AnyResources> = {
 		[R in keyof Resources & string]: Resources[R] extends {
@@ -215,6 +215,7 @@ declare module 'smolrpc' {
 		 */
 		invalidate(): void;
 	}
+	/** Logical transport state, reported independently of raw WebSocket events. */
 	export type ClientTransportState =
 		| 'stopped'
 		| 'connecting'
@@ -222,12 +223,23 @@ declare module 'smolrpc' {
 		| 'unavailable'
 		| 'backoff';
 	export interface ClientWebSocketEvents {
+		/** Raw close event from the current socket. Retired sockets are ignored. */
 		close?: (e: CloseEvent) => void;
+		/** Raw error event from the current socket. An error alone does not start recovery. */
 		error?: (e: Event) => void;
+		/** Raw message event from the current socket, before protocol dispatch. */
 		message?: (e: MessageEvent) => void;
+		/** Raw open event from the current socket. */
 		open?: (e: Event) => void;
+		/**
+		 * Runs after a current automatic backoff attempt successfully constructs and
+		 * publishes a socket, before native open. Initialization, explicit open, and
+		 * restart attempts do not invoke this hook.
+		 */
 		reconnect?: () => void;
+		/** Raw request notification immediately before native send. */
 		send?: (request: Request<any>) => void;
+		/** Reports logical transport state independently of raw WebSocket events. */
 		statechange?: (state: ClientTransportState) => void;
 	}
 	/** A stable, sanitised error produced by the SMOLRPC client. */
@@ -292,7 +304,7 @@ declare module 'smolrpc' {
 	type ClientWebSocketEvents_1 = ClientWebSocketEvents;
 	export function initServer<Resources extends AnyResources>(
 		router: Router<Resources>,
-		resources: AnyResources,
+		resources: Resources,
 		options?:
 			| {
 					serverLogger?: ServerLogger;
@@ -302,7 +314,7 @@ declare module 'smolrpc' {
 		addConnection: (ws: WS, remoteAddress?: string | undefined) => number;
 	};
 	type WS = WS_1;
-	type Params = Record<string, string> | null | undefined;
+	type Params = Record<string, string | number> | null | undefined;
 	type Request<Resources extends AnyResources> =
 		| GetRequest<Resources>
 		| SetRequest<Resources>
@@ -332,7 +344,7 @@ declare module 'smolrpc' {
 		type: 'GetRequest';
 	};
 	type GetResponse<Resources extends AnyResources> = {
-		data: StandardSchemaV1.InferInput<
+		data: StandardSchemaV1.InferOutput<
 			Resources[keyof Resources]['response']
 		>;
 		id: number;
@@ -351,7 +363,7 @@ declare module 'smolrpc' {
 	type SetSuccess<Resources extends AnyResources> = {
 		id: number;
 		resource: keyof Resources & string;
-		data: StandardSchemaV1.InferInput<
+		data: StandardSchemaV1.InferOutput<
 			Resources[keyof Resources]['response']
 		>;
 		type: 'SetSuccess';
@@ -374,7 +386,7 @@ declare module 'smolrpc' {
 		id: number;
 		params?: Params;
 		resource: keyof Resources & string;
-		data: StandardSchemaV1.InferInput<
+		data: StandardSchemaV1.InferOutput<
 			Resources[keyof Resources]['response']
 		>;
 		type: 'SubscribeEvent';
@@ -417,7 +429,7 @@ declare module 'smolrpc' {
 		clientId: number;
 		resource: Resource;
 		request: Request extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request>
+			? StandardSchemaV1.InferOutput<Request>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type GetHandlerWithParams<
@@ -430,7 +442,7 @@ declare module 'smolrpc' {
 		resourceWithParams: string;
 		resource: Resource;
 		request: Request extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request>
+			? StandardSchemaV1.InferOutput<Request>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type PickGetHandler<
@@ -448,7 +460,7 @@ declare module 'smolrpc' {
 		clientId: number;
 		resource: Resource;
 		request: Request extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request>
+			? StandardSchemaV1.InferOutput<Request>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type SetHandlerWithParams<
@@ -461,7 +473,7 @@ declare module 'smolrpc' {
 		resourceWithParams: string;
 		resource: Resource;
 		request: Request extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request>
+			? StandardSchemaV1.InferOutput<Request>
 			: undefined;
 	}) => HandlerResponse<Resources, Resource>;
 	type PickSetHandler<
@@ -479,7 +491,7 @@ declare module 'smolrpc' {
 		clientId: number;
 		resource: Resource;
 		request: Request extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request>
+			? StandardSchemaV1.InferOutput<Request>
 			: undefined;
 	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type SubscribeHandlerWithParams<
@@ -492,7 +504,7 @@ declare module 'smolrpc' {
 		resourceWithParams: string;
 		resource: Resource;
 		request: Request extends StandardSchemaV1
-			? StandardSchemaV1.InferInput<Request>
+			? StandardSchemaV1.InferOutput<Request>
 			: undefined;
 	}) => SubscribeHandlerResponse<Resources, Resource>;
 	type PickSubscribeHandler<
@@ -560,31 +572,31 @@ declare module 'smolrpc' {
 			: never;
 	};
 	export interface ServerLogger {
-		receivedRequest: (
+		receivedRequest?: (
 			request: Request<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
-		sentResponse: (
+		sentResponse?: (
 			request: Request<any>,
 			response: Response<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
-		sentEvent: (
+		sentEvent?: (
 			request: Request<any>,
 			event: SubscribeEvent<any>,
 			clientId: number,
 			remoteAddress: string | undefined,
 		) => void;
-		sentReject: (
+		sentReject?: (
 			request: Request<any> | undefined,
 			reject: RequestReject<AnyResources> | Reject,
 			clientId: number,
 			remoteAddress: string | undefined,
 			error?: unknown,
 		) => void;
-		error: (
+		error?: (
 			message: string,
 			clientId: number,
 			remoteAddress: string | undefined,
@@ -594,7 +606,7 @@ declare module 'smolrpc' {
 		 * Smolrpc only supports synchronous schema validation and fails the validation if a promise is returned.
 		 * But if the schema validation returns a promise, we need to log the result of the promise for debugging purposes.
 		 */
-		asyncValidationResult: (
+		asyncValidationResult?: (
 			message: string,
 			schema: StandardSchemaV1,
 			value: any,
@@ -658,7 +670,7 @@ declare module 'smolrpc' {
 	export type Result<
 		Resources extends AnyResources,
 		Resource extends keyof Resources,
-	> = StandardSchemaV1.InferInput<Resources[Resource]['response']>;
+	> = StandardSchemaV1.InferOutput<Resources[Resource]['response']>;
 	export function dummyClient<
 		Resources extends AnyResources,
 	>(): Client<Resources>;

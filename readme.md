@@ -123,10 +123,10 @@ Initialize your server with WebSockets:
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import { initServer } from 'smolrpc';
-import { Resources, resources } from './resources';
+import { resources } from './resources';
 import { router } from './router';
 
-const smolrpcServer = initServer<Resources>(router, resources, {
+const smolrpcServer = initServer(router, resources, {
 	serverLogger: {
 		receivedRequest: (request, clientId, remoteAddress) => {
 			console.log(
@@ -224,6 +224,8 @@ TypeScript provides the compile-time type checking and enforces that:
 -   Parameters and return types match your Standard Schema schemas
 -   URL parameters are required and type-checked
 
+Schema transformations follow the runtime validation boundaries. Client request arguments and request wire values are request-schema inputs. The server validates them and passes parsed request-schema outputs to router handlers. Router GET/SET returns and subscription emissions are response-schema inputs; the server validates them and sends response-schema outputs. Client GET/SET results, subscription values, protocol responses/events, and `Result` are therefore response-schema outputs.
+
 This separation of concerns means runtime behavior is handled by JavaScript (the Proxy and WebSocket communication), while type safety is enforced by TypeScript at compile time:
 
 ```ts
@@ -255,7 +257,7 @@ Resources are defined as an object where each key is a URL-like path, and the va
 }
 ```
 
-URL Parameters are defined with a colon prefix (`:paramName`) and are automatically parsed as string/number parameter objects.
+URL Parameters are defined with a colon prefix (`:paramName`) and are automatically parsed as string/number parameter objects. Parameter keys must exactly match every colon-prefixed placeholder; merely supplying the same number of differently named keys is invalid.
 
 ### Client API
 
@@ -316,9 +318,9 @@ client['/path/:param'].subscribe({
 
 ### Server API
 
-#### `initServer<Resources>(router, resources, options?)`
+#### `initServer(router, resources, options?)`
 
-Initializes a server for handling client requests.
+Initializes a server for handling client requests. The resource contract is inferred from `resources`, and `router` must implement that same contract; an explicit generic argument is not needed.
 
 Parameters:
 
@@ -380,6 +382,10 @@ Do not invalidate automatically for ordinary RPC timeout or rejection: those fai
 
 ## Advanced Usage
 
+### BigInt protocol values
+
+The package-root `json_stringify` and `json_parse` exports provide BigInt-aware JSON encoding. Production client and server protocol traffic uses this codec, so BigInt values can be carried in requests, validated responses, and subscription events when the resource schemas allow them. Use the exported codec when manually inspecting or producing compatible frames.
+
 ### Subscription Management
 
 Subscriptions return a standard observable-like interface:
@@ -431,7 +437,7 @@ const { client } = initClient<Resources>({
 The server can log various events through the `serverLogger` option:
 
 ```ts
-const server = initServer<Resources>(router, resources, {
+const server = initServer(router, resources, {
 	serverLogger: {
 		receivedRequest: (request, clientId, remoteAddress) => {
 			/* ... */

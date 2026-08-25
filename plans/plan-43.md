@@ -1,10 +1,31 @@
 # Plan 43: Complete Test-Suite Hardening and Audit Remediation
 
-Status: Proposed
+Status: Implemented with compatibility-preserving amendments
 
 Based on: `plans/plan-42.md` and the independent audit of the complete 90-test suite
 
 Target release: Unassigned
+
+## Implementation status
+
+Implemented on 2026-08-24. All four specified PR scopes are complete in the working tree:
+
+-   **PR 1 — Trustworthy client regression gate:** Completed. The swallowed hook assertion now uses record-then-assert; focused lifecycle, hook, operation, subscription, and protocol suites cover the strengthened Plan 42 cases; throwing hooks/diagnostics and observer reentrancy are isolated; shared client helpers are consolidated; and `tests/client-correctness.test.ts` was retired after focused replacements were added.
+-   **PR 2 — Schema typing, codec, and parameters:** Completed. Transforming-schema boundaries use request inputs, parsed router request outputs, router response inputs, and client/protocol response outputs; `initServer()` infers the shared contract from its resources argument and rejects mismatched router/resources contracts; BigInt codec and representative protocol traffic are covered; string/numeric multi-parameters and cache separation are tested; and generated declarations were rebuilt.
+-   **PR 3 — Deterministic server coverage:** Completed with a compatibility-preserving amendment. Direct server dispatch and subscription suites cover transformed GET/SET/subscribe traffic, rejection and validation paths, malformed input, operation support, exact parameter names, asynchronous-validation diagnostics, connection-local logging, unsubscribe ownership, and failure-isolated close cleanup. The implementation deliberately preserves existing valid-input behavior: numeric request IDs remain governed by the published `number` contract, decoded request objects retain request-associated rejection behavior, parameterless handlers retain `resourceWithParams`, and existing rejection wording, frame property order, handler arguments, and logger metadata are unchanged.
+-   **PR 4 — Package artifact, documentation, and release gate:** Completed. The package test installs the real offline tarball without symlinks, executes it as ESM, compiles an installed declaration consumer, asserts the exact package allowlist and lifecycle TSDoc, and publishes `authentication.md`; documentation and `AGENTS.md` were updated; and verification now builds declarations before tests.
+
+Compatibility takes precedence over the original proposal where they conflict, except for the intentional compile-time improvement that ties `initServer()`'s resources argument to its inferred router contract. That change has no runtime effect; it enables inference for matching contracts and rejects mismatched contracts.
+
+Final verification recorded at implementation:
+
+-   `npm run verify` passed.
+-   Vitest passed **10 files and 125 tests**, with zero skipped or todo tests.
+-   The five race-heavy client suites passed **77 tests in each of five independent runs** without unexpected stderr or unhandled rejections.
+-   The installed tarball executed and consumer-compiled successfully.
+-   The packed artifact contained exactly **18 intentional files**.
+-   A standalone `npm test` did not change working-tree or generated-file status.
+-   `git diff --check` and `git diff --cached --check` passed.
 
 ## Purpose
 

@@ -16,7 +16,7 @@ import { createServer } from 'http';
 import { parse as parseUrl } from 'url';
 import { WebSocketServer } from 'ws';
 import { initServer } from 'smolrpc';
-import { Resources, resources } from './resources';
+import { resources } from './resources';
 import { router } from './router';
 
 // Parse cookies from header
@@ -119,7 +119,7 @@ const server = createServer(async (req, res) => {
 });
 
 // Initialize smolrpc server
-const smolrpcServer = initServer<Resources>(router, resources);
+const smolrpcServer = initServer(router, resources);
 
 // Set up WebSocket server with auth verification
 const wss = new WebSocketServer({
