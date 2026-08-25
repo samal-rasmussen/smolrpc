@@ -78,6 +78,16 @@ function sendGenericReject(
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is number}
+ */
+function isValidProtocolId(value) {
+	return (
+		typeof value === 'number' && Number.isSafeInteger(value) && value > 0
+	);
+}
+
+/**
  * @param {string} resource
  * @param {Params} params
  * @returns {boolean}
@@ -278,11 +288,10 @@ export function initServer(router, resources, options) {
 			return;
 		}
 		const request = /** @type {Request} */ (decoded);
-		if (typeof request.id !== 'number') {
-			sendReject(
+		if (!isValidProtocolId(request.id)) {
+			sendGenericReject(
 				ws,
-				`no id number on request`,
-				request,
+				`invalid request id`,
 				clientId,
 				remoteAddress,
 				options?.serverLogger,
@@ -704,6 +713,17 @@ export function initServer(router, resources, options) {
 			}
 		} else if (request.type === 'UnsubscribeRequest') {
 			try {
+				if (!isValidProtocolId(request.subscriptionId)) {
+					sendReject(
+						ws,
+						'invalid subscription id',
+						request,
+						clientId,
+						remoteAddress,
+						options?.serverLogger,
+					);
+					return;
+				}
 				const websocketListeners = getWebSocketListeners(ws);
 				const subscription = websocketListeners.get(
 					request.subscriptionId,

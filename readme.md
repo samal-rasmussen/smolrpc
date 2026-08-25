@@ -384,7 +384,9 @@ Do not invalidate automatically for ordinary RPC timeout or rejection: those fai
 
 ### BigInt protocol values
 
-The package-root `json_stringify` and `json_parse` exports provide BigInt-aware JSON encoding. Production client and server protocol traffic uses this codec, so BigInt values can be carried in requests, validated responses, and subscription events when the resource schemas allow them. Use the exported codec when manually inspecting or producing compatible frames.
+The package-root `json_stringify` and `json_parse` exports provide BigInt-aware JSON encoding. Production client and server protocol traffic uses this codec, so BigInt values can be carried in requests, validated responses, and subscription events when the resource schemas allow them. Use the exported codec when manually inspecting frames.
+
+The official client generates wire-level request and subscription IDs as positive safe integers.
 
 ### Subscription Management
 

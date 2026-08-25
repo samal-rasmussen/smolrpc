@@ -174,47 +174,144 @@ describe('server request dispatch', () => {
 		expect(log.error).toHaveBeenCalledOnce();
 	});
 
-	it.each([{}, { id: null }] as const)(
-		'preserves request-associated rejection for an object without a numeric id',
-		async (request) => {
+	it.each([
+		[
+			'missing',
+			json_stringify({
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'null',
+			json_stringify({
+				id: null,
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'zero',
+			json_stringify({
+				id: 0,
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'negative zero',
+			json_stringify({
+				id: -0,
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'negative integer',
+			json_stringify({
+				id: -1,
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'fractional number',
+			json_stringify({
+				id: 1.5,
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'unsafe integer',
+			json_stringify({
+				id: Number.MAX_SAFE_INTEGER + 1,
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'non-finite number',
+			'{"id":1e400,"resource":"/get-only","type":"GetRequest"}',
+		],
+		[
+			'string',
+			json_stringify({
+				id: '1',
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'boolean',
+			json_stringify({
+				id: true,
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'object',
+			json_stringify({
+				id: {},
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'array',
+			json_stringify({
+				id: [1],
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+		[
+			'bigint',
+			json_stringify({
+				id: 1n,
+				resource: '/get-only',
+				type: 'GetRequest',
+			}),
+		],
+	] as const)(
+		'generically rejects an invalid %s request id',
+		async (_name, data) => {
+			const get = vi.fn(() => ({ handler: 'ok' }));
 			const log = createServerLogger();
 			const server = initServer(
-				{ '/get-only': { get: () => ({ handler: 'ok' }) } },
+				{ '/get-only': { get } },
 				getOnlyResources,
 				{ serverLogger: log.logger },
 			);
+			const first = new ControlledServerSocket();
 			const socket = new ControlledServerSocket();
+			server.addConnection(first.asWebSocket(), 'first.test');
 			server.addConnection(socket.asWebSocket(), 'invalid.test');
 
-			await socket.receive(json_stringify(request));
-			expect(socket.sentFrames()).toEqual([
-				{
-					error: 'no id number on request',
-					request,
-					type: 'RequestReject',
-				},
-			]);
-			expect(socket.sent).toEqual([
-				json_stringify({
-					type: 'RequestReject',
-					error: 'no id number on request',
-					request,
-				}),
-			]);
+			await socket.receive(data);
+			const reject = { error: 'invalid request id', type: 'Reject' };
+			expect(socket.sentFrames()).toEqual([reject]);
+			expect(socket.sentFrames()[0]).not.toHaveProperty('request');
 			expect(log.sentReject.mock.calls[0]?.slice(0, 4)).toEqual([
-				request,
-				expect.objectContaining({ type: 'RequestReject' }),
-				0,
+				undefined,
+				reject,
+				1,
 				'invalid.test',
 			]);
+			expect(log.receivedRequest).not.toHaveBeenCalled();
+			expect(log.sentResponse).not.toHaveBeenCalled();
+			expect(get).not.toHaveBeenCalled();
+			expect(first.sent).toEqual([]);
 		},
 	);
 
-	it.each([0, -1, 1.5, 9_007_199_254_740_992])(
-		'preserves the existing numeric request-id contract for %s',
+	it.each([1, Number.MAX_SAFE_INTEGER])(
+		'accepts the positive safe-integer request id %s',
 		async (id) => {
+			const get = vi.fn(() => ({ handler: 'ok' }));
 			const server = initServer(
-				{ '/get-only': { get: () => ({ handler: 'ok' }) } },
+				{ '/get-only': { get } },
 				getOnlyResources,
 			);
 			const socket = new ControlledServerSocket();
@@ -226,6 +323,7 @@ describe('server request dispatch', () => {
 					type: 'GetRequest',
 				}),
 			);
+			expect(get).toHaveBeenCalledOnce();
 			expect(socket.sentFrames()).toEqual([
 				{
 					data: { wire: 'ok' },

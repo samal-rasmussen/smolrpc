@@ -67,12 +67,12 @@ function subscribeRequest(id: number, request = 'topic') {
 	} as const;
 }
 
-function unsubscribeRequest(id: number, subscriptionId: number) {
+function unsubscribeRequest(id: number, subscriptionId?: unknown) {
 	return {
 		id,
 		params: { groupId: 'group', itemId: 2 },
 		resource: '/streams/:groupId/items/:itemId',
-		subscriptionId,
+		...(subscriptionId === undefined ? {} : { subscriptionId }),
 		type: 'UnsubscribeRequest',
 	} as const;
 }
@@ -208,7 +208,115 @@ describe('server subscriptions', () => {
 		expect(log.sentReject).toHaveBeenCalledOnce();
 	});
 
-	it('unsubscribes the addressed handle once and rejects unknown IDs', async () => {
+	it.each([
+		['missing', undefined],
+		['null', null],
+		['zero', 0],
+		['negative zero', -0],
+		['negative integer', -1],
+		['fractional number', 1.5],
+		['unsafe integer', Number.MAX_SAFE_INTEGER + 1],
+		['non-finite number', Number.POSITIVE_INFINITY],
+		['string', '1'],
+		['boolean', true],
+		['object', {}],
+		['array', [1]],
+		['bigint', 1n],
+	] as const)(
+		'rejects an invalid %s subscription id without affecting subscriptions',
+		async (_name, subscriptionId) => {
+			const first = controlledSubscribable<number>();
+			const second = controlledSubscribable<number>();
+			const other = controlledSubscribable<number>();
+			const streams = [first, second, other];
+			const subscribe = vi.fn(() => {
+				const stream = streams.shift();
+				if (stream == null) throw new Error('missing stream');
+				return stream.subscribable;
+			});
+			const log = createServerLogger();
+			const server = initServer(
+				{ '/streams/:groupId/items/:itemId': { subscribe } },
+				resources,
+				{ serverLogger: log.logger },
+			);
+			const socket = new ControlledServerSocket();
+			const otherSocket = new ControlledServerSocket();
+			server.addConnection(socket.asWebSocket(), 'invalid.test');
+			server.addConnection(otherSocket.asWebSocket(), 'other.test');
+			await socket.receive(json_stringify(subscribeRequest(1)));
+			await socket.receive(json_stringify(subscribeRequest(2)));
+			await otherSocket.receive(json_stringify(subscribeRequest(1)));
+
+			const request = unsubscribeRequest(3, subscriptionId);
+			const data =
+				subscriptionId === Number.POSITIVE_INFINITY
+					? json_stringify({
+							...request,
+							subscriptionId: null,
+					  }).replace(
+							'"subscriptionId":null',
+							'"subscriptionId":1e400',
+					  )
+					: json_stringify(request);
+			await socket.receive(data);
+
+			const decodedRequest = Object.is(subscriptionId, -0)
+				? { ...request, subscriptionId: 0 }
+				: request;
+			const wireRequest =
+				subscriptionId === Number.POSITIVE_INFINITY
+					? { ...decodedRequest, subscriptionId: null }
+					: decodedRequest;
+			expect(socket.sentFrames().at(-1)).toEqual({
+				error: expect.any(String),
+				request: wireRequest,
+				type: 'RequestReject',
+			});
+			expect(log.sentReject.mock.calls[0]?.slice(0, 4)).toEqual([
+				decodedRequest,
+				expect.objectContaining({
+					request: decodedRequest,
+					type: 'RequestReject',
+				}),
+				0,
+				'invalid.test',
+			]);
+			expect(first.unsubscribe).not.toHaveBeenCalled();
+			expect(second.unsubscribe).not.toHaveBeenCalled();
+			expect(other.unsubscribe).not.toHaveBeenCalled();
+			expect(
+				socket
+					.sentFrames<{ type: string }>()
+					.some(({ type }) => type === 'UnsubscribeAccept'),
+			).toBe(false);
+
+			first.emit(11);
+			second.emit(22);
+			other.emit(33);
+			expect(socket.sentFrames().slice(-2)).toEqual([
+				expect.objectContaining({
+					data: { value: 11 },
+					id: 1,
+					type: 'SubscribeEvent',
+				}),
+				expect.objectContaining({
+					data: { value: 22 },
+					id: 2,
+					type: 'SubscribeEvent',
+				}),
+			]);
+			expect(otherSocket.sentFrames().at(-1)).toEqual(
+				expect.objectContaining({
+					data: { value: 33 },
+					id: 1,
+					type: 'SubscribeEvent',
+				}),
+			);
+		},
+	);
+
+	it('unsubscribes only the addressed handle', async () => {
 		const first = controlledSubscribable<number>();
 		const second = controlledSubscribable<number>();
 		const subscribe = vi
@@ -232,12 +340,31 @@ describe('server subscriptions', () => {
 			resource: '/streams/:groupId/items/:itemId',
 			type: 'UnsubscribeAccept',
 		});
+	});
 
-		await socket.receive(json_stringify(unsubscribeRequest(4, 1)));
-		expect(first.unsubscribe).toHaveBeenCalledOnce();
-		expect(socket.sentFrames().at(-1)).toEqual(
-			expect.objectContaining({ type: 'RequestReject' }),
+	it('rejects an unknown positive safe subscription id', async () => {
+		const stream = controlledSubscribable<number>();
+		const server = initServer(
+			{
+				'/streams/:groupId/items/:itemId': {
+					subscribe: () => stream.subscribable,
+				},
+			},
+			resources,
+			{ serverLogger: createServerLogger().logger },
 		);
+		const socket = new ControlledServerSocket();
+		server.addConnection(socket.asWebSocket());
+		await socket.receive(json_stringify(subscribeRequest(1)));
+		const request = unsubscribeRequest(2, Number.MAX_SAFE_INTEGER);
+		await socket.receive(json_stringify(request));
+
+		expect(stream.unsubscribe).not.toHaveBeenCalled();
+		expect(socket.sentFrames().at(-1)).toEqual({
+			error: 'Not subscribed',
+			request,
+			type: 'RequestReject',
+		});
 	});
 
 	it('detaches a throwing unsubscribe before reporting its rejection', async () => {
