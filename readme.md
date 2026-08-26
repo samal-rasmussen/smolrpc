@@ -21,6 +21,8 @@ A really smol typesafe RPC implementation over WebSockets.
 npm install smolrpc
 ```
 
+Applications also need a Standard Schema-compatible schema library; the examples below use Zod (`npm install zod`). In runtimes without a global `WebSocket`, install a WebSocket implementation such as `ws` and pass it to `initClient`.
+
 ## What is smolrpc?
 
 smolrpc is a lightweight Remote Procedure Call (RPC) library that enables type-safe communication between clients and servers over WebSockets.
@@ -36,8 +38,8 @@ smolrpc allows you to:
 -   Define your API in one place using TypeScript and Standard Schema
 -   Get automatic type-checking on both client and server
 -   Support three operations on user-defined resources: GET, SET, and SUBSCRIBE
--   Use statically typed resource URLs with parsed parameters
--   Have minimal dependencies (bring you own Standard Schema implementation for runtime type-checking. E.g. Zod, io-ts, etc.)
+-   Use statically typed resource paths and path parameters
+-   Bring your own Standard Schema-compatible schema library, such as Zod
 
 ### Inspiration
 
@@ -52,7 +54,7 @@ First, define your API using a resource object with Zod schemas:
 ```ts
 // resources.ts
 import { z } from 'zod';
-import { AnyResources } from 'smolrpc';
+import type { AnyResources } from 'smolrpc';
 
 const post = z.object({
 	content: z.string(),
@@ -84,8 +86,8 @@ Create a router to handle the requests for your resources:
 
 ```ts
 // router.ts
-import { Router } from 'smolrpc';
-import { Resources } from './resources';
+import type { Router } from 'smolrpc';
+import type { Resources } from './resources';
 import { db } from './db'; // your data source
 
 export const router = {
@@ -126,16 +128,7 @@ import { initServer } from 'smolrpc';
 import { resources } from './resources';
 import { router } from './router';
 
-const smolrpcServer = initServer(router, resources, {
-	serverLogger: {
-		receivedRequest: (request, clientId, remoteAddress) => {
-			console.log(
-				`${clientId} ${remoteAddress} ${JSON.stringify(request)}`,
-			);
-		},
-		// other optional logger functions
-	},
-});
+const smolrpcServer = initServer(router, resources);
 
 const server = createServer();
 const wss = new WebSocketServer({ server });
@@ -157,19 +150,25 @@ Initialize and use the typesafe client:
 ```ts
 // client.ts
 import { initClient } from 'smolrpc';
-import { Resources } from './resources';
-import { WebSocket as ws } from 'ws'; // Only for Node.js environments
+import type { Resources } from './resources';
+import { WebSocket as NodeWebSocket } from 'ws'; // Only when no global WebSocket exists
+
+let resolveConnected: () => void;
+const connected = new Promise<void>((resolve) => {
+	resolveConnected = resolve;
+});
 
 const { client } = initClient<Resources>({
 	url: 'ws://localhost:9200',
-	// For Node.js environments
-	createWebSocket: (url) => new ws(url) as any as WebSocket,
+	createWebSocket: (url) => new NodeWebSocket(url) as unknown as WebSocket,
 	reportInternalError: (message, data) => console.error(message, data),
 	webSocketEvents: {
-		open: () => console.log('Connected to server'),
+		open: () => resolveConnected(),
 		close: (event) => console.log(`Closed with code ${event.code}`),
 	},
 });
+
+await connected;
 
 // Get all posts
 const posts = await client['/posts'].get();
@@ -209,22 +208,16 @@ client['/posts/:postId']
 
 ## How Type Safety Works
 
-One of smolrpc's most powerful features is how the client automatically implements the right methods for each resource without you having to write any client-side implementation code.
+The `Client<Resources>` type derives the available paths, operations, arguments, and results from the shared resource contract. At runtime, a JavaScript `Proxy` routes client operations over the WebSocket; the server validates the requested resource and operation before dispatching it.
 
-The client is created using JavaScript's Proxy object, which intercepts property access. When you access a resource path like `client['/posts']`, the proxy:
-
-1. Intercepts the property access and forwards it to handler functions
-2. Returns an object with methods (`get`, `set`, and/or `subscribe`) corresponding to the operations supported by that resource
-3. Handles WebSocket message routing between requests and responses
-
-TypeScript provides the compile-time type checking and enforces that:
+TypeScript enforces that:
 
 -   Only defined resource paths are accessible
 -   Only methods defined in the resource's `type` field are available
 -   Parameters and return types match your Standard Schema schemas
--   URL parameters are required and type-checked
+-   Path parameters are required and type-checked
 
-Schema transformations follow the runtime validation boundaries. Client request arguments and request wire values are request-schema inputs. The server validates them and passes parsed request-schema outputs to router handlers. Router GET/SET returns and subscription emissions are response-schema inputs; the server validates them and sends response-schema outputs. Client GET/SET results, subscription values, protocol responses/events, and `Result` are therefore response-schema outputs.
+Schema transformations follow the runtime validation boundaries. Client request arguments and request wire values are request-schema inputs. The server validates them and passes parsed request-schema outputs to router handlers. Router GET/SET returns, subscription emissions, and the `Result<Resources, Resource>` helper are response-schema inputs; the server validates them and sends response-schema outputs. Client GET/SET results, subscription values, and protocol responses/events are therefore response-schema outputs.
 
 This separation of concerns means runtime behavior is handled by JavaScript (the Proxy and WebSocket communication), while type safety is enforced by TypeScript at compile time:
 
@@ -240,6 +233,76 @@ client['/posts/:postId'].subscribe({
 });
 ```
 
+## Migrating from 0.55.0 to 0.56.0
+
+Valid protocol traffic remains wire-compatible between the official 0.55.0 and 0.56.0 clients and servers. Most migration work is in client lifecycle handling and in code that uses transformed schemas.
+
+### Reconstruct work after reconnect
+
+Operations now belong to the connection generation on which they were created. smolrpc does not move or replay them on a replacement connection.
+
+-   A SET made while stopped or waiting in backoff rejects with `SMOLRPC_UNAVAILABLE` instead of waiting for a future connection.
+-   A SET may wait while its current generation is connecting, but it is rejected if that generation is replaced.
+-   Once native `send()` accepts a SET, a timeout or connection retirement produces `SMOLRPC_MUTATION_OUTCOME_UNKNOWN`. The mutation may already have run; do not blindly retry it.
+-   A subscription terminates with `SMOLRPC_UNAVAILABLE` when its connection is retired. Create a new subscribable and observer after a later logical `open`; an old subscribable never rebinds itself.
+
+Applications that accept mutations while offline must own that queue. Release queued work only after the logical state becomes `open`, and use application-level operation IDs or another idempotency strategy if retrying a mutation could duplicate it. Recreate application state and subscriptions explicitly after reconnect.
+
+### Choose the lifecycle method by intent
+
+`open()` now starts management only from `stopped`. It is a no-op while already connecting, open, or in backoff; use `restart()` when a running client must attempt an immediate replacement.
+
+| If the application needs to…         | Use            |
+| ------------------------------------ | -------------- |
+| Stop and remain stopped              | `close()`      |
+| Resume a deliberately stopped client | `open()`       |
+| Replace or reconnect immediately     | `restart()`    |
+| Mark the current transport unhealthy | `invalidate()` |
+
+A socket deliberately retired by `close()`, `restart()`, or `invalidate()` no longer produces a later `webSocketEvents.close` callback. Put application lifecycle and connection-state handling in `webSocketEvents.statechange`; reserve `close` for native close events from the current socket.
+
+A native `error` event also no longer changes logical readiness by itself. If the application considers that error fatal, call `invalidate()` for normal delayed recovery or `close()` to stop management. Native close still drives automatic recovery.
+
+### Handle stable client errors
+
+Operation failures now use `SmolRpcError`. Branch on `error.code`, not message text, raw strings, or native error objects. In particular, an unavailable GET returns a rejected Promise rather than throwing before returning it, so catch it asynchronously:
+
+```ts
+import { SmolRpcError } from 'smolrpc';
+
+try {
+	await client['/posts'].get();
+} catch (error) {
+	if (error instanceof SmolRpcError && error.code === 'SMOLRPC_UNAVAILABLE') {
+		// Wait for logical open or report offline state.
+	}
+}
+```
+
+Subscription failures are delivered to the observer as `SmolRpcError`. Failures that already have a Promise or observer error channel are no longer duplicated through `reportInternalError`; that callback is reserved for sanitized internal diagnostics.
+
+### Update transformed-schema assumptions
+
+Version 0.56 corrects the public types for transformed schemas. For `StandardSchemaV1<Input, Output>`, the boundaries are:
+
+| Schema   | Producer                        | Consumer                                |
+| -------- | ------------------------------- | --------------------------------------- |
+| Request  | Client provides `Input`         | Router handler receives parsed `Output` |
+| Response | Router returns or emits `Input` | Client receives codec-decoded `Output`  |
+
+If a schema's input and output differ, update router handlers to consume request-schema outputs and client code to consume response-schema outputs.
+
+Every request input and response output that crosses the WebSocket must be stable under the BigInt-aware JSON codec. For example, a response transform that produces a `Date` does not make the client receive a `Date`; JSON transports it as a string. Make the schema output an ISO string and construct the `Date` in application code instead.
+
+If a request schema accepts or transforms `undefined`, update GET and subscribe handlers to expect the successfully parsed request value even when the wire request was absent.
+
+### Other observable changes
+
+-   Connecting SET requests are serialized when `.set()` is called, not when the socket later opens. Do not mutate the request object after the call; `toJSON()` and serialization errors also occur earlier.
+-   Parameter validation rejects wrong names, non-string/non-number values, and parameters on parameterless resources. Correctly typed official clients already satisfy these rules; JavaScript and `any` callers may need changes.
+-   Adding a cached subscriber reentrantly from another observer's `next` callback does not replay the event currently being delivered. Subscribe outside that callback or defer the subscription to a later task if the latest value is required.
+-   Server subscription cleanup is detached before its `unsubscribe()` method runs. Make unsubscribe handles idempotent and non-throwing because cleanup is not retried after an exception.
+
 ## API Reference
 
 ### Resource Definition
@@ -249,15 +312,16 @@ Resources are defined as an object where each key is a URL-like path, and the va
 ```ts
 {
 	[path: string]: {
-		request?: StandardSchemaV1; // Standard Schema for request data
+		request?: StandardSchemaV1; // Required for SET; optional for GET and SUBSCRIBE
 		response: StandardSchemaV1; // Standard Schema for response data
 		type: 'get' | 'set' | 'subscribe' | 'get|set' | 'get|subscribe' | 'set|subscribe' | 'get|set|subscribe';
-		cache?: boolean; // Optional: controls subscription caching behavior
 	}
 }
 ```
 
-URL Parameters are defined with a colon prefix (`:paramName`) and are automatically parsed as string/number parameter objects. Parameter keys must exactly match every colon-prefixed placeholder; merely supplying the same number of differently named keys is invalid.
+Path parameters are defined with a colon prefix (`:paramName`). Callers supply string or number values for those parameters, and smolrpc materializes them into the wire resource path. Parameter keys must exactly match every colon-prefixed placeholder; merely supplying the same number of differently named keys is invalid.
+
+Subscription caching is configured per `subscribe()` call with `cache`; it defaults to `true`.
 
 ### Client API
 
@@ -269,7 +333,7 @@ Parameters:
 
 -   `url`: WebSocket server URL
 -   `createWebSocket?`: Function to create a WebSocket instance (required in environments without native WebSocket)
--   `reportInternalError`: Callback for internal smolrpc client errors that were previously written to `console.error`
+-   `reportInternalError`: Required callback for sanitized internal diagnostics that cannot be returned through an operation
 -   `webSocketEvents`: Object with logical lifecycle and raw WebSocket event handlers
     -   `open?`: Event handler for connection open
     -   `message?`: Event handler for raw messages
@@ -386,7 +450,7 @@ Do not invalidate automatically for ordinary RPC timeout or rejection: those fai
 
 The package-root `json_stringify` and `json_parse` exports provide BigInt-aware JSON encoding. Production client and server protocol traffic uses this codec, so BigInt values can be carried in requests, validated responses, and subscription events when the resource schemas allow them. Use the exported codec when manually inspecting frames.
 
-The official client generates wire-level request and subscription IDs as positive safe integers.
+Schema values that cross the connection must preserve their runtime type and meaning through a `json_stringify`/`json_parse` round trip. Ordinary JSON data and BigInt are supported. Values such as `Date`, `Map`, `Set`, class instances, non-finite numbers, and objects with type-changing `toJSON()` methods are not revived as their original runtime types. Transform those values to a codec-stable representation in the schema, such as an ISO string for a date, and reconstruct richer application objects outside the RPC boundary.
 
 ### Subscription Management
 
@@ -459,14 +523,14 @@ const server = initServer(router, resources, {
 
 ### Authentication
 
-smolrpc supports secure HTTP-only cookie authentication, which is ideal for browser-based applications. For detailed implementation instructions, see the [Authentication Guide](authentication.md).
+Authentication is application-owned. Browser applications can integrate HTTP-only cookie authentication as described in the [Authentication Guide](authentication.md).
 
 ## Troubleshooting
 
 ### Common Issues
 
--   **WebSocket Not Found**: In Node.js or other environments without native WebSocket support, use the `createWebSocket` option
--   **Type Errors**: Ensure your Standard Schema (Zod, io-ts, etc.) schemas match the actual data being sent/received
+-   **WebSocket Not Found**: In runtimes without native WebSocket support, use the `createWebSocket` option
+-   **Type Errors**: Ensure your Standard Schema-compatible schemas match the actual data being sent and received
 -   **Connection Issues**: Check network connectivity and WebSocket server availability
 
 ## How to Run Examples

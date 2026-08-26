@@ -48,4 +48,4 @@ export interface Subscribable<T> {
 export type Result<
 	Resources extends AnyResources,
 	Resource extends keyof Resources,
-> = StandardSchemaV1.InferOutput<Resources[Resource]['response']>;
+> = StandardSchemaV1.InferInput<Resources[Resource]['response']>;

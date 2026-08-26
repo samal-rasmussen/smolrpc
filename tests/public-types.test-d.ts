@@ -15,7 +15,7 @@ import type {
 } from '../src/message.types.ts';
 
 const requestSchema = null as unknown as StandardSchemaV1<string, number>;
-const responseSchema = null as unknown as StandardSchemaV1<boolean, Date>;
+const responseSchema = null as unknown as StandardSchemaV1<boolean, number>;
 
 const resources = {
 	'/get': { response: responseSchema, type: 'get' },
@@ -95,68 +95,74 @@ const router = {
 
 initServer(router, resources);
 
-const getResult: Promise<Date> = client['/get'].get();
-const setResult: Promise<Date> = client['/set'].set({ request: '1' });
-const getSetGetResult: Promise<Date> = client['/get-set'].get({ request: '2' });
-const getSetSetResult: Promise<Date> = client['/get-set'].set({ request: '3' });
-const getSubscribeResult: Promise<Date> = client['/get-subscribe'].get({
+const getResult: Promise<number> = client['/get'].get();
+const setResult: Promise<number> = client['/set'].set({ request: '1' });
+const getSetGetResult: Promise<number> = client['/get-set'].get({
+	request: '2',
+});
+const getSetSetResult: Promise<number> = client['/get-set'].set({
+	request: '3',
+});
+const getSubscribeResult: Promise<number> = client['/get-subscribe'].get({
 	request: '4',
 });
-const getSubscribeStream: Subscribable<Date> = client[
+const getSubscribeStream: Subscribable<number> = client[
 	'/get-subscribe'
 ].subscribe({
 	request: '5',
 });
-const subscribeStream: Subscribable<Date> = client['/subscribe'].subscribe();
-const setSubscribeSetResult: Promise<Date> = client['/set-subscribe'].set({
+const subscribeStream: Subscribable<number> = client['/subscribe'].subscribe();
+const setSubscribeSetResult: Promise<number> = client['/set-subscribe'].set({
 	request: '6',
 });
-const setSubscribeStream: Subscribable<Date> = client[
+const setSubscribeStream: Subscribable<number> = client[
 	'/set-subscribe'
 ].subscribe({
 	request: '7',
 });
-const allGetResult: Promise<Date> = client['/all/:teamId/items/:itemId'].get({
+const allGetResult: Promise<number> = client['/all/:teamId/items/:itemId'].get({
 	params: { itemId: 2, teamId: 'one' },
 	request: '8',
 });
-const allSetResult: Promise<Date> = client['/all/:teamId/items/:itemId'].set({
+const allSetResult: Promise<number> = client['/all/:teamId/items/:itemId'].set({
 	params: { itemId: 'two', teamId: 1 },
 	request: '9',
 });
-const allStream: Subscribable<Date> = client[
+const allStream: Subscribable<number> = client[
 	'/all/:teamId/items/:itemId'
 ].subscribe({
 	params: { itemId: 2, teamId: 'one' },
 	request: '10',
 });
 
-const result: Result<Resources, '/get'> = new Date();
+const result: Result<Resources, '/get'> = true;
 const getResponse: GetResponse<Resources> = {
-	data: new Date(),
+	data: 1,
 	id: 1,
 	resource: '/get',
 	type: 'GetResponse',
 };
 const setSuccess: SetSuccess<Resources> = {
-	data: new Date(),
+	data: 2,
 	id: 2,
 	resource: '/set',
 	type: 'SetSuccess',
 };
 const subscribeEvent: SubscribeEvent<Resources> = {
-	data: new Date(),
+	data: 3,
 	id: 3,
 	resource: '/subscribe',
 	type: 'SubscribeEvent',
 };
 
+// @ts-expect-error Result represents router response-schema input
+const invalidResult: Result<Resources, '/get'> = 1;
 // @ts-expect-error router response producers use response-schema input
-const invalidGetHandler: Router<Resources>['/get']['get'] = () => new Date();
+const invalidGetHandler: Router<Resources>['/get']['get'] = () => 1;
 const invalidSubscribeHandler: Router<Resources>['/subscribe']['subscribe'] =
 	() =>
 		// @ts-expect-error subscription producers emit response-schema input
-		null as unknown as Subscribable<Date>;
+		null as unknown as Subscribable<number>;
 const incompatibleResources = {
 	...resources,
 	'/get': { response: requestSchema, type: 'get' },
@@ -214,5 +220,6 @@ void result;
 void getResponse;
 void setSuccess;
 void subscribeEvent;
+void invalidResult;
 void invalidGetHandler;
 void invalidSubscribeHandler;

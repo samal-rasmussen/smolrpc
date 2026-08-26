@@ -139,6 +139,56 @@ describe('server request dispatch', () => {
 		]);
 	});
 
+	it('passes a parsed GET request when an absent wire value transforms successfully', async () => {
+		const absentRequestSchema = schema<undefined, number>((value) =>
+			value === undefined
+				? { value: 42 }
+				: { issues: [{ message: 'expected undefined' }] },
+		);
+		const numberResponseSchema = schema<number, number>((value) =>
+			typeof value === 'number'
+				? { value }
+				: { issues: [{ message: 'expected number' }] },
+		);
+		const transformedResources = {
+			'/transformed': {
+				request: absentRequestSchema,
+				response: numberResponseSchema,
+				type: 'get',
+			},
+		} as const satisfies AnyResources;
+		const get = vi.fn(({ request }: { request: number }) => request);
+		const server = initServer(
+			{ '/transformed': { get } },
+			transformedResources,
+		);
+		const socket = new ControlledServerSocket();
+		server.addConnection(socket.asWebSocket());
+
+		await socket.receive(
+			json_stringify({
+				id: 1,
+				resource: '/transformed',
+				type: 'GetRequest',
+			}),
+		);
+
+		expect(get).toHaveBeenCalledWith({
+			clientId: 0,
+			request: 42,
+			resource: '/transformed',
+			resourceWithParams: '/transformed',
+		});
+		expect(socket.sentFrames()).toEqual([
+			{
+				data: 42,
+				id: 1,
+				resource: '/transformed',
+				type: 'GetResponse',
+			},
+		]);
+	});
+
 	it.each([
 		['non-string data', new Uint8Array([1, 2, 3])],
 		['malformed JSON', '{'],

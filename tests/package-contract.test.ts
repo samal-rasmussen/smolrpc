@@ -188,7 +188,7 @@ import type {
   SubscribeEvent,
 } from 'smolrpc';
 const request = null as unknown as StandardSchemaV1<string, number>;
-const response = null as unknown as StandardSchemaV1<boolean, Date>;
+const response = null as unknown as StandardSchemaV1<boolean, number>;
 const resources = {
   '/get': { response, type: 'get' },
   '/set': { request, response, type: 'set' },
@@ -215,8 +215,8 @@ const router = {
 } satisfies Router<Resources>;
 initServer(router, resources);
 declare const client: Client<Resources>;
-const output: Promise<Date> = client['/set'].set({ request: '1' });
-const stream: Subscribable<Date> = client['/all/:teamId/items/:itemId'].subscribe({
+const output: Promise<number> = client['/set'].set({ request: '1' });
+const stream: Subscribable<number> = client['/all/:teamId/items/:itemId'].subscribe({
   params: { teamId: 'one', itemId: 2 }, request: '2'
 });
 // @ts-expect-error unsupported method
@@ -232,7 +232,7 @@ methods.close(); methods.open(); methods.restart(); methods.invalidate();
 const state: ClientTransportState = 'backoff';
 const events: ClientWebSocketEvents = { statechange(next) { const current: ClientTransportState = next; void current; } };
 const params: ResourceParams<'/all/:teamId/items/:itemId'> = { teamId: 1, itemId: '2' };
-const result: Result<Resources, '/get'> = new Date();
+const result: Result<Resources, '/get'> = true;
 declare const protocolResponse: Response<Resources>;
 declare const protocolEvent: SubscribeEvent<Resources>;
 const code: SmolRpcErrorCode = 'SMOLRPC_TIMEOUT';

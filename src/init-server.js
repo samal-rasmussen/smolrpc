@@ -388,8 +388,11 @@ export function initServer(router, resources, options) {
 					clientId,
 					resource: request.resource,
 				});
-				if (request.request != null) {
+				if (requestSchema != null) {
 					args.request = parsedGetRequestValue;
+				} else if (request.request != null) {
+					// Preserve schema-less request values accepted from JavaScript or direct wire callers.
+					args.request = request.request;
 				}
 				if (request.params != null) {
 					const resourceWithParams = getResourceWithParams(
@@ -612,8 +615,11 @@ export function initServer(router, resources, options) {
 					clientId,
 					resource: request.resource,
 				});
-				if (request.request != null) {
+				if (requestSchema != null) {
 					args.request = parsedSubscribeRequestValue;
+				} else if (request.request != null) {
+					// Preserve schema-less request values accepted from JavaScript or direct wire callers.
+					args.request = request.request;
 				}
 				if (request.params != null) {
 					const resourceWithParams = getResourceWithParams(

@@ -102,6 +102,58 @@ describe('server subscriptions', () => {
 		});
 	});
 
+	it('passes a parsed subscribe request when an absent wire value transforms successfully', async () => {
+		const absentRequestSchema = schema<undefined, number>((value) =>
+			value === undefined
+				? { value: 42 }
+				: { issues: [{ message: 'expected undefined' }] },
+		);
+		const numberResponseSchema = schema<number, number>((value) =>
+			typeof value === 'number'
+				? { value }
+				: { issues: [{ message: 'expected number' }] },
+		);
+		const transformedResources = {
+			'/transformed': {
+				request: absentRequestSchema,
+				response: numberResponseSchema,
+				type: 'subscribe',
+			},
+		} as const satisfies AnyResources;
+		const stream = controlledSubscribable<number>();
+		const subscribe = vi.fn(
+			(_args: { request: number }) => stream.subscribable,
+		);
+		const server = initServer(
+			{ '/transformed': { subscribe } },
+			transformedResources,
+		);
+		const socket = new ControlledServerSocket();
+		server.addConnection(socket.asWebSocket());
+
+		await socket.receive(
+			json_stringify({
+				id: 1,
+				resource: '/transformed',
+				type: 'SubscribeRequest',
+			}),
+		);
+
+		expect(subscribe).toHaveBeenCalledWith({
+			clientId: 0,
+			request: 42,
+			resource: '/transformed',
+			resourceWithParams: '/transformed',
+		});
+		expect(socket.sentFrames()).toEqual([
+			{
+				id: 1,
+				resource: '/transformed',
+				type: 'SubscribeAccept',
+			},
+		]);
+	});
+
 	it('accepts before synchronous transformed events and logs exact metadata', async () => {
 		const stream = controlledSubscribable({ initial: 10n });
 		const subscribe = vi.fn(() => stream.subscribable);
