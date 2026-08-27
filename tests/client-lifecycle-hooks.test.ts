@@ -49,7 +49,9 @@ describe('client lifecycle hooks and method matrix', () => {
 				firstSocket.open();
 				const pending = setup.client['/counter'].get();
 				const request = frames(firstSocket).at(-1);
-				if (request == null) throw new Error('missing request');
+				if (request == null) {
+					throw new Error('missing request');
+				}
 				firstSocket.message({
 					data: 1,
 					id: request.id,
@@ -76,11 +78,15 @@ describe('client lifecycle hooks and method matrix', () => {
 				expect.stringContaining(`webSocketEvents.${hook} hook threw`),
 				expect.objectContaining({ error: expect.any(Error) }),
 			);
-			if (setup.states.at(-1) !== 'open') setup.factory.latest.open();
+			if (setup.states.at(-1) !== 'open') {
+				setup.factory.latest.open();
+			}
 			const socket = setup.factory.latest;
 			const fresh = setup.client['/counter'].get();
 			const request = frames(socket).at(-1);
-			if (request == null) throw new Error('missing fresh request');
+			if (request == null) {
+				throw new Error('missing fresh request');
+			}
 			socket.message({
 				data: 2,
 				id: request.id,
@@ -109,7 +115,9 @@ describe('client lifecycle hooks and method matrix', () => {
 
 		const result = setup.client['/counter'].get();
 		const request = frames(socket).at(-1);
-		if (request == null) throw new Error('missing request');
+		if (request == null) {
+			throw new Error('missing request');
+		}
 		socket.message({
 			data: 3,
 			id: request.id,
@@ -183,7 +191,9 @@ describe('client lifecycle hooks and method matrix', () => {
 		expect(restartDuringConstruction.states).toEqual(['connecting']);
 		const winningAttempt =
 			restartDuringConstruction.factory.attempts.at(-1);
-		if (winningAttempt == null) throw new Error('missing winning attempt');
+		if (winningAttempt == null) {
+			throw new Error('missing winning attempt');
+		}
 		winningAttempt.open();
 		expect(restartDuringConstruction.states).toEqual([
 			'connecting',
@@ -287,8 +297,11 @@ describe('client lifecycle hooks and method matrix', () => {
 				});
 			setup.states.length = 0;
 
-			if (trigger === 'peerClose') socket.peerClose();
-			else setup.clientMethods[trigger]();
+			if (trigger === 'peerClose') {
+				socket.peerClose();
+			} else {
+				setup.clientMethods[trigger]();
+			}
 			await expect(set).rejects.toEqual(
 				errorCode('SMOLRPC_MUTATION_OUTCOME_UNKNOWN'),
 			);
@@ -354,7 +367,9 @@ describe('client lifecycle hooks and method matrix', () => {
 		async ({ at, call, sockets, states, trigger }) => {
 			const setup = createClient();
 			const socket = setup.factory.latest;
-			if (trigger !== 'open') socket.open();
+			if (trigger !== 'open') {
+				socket.open();
+			}
 			const pending =
 				trigger === 'open'
 					? setup.client['/counter/set'].set({ request: 1 })
@@ -362,15 +377,21 @@ describe('client lifecycle hooks and method matrix', () => {
 			let reentered = false;
 			setup.events.statechange.mockImplementation((state) => {
 				setup.states.push(state);
-				if (state !== at || reentered) return;
+				if (state !== at || reentered) {
+					return;
+				}
 				reentered = true;
 				setup.clientMethods[call]();
 			});
 			setup.states.length = 0;
 
-			if (trigger === 'open') socket.open();
-			else if (trigger === 'peerClose') socket.peerClose();
-			else setup.clientMethods.restart();
+			if (trigger === 'open') {
+				socket.open();
+			} else if (trigger === 'peerClose') {
+				socket.peerClose();
+			} else {
+				setup.clientMethods.restart();
+			}
 
 			await expect(pending).rejects.toEqual(
 				errorCode('SMOLRPC_UNAVAILABLE'),
@@ -397,8 +418,11 @@ describe('client lifecycle hooks and method matrix', () => {
 			const setup = createClient();
 			const retiredSocket = setup.factory.latest;
 			retiredSocket.open();
-			if (route === 'unexpected') retiredSocket.peerClose();
-			else setup.clientMethods[route]();
+			if (route === 'unexpected') {
+				retiredSocket.peerClose();
+			} else {
+				setup.clientMethods[route]();
+			}
 			const states = [...setup.states];
 			const closeHooks = setup.events.close.mock.calls.length;
 			const attempts = setup.factory.attempts.length;
@@ -506,8 +530,9 @@ describe('client lifecycle hooks and method matrix', () => {
 			expect(setup.events.reconnect).not.toHaveBeenCalled();
 			expect(setup.reportInternalError).not.toHaveBeenCalled();
 			const winningAttempt = setup.factory.attempts.at(-1);
-			if (winningAttempt == null)
+			if (winningAttempt == null) {
 				throw new Error('missing winning attempt');
+			}
 			expect(winningAttempt.closeCalls).toHaveLength(0);
 		},
 	);

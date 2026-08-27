@@ -255,14 +255,18 @@ export function initClientProxy(websocket, reportInternalError) {
 				},
 				/** @param {SmolRpcError} error */
 				fail(error) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					settled = true;
 					record.detach();
 					reject(error);
 				},
 				/** @param {SmolRpcError} error */
 				failNonDefinitive(error) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					record.detach();
 					if (record.phase === 'sending') {
 						pendingError = error;
@@ -272,13 +276,17 @@ export function initClientProxy(websocket, reportInternalError) {
 				},
 				/** @param {unknown} value */
 				succeed(value) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					settled = true;
 					record.detach();
 					resolve(value);
 				},
 				prepareRetirement() {
-					if (settled) return undefined;
+					if (settled) {
+						return undefined;
+					}
 					const error = clientError(
 						'SMOLRPC_UNAVAILABLE',
 						`GET request on ${resource} was interrupted because the connection became unavailable.`,
@@ -298,7 +306,9 @@ export function initClientProxy(websocket, reportInternalError) {
 				},
 				/** @param {unknown} message */
 				handleMessage(message) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					if (
 						isMatchingRejection(
 							message,
@@ -367,7 +377,9 @@ export function initClientProxy(websocket, reportInternalError) {
 				frame,
 				serialized,
 			);
-			if (settled || result.kind === 'settled') return;
+			if (settled || result.kind === 'settled') {
+				return;
+			}
 			if (result.kind === 'threw') {
 				record.fail(
 					clientError(
@@ -511,14 +523,18 @@ export function initClientProxy(websocket, reportInternalError) {
 				},
 				/** @param {SmolRpcError} error */
 				fail(error) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					settled = true;
 					record.detach();
 					reject(error);
 				},
 				/** @param {SmolRpcError} error */
 				failNonDefinitive(error) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					record.detach();
 					if (record.phase === 'sending') {
 						pendingError = error;
@@ -532,13 +548,17 @@ export function initClientProxy(websocket, reportInternalError) {
 				},
 				/** @param {unknown} value */
 				succeed(value) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					settled = true;
 					record.detach();
 					resolve(value);
 				},
 				prepareRetirement() {
-					if (settled) return undefined;
+					if (settled) {
+						return undefined;
+					}
 					const unavailable = clientError(
 						'SMOLRPC_UNAVAILABLE',
 						`SET request on ${resource} was interrupted because the connection became unavailable.`,
@@ -564,7 +584,9 @@ export function initClientProxy(websocket, reportInternalError) {
 				},
 				/** @param {unknown} message */
 				handleMessage(message) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					if (
 						isMatchingRejection(
 							message,
@@ -611,21 +633,27 @@ export function initClientProxy(websocket, reportInternalError) {
 					);
 				},
 				onOpen() {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
 					generation.setWaiters.delete(record);
 					sendSet();
 				},
 			};
 
 			function sendSet() {
-				if (settled) return;
+				if (settled) {
+					return;
+				}
 				const result = websocket.sendFrame(
 					generation,
 					record,
 					frame,
 					serialized,
 				);
-				if (settled || result.kind === 'settled') return;
+				if (settled || result.kind === 'settled') {
+					return;
+				}
 				if (result.kind === 'threw') {
 					record.fail(
 						clientError(
@@ -830,7 +858,9 @@ export function initClientProxy(websocket, reportInternalError) {
 			 * @param {boolean} deferWhileSending
 			 */
 			fail(error, deferWhileSending) {
-				if (status === 'terminal') return;
+				if (status === 'terminal') {
+					return;
+				}
 				const recipients = [...observers];
 				observers.clear();
 				record.detach();
@@ -844,7 +874,9 @@ export function initClientProxy(websocket, reportInternalError) {
 				deliverErrors(recipients, error);
 			},
 			prepareRetirement() {
-				if (status === 'terminal') return undefined;
+				if (status === 'terminal') {
+					return undefined;
+				}
 				const error = clientError(
 					'SMOLRPC_UNAVAILABLE',
 					`Subscription on ${resource} ended because the connection became unavailable.`,
@@ -868,7 +900,9 @@ export function initClientProxy(websocket, reportInternalError) {
 			},
 			/** @param {unknown} message */
 			handleMessage(message) {
-				if (status !== 'active') return;
+				if (status !== 'active') {
+					return;
+				}
 				if (
 					isMatchingRejection(
 						message,
@@ -1013,7 +1047,9 @@ export function initClientProxy(websocket, reportInternalError) {
 				frame,
 				serialized,
 			);
-			if (result.kind === 'settled') return;
+			if (result.kind === 'settled') {
+				return;
+			}
 			if (result.kind === 'threw') {
 				if (definiteResponse && pendingObservers == null) {
 					return;
@@ -1049,7 +1085,9 @@ export function initClientProxy(websocket, reportInternalError) {
 				);
 				return;
 			}
-			if (status === 'active') record.phase = 'sent';
+			if (status === 'active') {
+				record.phase = 'sent';
+			}
 			if (pendingError != null) {
 				finishPending(pendingError);
 			}
@@ -1057,7 +1095,9 @@ export function initClientProxy(websocket, reportInternalError) {
 
 		/** @param {number} subscriptionId */
 		function sendUnsubscribe(subscriptionId) {
-			if (!websocket.isCurrentOpen(generation)) return;
+			if (!websocket.isCurrentOpen(generation)) {
+				return;
+			}
 			const ackStartedAt = Date.now();
 			const ackId = websocket.allocateRequestId(generation);
 			/** @type {Request} */
@@ -1126,7 +1166,9 @@ export function initClientProxy(websocket, reportInternalError) {
 					}
 				},
 				prepareRetirement() {
-					if (settled) return undefined;
+					if (settled) {
+						return undefined;
+					}
 					ack.detach();
 					if (ack.phase === 'sending') {
 						retirementPending = true;
@@ -1236,7 +1278,9 @@ export function initClientProxy(websocket, reportInternalError) {
 				frame,
 				serialized,
 			);
-			if (settled || result.kind === 'settled') return;
+			if (settled || result.kind === 'settled') {
+				return;
+			}
 			if (result.kind === 'threw') {
 				ack.detach();
 				settled = true;
@@ -1283,7 +1327,9 @@ export function initClientProxy(websocket, reportInternalError) {
 		}
 
 		function beginLocalUnsubscribe() {
-			if (status !== 'active') return;
+			if (status !== 'active') {
+				return;
+			}
 			const subscriptionId = requestId;
 			record.detach();
 			status = 'idle';
@@ -1302,7 +1348,9 @@ export function initClientProxy(websocket, reportInternalError) {
 			let unsubscribed = false;
 			return {
 				unsubscribe() {
-					if (unsubscribed) return;
+					if (unsubscribed) {
+						return;
+					}
 					unsubscribed = true;
 					observers.delete(recipient);
 					if (observers.size === 0) {
@@ -1466,6 +1514,8 @@ export function dummyClient() {
  * @returns {string}
  */
 function getCacheKey(resourceWithParams, request) {
-	if (request == null) return resourceWithParams;
+	if (request == null) {
+		return resourceWithParams;
+	}
 	return `${resourceWithParams}-${json_stringify(request)}`;
 }

@@ -26,7 +26,9 @@ export type Frame = {
 
 export function createClient(plans: ControlledSocketPlan[] = []) {
 	const factory = new ControlledWebSocketFactory();
-	for (const plan of plans) factory.enqueue(plan);
+	for (const plan of plans) {
+		factory.enqueue(plan);
+	}
 	const states: ClientTransportState[] = [];
 	const events = {
 		close: vi.fn(),

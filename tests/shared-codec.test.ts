@@ -41,7 +41,9 @@ describe('BigInt JSON codec', () => {
 
 		const get = (setup.client['/counter'] as any).get({ request: 10n });
 		const getRequest = frames(socket).at(-1);
-		if (getRequest == null) throw new Error('missing GET request');
+		if (getRequest == null) {
+			throw new Error('missing GET request');
+		}
 		expect(getRequest.request).toBe(10n);
 		socket.message({
 			data: -11n,
@@ -53,7 +55,9 @@ describe('BigInt JSON codec', () => {
 
 		const set = (setup.client['/counter/set'] as any).set({ request: 12n });
 		const setRequest = frames(socket).at(-1);
-		if (setRequest == null) throw new Error('missing SET request');
+		if (setRequest == null) {
+			throw new Error('missing SET request');
+		}
 		expect(setRequest.request).toBe(12n);
 		socket.message({
 			data: 13n,
@@ -70,8 +74,9 @@ describe('BigInt JSON codec', () => {
 		});
 		subscription.subscribe({ next });
 		const subscribeRequest = frames(socket).at(-1);
-		if (subscribeRequest == null)
+		if (subscribeRequest == null) {
 			throw new Error('missing subscribe request');
+		}
 		expect(subscribeRequest.request).toBe(14n);
 		socket.message({
 			data: 15n,

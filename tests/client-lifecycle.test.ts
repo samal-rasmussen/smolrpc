@@ -27,7 +27,9 @@ describe('recovery lifecycle methods', () => {
 		replacement.open();
 		const pending = setup.client['/counter'].get();
 		const request = frames(replacement).at(-1);
-		if (request == null) throw new Error('missing replacement request');
+		if (request == null) {
+			throw new Error('missing replacement request');
+		}
 		const hooks = {
 			close: setup.events.close.mock.calls.length,
 			error: setup.events.error.mock.calls.length,
@@ -194,7 +196,9 @@ describe('recovery lifecycle methods', () => {
 		const winningSocket = setup.factory.attempts.at(-1);
 		expect(supersededSocket?.closeCalls).toHaveLength(1);
 		expect(winningSocket?.closeCalls).toHaveLength(0);
-		if (winningSocket == null) throw new Error('missing winning socket');
+		if (winningSocket == null) {
+			throw new Error('missing winning socket');
+		}
 		winningSocket.open();
 		expect(setup.states.at(-1)).toBe('open');
 	});
@@ -205,7 +209,9 @@ describe('recovery lifecycle methods', () => {
 		const pending = setup.client['/counter'].get();
 		setup.events.statechange.mockImplementation((state) => {
 			setup.states.push(state);
-			if (state === 'unavailable') setup.clientMethods.close();
+			if (state === 'unavailable') {
+				setup.clientMethods.close();
+			}
 		});
 		setup.states.length = 0;
 
@@ -287,7 +293,9 @@ describe('recovery lifecycle methods', () => {
 			const failure = new Error('handler installation failed');
 			const plan = {
 				onHandlerInstalled(_socket: unknown, handler: string) {
-					if (handler === 'message') throw failure;
+					if (handler === 'message') {
+						throw failure;
+					}
 				},
 			};
 			const setup =

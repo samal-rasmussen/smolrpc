@@ -61,9 +61,11 @@ describe('client generation and operations', () => {
 				},
 			);
 			settle();
-			if (expectedCode == null) await expect(observed).resolves.toBe(1);
-			else
+			if (expectedCode == null) {
+				await expect(observed).resolves.toBe(1);
+			} else {
 				await expect(observed).rejects.toEqual(errorCode(expectedCode));
+			}
 			expect(vi.getTimerCount()).toBe(0);
 			vi.advanceTimersByTime(OPERATION_TIMEOUT_MS);
 			await Promise.resolve();
@@ -224,7 +226,9 @@ describe('client generation and operations', () => {
 		'rejects GET and settles SET without sending while %s',
 		async (state) => {
 			const setup = createClient();
-			if (state === 'stopped') setup.clientMethods.close();
+			if (state === 'stopped') {
+				setup.clientMethods.close();
+			}
 			if (state === 'backoff') {
 				setup.factory.latest.open();
 				setup.factory.latest.peerClose();
@@ -339,8 +343,11 @@ describe('client generation and operations', () => {
 			]);
 			setup.factory.latest.open();
 			const result = setup.client['/counter/set'].set({ request: 3 });
-			if (expected == null) await expect(result).resolves.toBe(3);
-			else await expect(result).rejects.toEqual(errorCode(expected));
+			if (expected == null) {
+				await expect(result).resolves.toBe(3);
+			} else {
+				await expect(result).rejects.toEqual(errorCode(expected));
+			}
 			vi.advanceTimersByTime(OPERATION_TIMEOUT_MS);
 			expect(vi.getTimerCount()).toBe(0);
 		},
@@ -360,7 +367,9 @@ describe('client generation and operations', () => {
 						order.push('send-entered');
 						close();
 						order.push('retirement-returned');
-						if (throws) throw new Error('native send failed');
+						if (throws) {
+							throw new Error('native send failed');
+						}
 					},
 				},
 			]);
@@ -385,7 +394,9 @@ describe('client generation and operations', () => {
 			replacement.open();
 			const fresh = setup.client['/counter'].get();
 			const request = frames(replacement).at(-1);
-			if (request == null) throw new Error('missing replacement request');
+			if (request == null) {
+				throw new Error('missing replacement request');
+			}
 			replacement.message({
 				data: 21,
 				id: request.id,
@@ -507,7 +518,9 @@ describe('client generation and operations', () => {
 						order.push('send-entered');
 						close();
 						order.push('retirement-returned');
-						if (throws) throw new Error('native send failed');
+						if (throws) {
+							throw new Error('native send failed');
+						}
 					},
 				},
 			]);

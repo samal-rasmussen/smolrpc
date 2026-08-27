@@ -34,7 +34,9 @@ describe('client protocol frames and metadata', () => {
 
 		const get = setup.client[path].get({ params, request: 1 });
 		const getRequest = frames(socket).at(-1);
-		if (getRequest == null) throw new Error('missing GET request');
+		if (getRequest == null) {
+			throw new Error('missing GET request');
+		}
 		expect(getRequest).toMatchObject({
 			params,
 			request: 1,
@@ -54,7 +56,9 @@ describe('client protocol frames and metadata', () => {
 			request: 2,
 		});
 		const setRequest = frames(socket).at(-1);
-		if (setRequest == null) throw new Error('missing SET request');
+		if (setRequest == null) {
+			throw new Error('missing SET request');
+		}
 		expect(setRequest).toMatchObject({
 			params: { itemId: 'item', teamId: 7 },
 			request: 2,
@@ -142,7 +146,9 @@ describe('client protocol frames and metadata', () => {
 			request: sentinel,
 		});
 		const request = frames(socket).at(-1);
-		if (request == null) throw new Error('missing request');
+		if (request == null) {
+			throw new Error('missing request');
+		}
 		socket.message({
 			id: request.id,
 			resource: request.resource,

@@ -33,7 +33,9 @@ function npmCliPath() {
 		resolve(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js'),
 	].filter((candidate): candidate is string => candidate != null);
 	const cli = candidates.find(existsSync);
-	if (cli == null) throw new Error('Unable to locate the npm CLI');
+	if (cli == null) {
+		throw new Error('Unable to locate the npm CLI');
+	}
 	return cli;
 }
 
@@ -88,8 +90,9 @@ describe('published package contract', () => {
 					repositoryRoot,
 				),
 			) as PackResult;
-			if (smolrpcPack == null)
+			if (smolrpcPack == null) {
 				throw new Error('npm pack returned no package');
+			}
 			expect(smolrpcPack.files.map(({ path }) => path).sort()).toEqual(
 				expectedPackagePaths,
 			);
@@ -111,8 +114,9 @@ describe('published package contract', () => {
 					repositoryRoot,
 				),
 			) as PackResult;
-			if (standardSchemaPack == null)
+			if (standardSchemaPack == null) {
 				throw new Error('npm pack returned no Standard Schema package');
+			}
 
 			const consumerDirectory = join(temporaryRoot, 'consumer');
 			mkdirSync(consumerDirectory);

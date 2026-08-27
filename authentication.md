@@ -22,7 +22,9 @@ import { router } from './router';
 // Parse cookies from header
 function parseCookies(cookieHeader) {
 	const cookies = {};
-	if (!cookieHeader) return cookies;
+	if (!cookieHeader) {
+		return cookies;
+	}
 
 	cookieHeader.split(';').forEach((cookie) => {
 		const [name, value] = cookie.trim().split('=');
@@ -36,10 +38,18 @@ function parseCookies(cookieHeader) {
 function serializeCookie(name, value, options = {}) {
 	let cookie = `${name}=${encodeURIComponent(value)}`;
 
-	if (options.httpOnly) cookie += '; HttpOnly';
-	if (options.secure) cookie += '; Secure';
-	if (options.sameSite) cookie += `; SameSite=${options.sameSite}`;
-	if (options.maxAge) cookie += `; Max-Age=${options.maxAge}`;
+	if (options.httpOnly) {
+		cookie += '; HttpOnly';
+	}
+	if (options.secure) {
+		cookie += '; Secure';
+	}
+	if (options.sameSite) {
+		cookie += `; SameSite=${options.sameSite}`;
+	}
+	if (options.maxAge) {
+		cookie += `; Max-Age=${options.maxAge}`;
+	}
 
 	return cookie;
 }
@@ -182,7 +192,9 @@ async function login(username, password) {
 			credentials: 'include',
 		});
 
-		if (!response.ok) throw new Error('Login failed');
+		if (!response.ok) {
+			throw new Error('Login failed');
+		}
 
 		// The replacement handshake includes the new authentication cookie.
 		clientMethods.restart();
@@ -200,7 +212,9 @@ async function logout() {
 			credentials: 'include',
 		});
 
-		if (!response.ok) throw new Error('Logout failed');
+		if (!response.ok) {
+			throw new Error('Logout failed');
+		}
 
 		// This server rejects unauthenticated WebSocket connections, so stop
 		// connection management rather than entering automatic reconnect backoff.

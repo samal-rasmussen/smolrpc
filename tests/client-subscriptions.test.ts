@@ -30,7 +30,9 @@ describe('client subscriptions and protocol dispatch', () => {
 		const firstNext = vi.fn();
 		subscription.subscribe({ next: firstNext });
 		const request = frames(socket).at(-1);
-		if (request == null) throw new Error('missing request');
+		if (request == null) {
+			throw new Error('missing request');
+		}
 		socket.message({
 			data: undefined,
 			id: request.id,
@@ -97,7 +99,9 @@ describe('client subscriptions and protocol dispatch', () => {
 			{
 				onSend(socket, data) {
 					const frame = JSON.parse(data) as Frame;
-					if (frame.type !== 'SubscribeRequest') return;
+					if (frame.type !== 'SubscribeRequest') {
+						return;
+					}
 					socket.message({
 						id: frame.id,
 						resource: frame.resource,
@@ -175,7 +179,9 @@ describe('client subscriptions and protocol dispatch', () => {
 		const unsubscribe = frames(socket).find(
 			({ type }) => type === 'UnsubscribeRequest',
 		);
-		if (unsubscribe == null) throw new Error('missing unsubscribe');
+		if (unsubscribe == null) {
+			throw new Error('missing unsubscribe');
+		}
 
 		socket.message({
 			error: 'denied',
@@ -198,7 +204,9 @@ describe('client subscriptions and protocol dispatch', () => {
 			{
 				onSend(socket, data) {
 					const frame = JSON.parse(data) as Frame;
-					if (frame.type !== 'SubscribeRequest') return;
+					if (frame.type !== 'SubscribeRequest') {
+						return;
+					}
 					socket.message({
 						error: 'denied',
 						request: frame,
@@ -259,7 +267,9 @@ describe('client subscriptions and protocol dispatch', () => {
 		const lateNext = vi.fn();
 		let added = false;
 		const firstNext = vi.fn(() => {
-			if (added) return;
+			if (added) {
+				return;
+			}
 			added = true;
 			subscription.subscribe({ next: lateNext });
 		});
@@ -267,7 +277,9 @@ describe('client subscriptions and protocol dispatch', () => {
 		subscription.subscribe({ next: firstNext });
 		subscription.subscribe({ next: secondNext });
 		const request = frames(socket).at(-1);
-		if (request == null) throw new Error('missing subscription request');
+		if (request == null) {
+			throw new Error('missing subscription request');
+		}
 
 		socket.message({
 			data: 1,
@@ -301,7 +313,9 @@ describe('client subscriptions and protocol dispatch', () => {
 		ownHandle = ownSubscription.subscribe({ next: ownNext });
 		ownSubscription.subscribe({ next: laterNext });
 		const ownRequest = frames(ownSocket).at(-1);
-		if (ownRequest == null) throw new Error('missing own request');
+		if (ownRequest == null) {
+			throw new Error('missing own request');
+		}
 		ownSocket.message({
 			data: 1,
 			id: ownRequest.id,
@@ -327,7 +341,9 @@ describe('client subscriptions and protocol dispatch', () => {
 		otherSubscription.subscribe({ next: firstNext });
 		otherHandle = otherSubscription.subscribe({ next: removedNext });
 		const otherRequest = frames(otherSocket).at(-1);
-		if (otherRequest == null) throw new Error('missing other request');
+		if (otherRequest == null) {
+			throw new Error('missing other request');
+		}
 		otherSocket.message({
 			data: 3,
 			id: otherRequest.id,
@@ -352,7 +368,9 @@ describe('client subscriptions and protocol dispatch', () => {
 			subscription.subscribe({ error: firstError, next: firstNext });
 			subscription.subscribe({ error: secondError, next: secondNext });
 			const request = frames(socket).at(-1);
-			if (request == null) throw new Error('missing request');
+			if (request == null) {
+				throw new Error('missing request');
+			}
 			socket.message({
 				data: 4,
 				id: request.id,
@@ -518,7 +536,9 @@ describe('client subscriptions and protocol dispatch', () => {
 		]) {
 			const set = setup.client['/counter/set'].set({ request: 10 });
 			const request = frames(socket).at(-1);
-			if (request == null) throw new Error('missing SET request');
+			if (request == null) {
+				throw new Error('missing SET request');
+			}
 			socket.message(response(request.id));
 			await expect(set).rejects.toEqual(
 				errorCode('SMOLRPC_MUTATION_OUTCOME_UNKNOWN'),
@@ -569,7 +589,9 @@ describe('client subscriptions and protocol dispatch', () => {
 		const oldUnsubscribe = frames(oldSocket).find(
 			(frame) => frame.type === 'UnsubscribeRequest',
 		);
-		if (oldUnsubscribe == null) throw new Error('missing unsubscribe');
+		if (oldUnsubscribe == null) {
+			throw new Error('missing unsubscribe');
+		}
 
 		setup.clientMethods.restart();
 		const diagnosticsAfterRetirement =
@@ -667,7 +689,9 @@ describe('client subscriptions and protocol dispatch', () => {
 						order.push('send-entered');
 						close();
 						order.push('retirement-returned');
-						if (throws) throw new Error('native send failed');
+						if (throws) {
+							throw new Error('native send failed');
+						}
 					},
 				},
 			]);
@@ -706,7 +730,9 @@ describe('client subscriptions and protocol dispatch', () => {
 				{
 					onSend(_socket, data) {
 						const frame = JSON.parse(data) as Frame;
-						if (frame.type !== 'UnsubscribeRequest') return;
+						if (frame.type !== 'UnsubscribeRequest') {
+							return;
+						}
 						order.push('unsubscribe-send-entered');
 						diagnosticCounts.push(
 							setup.reportInternalError.mock.calls.length,
@@ -716,7 +742,9 @@ describe('client subscriptions and protocol dispatch', () => {
 							setup.reportInternalError.mock.calls.length,
 						);
 						order.push('retirement-returned');
-						if (throws) throw new Error('native send failed');
+						if (throws) {
+							throw new Error('native send failed');
+						}
 					},
 				},
 			]);
@@ -797,10 +825,14 @@ describe('client subscriptions and protocol dispatch', () => {
 			.subscribe()
 			.subscribe({ next: vi.fn() });
 		const request = frames(socket).at(-1);
-		if (request == null) throw new Error('missing request');
+		if (request == null) {
+			throw new Error('missing request');
+		}
 		handle.unsubscribe();
 		const ackRequest = frames(socket).at(-1);
-		if (ackRequest == null) throw new Error('missing unsubscribe');
+		if (ackRequest == null) {
+			throw new Error('missing unsubscribe');
+		}
 		const late = {
 			data: 1,
 			id: request.id,
@@ -836,7 +868,9 @@ describe('client subscriptions and protocol dispatch', () => {
 			.subscribe()
 			.subscribe({ next: vi.fn() });
 		const request = frames(socket).at(-1);
-		if (request == null) throw new Error('missing request');
+		if (request == null) {
+			throw new Error('missing request');
+		}
 		handle.unsubscribe();
 		vi.advanceTimersByTime(5_000);
 		expect(setup.reportInternalError).toHaveBeenCalledOnce();

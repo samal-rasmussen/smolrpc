@@ -18,6 +18,7 @@ module.exports = {
 	},
 	rules: {
 		camelcase: 'off',
+		curly: ['error', 'all'],
 		'@typescript-eslint/no-explicit-any': 'off',
 		'@typescript-eslint/no-var-requires': 'off',
 		'no-unused-vars': 'off',

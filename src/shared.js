@@ -18,7 +18,9 @@ export function getResourceParamNames(resource) {
  * @type {(resource: string, params: Params) => string}
  */
 export function getResourceWithParams(resource, params) {
-	if (params == null) return resource;
+	if (params == null) {
+		return resource;
+	}
 	return resource.replace(RESOURCE_PARAM_PATTERN, (placeholder, key) =>
 		Object.hasOwn(params, key) ? String(params[key]) : placeholder,
 	);

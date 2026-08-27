@@ -18,11 +18,17 @@ function controlledSubscribable<T>({
 	const observers = new Set<(value: T) => void>();
 	const subscribable: Subscribable<T> = {
 		subscribe(observer) {
-			if (observer.next != null) observers.add(observer.next);
-			if (initial !== undefined) observer.next?.(initial);
+			if (observer.next != null) {
+				observers.add(observer.next);
+			}
+			if (initial !== undefined) {
+				observer.next?.(initial);
+			}
 			return {
 				unsubscribe() {
-					if (observer.next != null) observers.delete(observer.next);
+					if (observer.next != null) {
+						observers.delete(observer.next);
+					}
 					unsubscribe();
 				},
 			};
@@ -30,7 +36,9 @@ function controlledSubscribable<T>({
 	};
 	return {
 		emit(value: T) {
-			for (const observer of [...observers]) observer(value);
+			for (const observer of [...observers]) {
+				observer(value);
+			}
 		},
 		subscribable,
 		unsubscribe,
@@ -283,7 +291,9 @@ describe('server subscriptions', () => {
 			const streams = [first, second, other];
 			const subscribe = vi.fn(() => {
 				const stream = streams.shift();
-				if (stream == null) throw new Error('missing stream');
+				if (stream == null) {
+					throw new Error('missing stream');
+				}
 				return stream.subscribable;
 			});
 			const log = createServerLogger();
@@ -469,7 +479,9 @@ describe('server subscriptions', () => {
 		const streams = [first, second, other];
 		const subscribe = vi.fn(() => {
 			const stream = streams.shift();
-			if (stream == null) throw new Error('missing stream');
+			if (stream == null) {
+				throw new Error('missing stream');
+			}
 			return stream.subscribable;
 		});
 		const log = createServerLogger();

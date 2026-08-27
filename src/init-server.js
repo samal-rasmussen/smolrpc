@@ -113,8 +113,12 @@ function isValidProtocolId(value) {
  */
 function validateParams(resource, params) {
 	const expected = [...new Set(getResourceParamNames(resource))].sort();
-	if (params == null) return expected.length === 0;
-	if (!isRecord(params)) return false;
+	if (params == null) {
+		return expected.length === 0;
+	}
+	if (!isRecord(params)) {
+		return false;
+	}
 	const actual = Object.keys(params).sort();
 	return (
 		actual.length === expected.length &&
@@ -205,7 +209,9 @@ export function initServer(router, resources, options) {
 		listeners.set(ws, listenerData);
 		ws.addEventListener('close', () => {
 			const existing = listeners.get(ws);
-			if (existing == null) return;
+			if (existing == null) {
+				return;
+			}
 			listeners.delete(ws);
 			const subscriptions = [...existing.listeners.values()];
 			existing.listeners.clear();
@@ -662,7 +668,9 @@ export function initServer(router, resources, options) {
 				const subscribable = await subscribeHandler(args);
 				// Cancelled by close or unsubscribe during the handler: the client
 				// has already forgotten the id, so no reply is sent.
-				if (websocketListeners.get(request.id) !== placeholder) return;
+				if (websocketListeners.get(request.id) !== placeholder) {
+					return;
+				}
 				if (
 					subscribable == null ||
 					typeof subscribable.subscribe !== 'function'
