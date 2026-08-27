@@ -25,7 +25,6 @@ This file is the always-loaded project overview for coding agents working on **s
 -   `tests/` contains focused client lifecycle, hook, operation, subscription, and protocol suites; deterministic server dispatch/subscription suites; codec and public-type regressions; the installed packed-artifact contract; and small transport helpers.
 -   `examples/` contains shared contracts plus Node client/server and Deno server examples. These are examples, not deployed services.
 -   `readme.md` is the primary user and API guide; `authentication.md` covers cookie-authentication integration.
--   `plans/` records design analysis. Treat implemented source, tests, and current user documentation as authoritative when an older plan differs.
 -   `package.json` defines the export map, publish allowlist, exact dependencies, and all supported scripts. `tsconfig.json`, `.eslintrc.cjs`, and `.prettierrc.json` define checks and formatting.
 
 # 3. Architecture and deployment context
