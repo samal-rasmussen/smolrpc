@@ -27,7 +27,7 @@ import {
  * 	request: Request,
  * 	clientId: number,
  * 	remoteAddress: string | undefined,
- *  logger?: import('./server.types.ts').ServerLogger,
+ *  logger: import('./server.types.ts').ServerLogger,
  *  error?: unknown
  * ) => void}
  */
@@ -46,8 +46,18 @@ function sendReject(
 		error: message,
 		request,
 	};
-	ws.send(json_stringify(reject));
-	logger?.sentReject?.(request, reject, clientId, remoteAddress, error);
+	try {
+		ws.send(json_stringify(reject));
+		logger.sentReject?.(request, reject, clientId, remoteAddress, error);
+	} catch (sendError) {
+		// A dead socket must not escape the async message listener as an unhandled rejection.
+		logger.error?.(
+			'smolrpc.initServer.sendReject: send threw',
+			clientId,
+			remoteAddress,
+			{ error: sendError },
+		);
+	}
 }
 
 /**
@@ -57,7 +67,7 @@ function sendReject(
  * @param {string} message
  * @param {number} clientId
  * @param {string | undefined} remoteAddress
- * @param {import('./server.types.ts').ServerLogger | undefined} logger
+ * @param {import('./server.types.ts').ServerLogger} logger
  * @param {unknown} [error]
  */
 function sendGenericReject(
@@ -73,8 +83,17 @@ function sendGenericReject(
 		type: 'Reject',
 		error: message,
 	};
-	ws.send(json_stringify(reject));
-	logger?.sentReject?.(undefined, reject, clientId, remoteAddress, error);
+	try {
+		ws.send(json_stringify(reject));
+		logger.sentReject?.(undefined, reject, clientId, remoteAddress, error);
+	} catch (sendError) {
+		logger.error?.(
+			'smolrpc.initServer.sendGenericReject: send threw',
+			clientId,
+			remoteAddress,
+			{ error: sendError },
+		);
+	}
 }
 
 /**
@@ -129,16 +148,17 @@ function supportsOperation(resourceType, operation) {
 export function initServer(router, resources, options) {
 	let nextClientId = 0;
 
-	const errorLogger =
-		options?.serverLogger?.error ??
-		((message, clientId, remoteAddress, data) => {
-			console.error({
-				message,
-				clientId,
-				remoteAddress,
-				data,
-			});
-		});
+	// Single normalized logger: every helper sees the same object, and `error`
+	// always exists so no failure is swallowed when no serverLogger is configured.
+	/** @type {import('./server.types.ts').ServerLogger & { error: NonNullable<import('./server.types.ts').ServerLogger['error']> }} */
+	const logger = {
+		...options?.serverLogger,
+		error:
+			options?.serverLogger?.error ??
+			((message, clientId, remoteAddress, data) => {
+				console.error({ message, clientId, remoteAddress, data });
+			}),
+	};
 
 	/**
 	 * @type {Map<WS, {
@@ -193,7 +213,7 @@ export function initServer(router, resources, options) {
 				try {
 					unsubscribable.unsubscribe();
 				} catch (error) {
-					errorLogger(
+					logger.error(
 						'smolrpc.initServer.addConnection: subscription cleanup threw',
 						clientId,
 						remoteAddress,
@@ -203,7 +223,7 @@ export function initServer(router, resources, options) {
 			}
 		});
 		ws.addEventListener('error', (event) => {
-			errorLogger(
+			logger.error(
 				`smolrpc.initServer.addConnection: ws.onError`,
 				clientId,
 				remoteAddress,
@@ -231,7 +251,7 @@ export function initServer(router, resources, options) {
 	 */
 	async function handleWSMessage(data, ws, clientId, remoteAddress) {
 		if (typeof data != 'string') {
-			errorLogger(
+			logger.error(
 				`smolrpc.initServer.addConnection.handleWSMessage: Only string data supported.`,
 				clientId,
 				remoteAddress,
@@ -245,7 +265,7 @@ export function initServer(router, resources, options) {
 				`Only string data supported. typeof event.data = ${typeof data}`,
 				clientId,
 				remoteAddress,
-				options?.serverLogger,
+				logger,
 			);
 			return;
 		}
@@ -255,7 +275,7 @@ export function initServer(router, resources, options) {
 		try {
 			decoded = json_parse(data);
 		} catch (error) {
-			errorLogger(
+			logger.error(
 				'smolrpc.initServer.addConnection.handleWSMessage: Malformed JSON.',
 				clientId,
 				remoteAddress,
@@ -266,13 +286,13 @@ export function initServer(router, resources, options) {
 				'Malformed JSON request.',
 				clientId,
 				remoteAddress,
-				options?.serverLogger,
+				logger,
 				error,
 			);
 			return;
 		}
 		if (!isRecord(decoded)) {
-			errorLogger(
+			logger.error(
 				'smolrpc.initServer.addConnection.handleWSMessage: Request must be an object.',
 				clientId,
 				remoteAddress,
@@ -283,7 +303,7 @@ export function initServer(router, resources, options) {
 				'Request must be an object.',
 				clientId,
 				remoteAddress,
-				options?.serverLogger,
+				logger,
 			);
 			return;
 		}
@@ -294,15 +314,11 @@ export function initServer(router, resources, options) {
 				`invalid request id`,
 				clientId,
 				remoteAddress,
-				options?.serverLogger,
+				logger,
 			);
 			return;
 		}
-		options?.serverLogger?.receivedRequest?.(
-			request,
-			clientId,
-			remoteAddress,
-		);
+		logger.receivedRequest?.(request, clientId, remoteAddress);
 		if (typeof request.resource !== 'string') {
 			sendReject(
 				ws,
@@ -310,7 +326,7 @@ export function initServer(router, resources, options) {
 				request,
 				clientId,
 				remoteAddress,
-				options?.serverLogger,
+				logger,
 			);
 			return;
 		}
@@ -322,7 +338,7 @@ export function initServer(router, resources, options) {
 				request,
 				clientId,
 				remoteAddress,
-				options?.serverLogger,
+				logger,
 			);
 			return;
 		}
@@ -334,7 +350,7 @@ export function initServer(router, resources, options) {
 				request,
 				clientId,
 				remoteAddress,
-				options?.serverLogger,
+				logger,
 			);
 			return;
 		}
@@ -346,7 +362,7 @@ export function initServer(router, resources, options) {
 				request,
 				clientId,
 				remoteAddress,
-				options?.serverLogger,
+				logger,
 			);
 			return;
 		}
@@ -368,7 +384,7 @@ export function initServer(router, resources, options) {
 					const parsedRequest = validateSchema(
 						requestSchema,
 						request.request,
-						options?.serverLogger,
+						logger,
 					);
 					if (parsedRequest.issues != null) {
 						sendReject(
@@ -377,7 +393,7 @@ export function initServer(router, resources, options) {
 							request,
 							clientId,
 							remoteAddress,
-							options?.serverLogger,
+							logger,
 						);
 						return;
 					}
@@ -405,13 +421,9 @@ export function initServer(router, resources, options) {
 					args.resourceWithParams = request.resource;
 				}
 				const result = await getHandler(args);
-				const parsed = validateSchema(
-					responseSchema,
-					result,
-					options?.serverLogger,
-				);
+				const parsed = validateSchema(responseSchema, result, logger);
 				if (parsed.issues != null) {
-					errorLogger(
+					logger.error(
 						`smolrpc.initServer.handleWSMessage: invalid route response for get request`,
 						clientId,
 						remoteAddress,
@@ -428,7 +440,7 @@ export function initServer(router, resources, options) {
 						request,
 						clientId,
 						remoteAddress,
-						options?.serverLogger,
+						logger,
 					);
 					return;
 				}
@@ -440,14 +452,14 @@ export function initServer(router, resources, options) {
 					data: parsed.value,
 				};
 				ws.send(json_stringify(response));
-				options?.serverLogger?.sentResponse?.(
+				logger.sentResponse?.(
 					request,
 					response,
 					clientId,
 					remoteAddress,
 				);
 			} catch (error) {
-				errorLogger(
+				logger.error(
 					`smolrpc.initServer.handleWSMessage: caught error while handling get request`,
 					clientId,
 					remoteAddress,
@@ -462,7 +474,7 @@ export function initServer(router, resources, options) {
 					request,
 					clientId,
 					remoteAddress,
-					options?.serverLogger,
+					logger,
 					error,
 				);
 			}
@@ -484,7 +496,7 @@ export function initServer(router, resources, options) {
 					const parsedRequest = validateSchema(
 						requestSchema,
 						request.request,
-						options?.serverLogger,
+						logger,
 					);
 					if (parsedRequest.issues != null) {
 						sendReject(
@@ -493,7 +505,7 @@ export function initServer(router, resources, options) {
 							request,
 							clientId,
 							remoteAddress,
-							options?.serverLogger,
+							logger,
 						);
 						return;
 					}
@@ -516,13 +528,9 @@ export function initServer(router, resources, options) {
 					args.resourceWithParams = request.resource;
 				}
 				const result = await setHandler(args);
-				const parsed = validateSchema(
-					responseSchema,
-					result,
-					options?.serverLogger,
-				);
+				const parsed = validateSchema(responseSchema, result, logger);
 				if (parsed.issues != null) {
-					errorLogger(
+					logger.error(
 						`smolrpc.initServer.handleWSMessage: invalid route response for set request`,
 						clientId,
 						remoteAddress,
@@ -539,7 +547,7 @@ export function initServer(router, resources, options) {
 						request,
 						clientId,
 						remoteAddress,
-						options?.serverLogger,
+						logger,
 					);
 					return;
 				}
@@ -551,14 +559,14 @@ export function initServer(router, resources, options) {
 					data: parsed.value,
 				};
 				ws.send(json_stringify(response));
-				options?.serverLogger?.sentResponse?.(
+				logger.sentResponse?.(
 					request,
 					response,
 					clientId,
 					remoteAddress,
 				);
 			} catch (error) {
-				errorLogger(
+				logger.error(
 					`smolrpc.initServer.handleWSMessage: caught error while handling set request`,
 					clientId,
 					remoteAddress,
@@ -573,12 +581,31 @@ export function initServer(router, resources, options) {
 					request,
 					clientId,
 					remoteAddress,
-					options?.serverLogger,
+					logger,
 					error,
 				);
 			}
 		} else if (request.type === 'SubscribeRequest') {
+			// Reserve the id before awaiting the handler. Close clears the map and
+			// unsubscribe deletes the entry, so an identity check after the await
+			// detects both races without extra state. The map must be fetched
+			// before the await: getWebSocketListeners throws once the connection closed.
+			const websocketListeners = getWebSocketListeners(ws);
+			/** @type {Unsubscribable} */
+			const placeholder = { unsubscribe() {} };
 			try {
+				if (websocketListeners.has(request.id)) {
+					sendReject(
+						ws,
+						'duplicate subscription id',
+						request,
+						clientId,
+						remoteAddress,
+						logger,
+					);
+					return;
+				}
+				websocketListeners.set(request.id, placeholder);
 				const subscribeHandler =
 					/** @type {{subscribe?: SubscribeHandlerWithParams | SubscribeHandler}}*/ (
 						routerHandlers
@@ -595,7 +622,7 @@ export function initServer(router, resources, options) {
 					const parsedRequest = validateSchema(
 						requestSchema,
 						request.request,
-						options?.serverLogger,
+						logger,
 					);
 					if (parsedRequest.issues != null) {
 						sendReject(
@@ -604,7 +631,7 @@ export function initServer(router, resources, options) {
 							request,
 							clientId,
 							remoteAddress,
-							options?.serverLogger,
+							logger,
 						);
 						return;
 					}
@@ -633,6 +660,9 @@ export function initServer(router, resources, options) {
 				}
 
 				const subscribable = await subscribeHandler(args);
+				// Cancelled by close or unsubscribe during the handler: the client
+				// has already forgotten the id, so no reply is sent.
+				if (websocketListeners.get(request.id) !== placeholder) return;
 				if (
 					subscribable == null ||
 					typeof subscribable.subscribe !== 'function'
@@ -651,7 +681,7 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 				};
 				ws.send(json_stringify(response));
-				options?.serverLogger?.sentResponse?.(
+				logger.sentResponse?.(
 					request,
 					response,
 					clientId,
@@ -663,10 +693,10 @@ export function initServer(router, resources, options) {
 						const parsed = validateSchema(
 							responseSchema,
 							val,
-							options?.serverLogger,
+							logger,
 						);
 						if (parsed.issues != null) {
-							errorLogger(
+							logger.error(
 								`smolrpc.initServer.handleWSMessage: invalid route response for subscribe event`,
 								clientId,
 								remoteAddress,
@@ -689,19 +719,31 @@ export function initServer(router, resources, options) {
 						if (request.params != null) {
 							event.params = request.params;
 						}
-						ws.send(json_stringify(event));
-						options?.serverLogger?.sentEvent?.(
-							request,
-							event,
-							clientId,
-							remoteAddress,
-						);
+						try {
+							ws.send(json_stringify(event));
+							logger.sentEvent?.(
+								request,
+								event,
+								clientId,
+								remoteAddress,
+							);
+						} catch (error) {
+							// Never let a transport failure escape into the application's notifier.
+							logger.error(
+								'smolrpc.initServer.handleWSMessage: subscribe event send threw',
+								clientId,
+								remoteAddress,
+								{ error },
+							);
+						}
 					},
 				});
-				const websocketListeners = getWebSocketListeners(ws);
 				websocketListeners.set(request.id, subscription);
 			} catch (error) {
-				errorLogger(
+				if (websocketListeners.get(request.id) === placeholder) {
+					websocketListeners.delete(request.id);
+				}
+				logger.error(
 					`smolrpc.initServer.handleWSMessage: caught error while handling subscribe request`,
 					clientId,
 					remoteAddress,
@@ -713,7 +755,7 @@ export function initServer(router, resources, options) {
 					request,
 					clientId,
 					remoteAddress,
-					options?.serverLogger,
+					logger,
 					error,
 				);
 			}
@@ -726,7 +768,7 @@ export function initServer(router, resources, options) {
 						request,
 						clientId,
 						remoteAddress,
-						options?.serverLogger,
+						logger,
 					);
 					return;
 				}
@@ -741,7 +783,7 @@ export function initServer(router, resources, options) {
 						request,
 						clientId,
 						remoteAddress,
-						options?.serverLogger,
+						logger,
 					);
 					return;
 				}
@@ -754,14 +796,14 @@ export function initServer(router, resources, options) {
 					resource: request.resource,
 				};
 				ws.send(json_stringify(response));
-				options?.serverLogger?.sentResponse?.(
+				logger.sentResponse?.(
 					request,
 					response,
 					clientId,
 					remoteAddress,
 				);
 			} catch (error) {
-				errorLogger(
+				logger.error(
 					`smolrpc.initServer.handleWSMessage: caught error while handling unsubscribe request`,
 					clientId,
 					remoteAddress,
@@ -773,7 +815,7 @@ export function initServer(router, resources, options) {
 					request,
 					clientId,
 					remoteAddress,
-					options?.serverLogger,
+					logger,
 					error,
 				);
 			}
@@ -787,7 +829,7 @@ export function initServer(router, resources, options) {
 					request,
 					clientId,
 					remoteAddress,
-					options?.serverLogger,
+					logger,
 				);
 			}
 		}
@@ -806,7 +848,7 @@ function exhaustive(arg) {
 /**
  * @param {import('@standard-schema/spec').StandardSchemaV1<any, any>} schema
  * @param {any} value
- * @param {import('./server.types.ts').ServerLogger | undefined} logger
+ * @param {import('./server.types.ts').ServerLogger} logger
  * @returns {{value: any, issues: undefined} | {issues: string}}}
  */
 function validateSchema(schema, value, logger) {
@@ -815,7 +857,7 @@ function validateSchema(schema, value, logger) {
 		if (isPromise(parsed)) {
 			parsed.then(
 				(then_result) => {
-					logger?.asyncValidationResult?.(
+					logger.asyncValidationResult?.(
 						'smolrpc.initServer: validateSchema found a promise in the parsed result and on .then it produced a value',
 						schema,
 						value,
@@ -823,7 +865,7 @@ function validateSchema(schema, value, logger) {
 					);
 				},
 				(catch_error) => {
-					logger?.asyncValidationResult?.(
+					logger.asyncValidationResult?.(
 						'smolrpc.initServer: validateSchema found a promise in the parsed result on .catch it produced an error',
 						schema,
 						value,

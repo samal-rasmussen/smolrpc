@@ -120,6 +120,113 @@ describe('client subscriptions and protocol dispatch', () => {
 		);
 	});
 
+	it('isolates a throwing next observer and keeps the subscription active', () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		const subscription = setup.client['/counter'].subscribe();
+		const throwingNext = vi.fn(() => {
+			throw new Error('next failed');
+		});
+		const otherNext = vi.fn();
+		subscription.subscribe({ next: throwingNext });
+		subscription.subscribe({ next: otherNext });
+		const [request] = frames(socket);
+
+		socket.message({
+			data: 1,
+			id: request.id,
+			resource: request.resource,
+			type: 'SubscribeEvent',
+		});
+		expect(throwingNext).toHaveBeenCalledWith(1);
+		expect(otherNext).toHaveBeenCalledWith(1);
+		expect(setup.reportInternalError).toHaveBeenCalledOnce();
+		expect(setup.reportInternalError).toHaveBeenCalledWith(
+			expect.stringContaining('observer next callback threw'),
+			expect.objectContaining({ operation: 'subscribe' }),
+		);
+
+		socket.message({
+			data: 2,
+			id: request.id,
+			resource: request.resource,
+			type: 'SubscribeEvent',
+		});
+		expect(throwingNext).toHaveBeenCalledTimes(2);
+		expect(otherNext).toHaveBeenLastCalledWith(2);
+		expect(
+			frames(socket).filter(({ type }) => type === 'UnsubscribeRequest'),
+		).toHaveLength(0);
+	});
+
+	it('treats a rejected unsubscribe acknowledgement as a diagnostic only', () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		const otherError = vi.fn();
+		setup.client['/counter']
+			.subscribe({ cache: false })
+			.subscribe({ error: otherError });
+		setup.client['/counter']
+			.subscribe()
+			.subscribe({ next: vi.fn() })
+			.unsubscribe();
+		const unsubscribe = frames(socket).find(
+			({ type }) => type === 'UnsubscribeRequest',
+		);
+		if (unsubscribe == null) throw new Error('missing unsubscribe');
+
+		socket.message({
+			error: 'denied',
+			request: unsubscribe,
+			type: 'RequestReject',
+		});
+		expect(setup.reportInternalError).toHaveBeenCalledOnce();
+		expect(setup.reportInternalError).toHaveBeenCalledWith(
+			expect.stringContaining('acknowledgement rejected'),
+			expect.objectContaining({ operation: 'unsubscribe' }),
+		);
+		expect(otherError).not.toHaveBeenCalled();
+		expect(vi.getTimerCount()).toBe(0);
+		vi.advanceTimersByTime(5_000);
+		expect(setup.reportInternalError).toHaveBeenCalledOnce();
+	});
+
+	it('keeps a synchronous rejection terminal when native send then throws', () => {
+		const setup = createClient([
+			{
+				onSend(socket, data) {
+					const frame = JSON.parse(data) as Frame;
+					if (frame.type !== 'SubscribeRequest') return;
+					socket.message({
+						error: 'denied',
+						request: frame,
+						type: 'RequestReject',
+					});
+				},
+				sendError: new Error('send failed'),
+			},
+		]);
+		setup.factory.latest.open();
+		const observerError = vi.fn();
+		const subscription = setup.client['/counter'].subscribe();
+		subscription.subscribe({ error: observerError });
+		expect(observerError).toHaveBeenCalledOnce();
+		expect(observerError).toHaveBeenCalledWith(
+			errorCode('SMOLRPC_SERVER_REJECTION'),
+		);
+
+		const lateError = vi.fn();
+		subscription.subscribe({ error: lateError });
+		expect(lateError).toHaveBeenCalledOnce();
+		expect(lateError).toHaveBeenCalledWith(
+			errorCode('SMOLRPC_SERVER_REJECTION'),
+		);
+		expect(setup.reportInternalError).not.toHaveBeenCalled();
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
 	it('isolates a throwing terminal observer and reaches later observers once', () => {
 		const setup = createClient();
 		const socket = setup.factory.latest;
@@ -417,6 +524,7 @@ describe('client subscriptions and protocol dispatch', () => {
 				errorCode('SMOLRPC_MUTATION_OUTCOME_UNKNOWN'),
 			);
 		}
+		expect(vi.getTimerCount()).toBe(0);
 	});
 
 	it('times out unsubscribe acknowledgements exactly at five seconds', () => {
@@ -466,6 +574,11 @@ describe('client subscriptions and protocol dispatch', () => {
 		setup.clientMethods.restart();
 		const diagnosticsAfterRetirement =
 			setup.reportInternalError.mock.calls.length;
+		expect(vi.getTimerCount()).toBe(0);
+		vi.advanceTimersByTime(5_000);
+		expect(setup.reportInternalError).toHaveBeenCalledTimes(
+			diagnosticsAfterRetirement,
+		);
 		const replacement = setup.factory.latest;
 		replacement.open();
 		const next = vi.fn();
@@ -647,4 +760,96 @@ describe('client subscriptions and protocol dispatch', () => {
 			expect(next).toHaveBeenCalledWith(12);
 		},
 	);
+	it('leaves existing observers alone when a newcomer arrives in the CLOSING window', () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		const order: string[] = [];
+		setup.events.statechange.mockImplementation((state) => {
+			setup.states.push(state);
+			order.push(`state:${state}`);
+		});
+		const subscription = setup.client['/counter'].subscribe();
+		subscription.subscribe({
+			error: () => order.push('existing:error'),
+			next: vi.fn(),
+		});
+		socket.readyState = 2;
+		subscription.subscribe({
+			error: () => order.push('newcomer:error'),
+			next: vi.fn(),
+		});
+		expect(order).toEqual(['newcomer:error']);
+		socket.peerClose();
+		expect(order).toEqual([
+			'newcomer:error',
+			'state:unavailable',
+			'state:backoff',
+			'existing:error',
+		]);
+	});
+
+	it('drops late frames for an unsubscribed id until the acknowledgement settles', () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		const handle = setup.client['/counter']
+			.subscribe()
+			.subscribe({ next: vi.fn() });
+		const request = frames(socket).at(-1);
+		if (request == null) throw new Error('missing request');
+		handle.unsubscribe();
+		const ackRequest = frames(socket).at(-1);
+		if (ackRequest == null) throw new Error('missing unsubscribe');
+		const late = {
+			data: 1,
+			id: request.id,
+			resource: request.resource,
+			type: 'SubscribeEvent',
+		};
+		socket.message(late);
+		socket.message({
+			id: request.id,
+			resource: request.resource,
+			type: 'SubscribeAccept',
+		});
+		expect(setup.reportInternalError).not.toHaveBeenCalled();
+		socket.message({
+			id: ackRequest.id,
+			resource: request.resource,
+			type: 'UnsubscribeAccept',
+		});
+		expect(vi.getTimerCount()).toBe(0);
+		socket.message(late);
+		expect(setup.reportInternalError).toHaveBeenCalledOnce();
+		expect(setup.reportInternalError).toHaveBeenLastCalledWith(
+			expect.stringContaining('no operation found'),
+			expect.objectContaining({ requestId: request.id }),
+		);
+	});
+
+	it('diagnoses late frames again after the acknowledgement times out', () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		const handle = setup.client['/counter']
+			.subscribe()
+			.subscribe({ next: vi.fn() });
+		const request = frames(socket).at(-1);
+		if (request == null) throw new Error('missing request');
+		handle.unsubscribe();
+		vi.advanceTimersByTime(5_000);
+		expect(setup.reportInternalError).toHaveBeenCalledOnce();
+		socket.message({
+			data: 1,
+			id: request.id,
+			resource: request.resource,
+			type: 'SubscribeEvent',
+		});
+		expect(setup.reportInternalError).toHaveBeenCalledTimes(2);
+		expect(setup.reportInternalError).toHaveBeenLastCalledWith(
+			expect.stringContaining('no operation found'),
+			expect.anything(),
+		);
+	});
 });

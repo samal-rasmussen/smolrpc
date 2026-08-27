@@ -253,6 +253,144 @@ describe('client lifecycle hooks and method matrix', () => {
 		expect(consoleError).not.toHaveBeenCalled();
 	});
 
+	it.each([
+		{ trigger: 'close', destination: 'stopped' },
+		{ trigger: 'restart', destination: 'connecting' },
+		{ trigger: 'invalidate', destination: 'backoff' },
+		{ trigger: 'peerClose', destination: 'backoff' },
+	] as const)(
+		'publishes unavailable and $destination before settlements on $trigger',
+		async ({ trigger, destination }) => {
+			const setup = createClient();
+			const socket = setup.factory.latest;
+			socket.open();
+			const order: string[] = [];
+			const statesAtObserverError: string[][] = [];
+			setup.events.statechange.mockImplementation((state) => {
+				setup.states.push(state);
+				order.push(`state:${state}`);
+			});
+			setup.events.close.mockImplementation(() => {
+				order.push('close');
+			});
+			setup.client['/counter'].subscribe().subscribe({
+				error(error: SmolRpcError) {
+					order.push(`observer:${error.code}`);
+					statesAtObserverError.push([...setup.states]);
+				},
+			});
+			const set = setup.client['/counter/set']
+				.set({ request: 1 })
+				.catch((error: SmolRpcError) => {
+					order.push(`set:${error.code}`);
+					throw error;
+				});
+			setup.states.length = 0;
+
+			if (trigger === 'peerClose') socket.peerClose();
+			else setup.clientMethods[trigger]();
+			await expect(set).rejects.toEqual(
+				errorCode('SMOLRPC_MUTATION_OUTCOME_UNKNOWN'),
+			);
+
+			expect(order).toEqual([
+				'state:unavailable',
+				`state:${destination}`,
+				...(trigger === 'peerClose' ? ['close'] : []),
+				'observer:SMOLRPC_UNAVAILABLE',
+				'set:SMOLRPC_MUTATION_OUTCOME_UNKNOWN',
+			]);
+			expect(statesAtObserverError).toEqual([
+				['unavailable', destination],
+			]);
+		},
+	);
+
+	it.each([
+		{
+			at: 'unavailable',
+			call: 'close',
+			sockets: 1,
+			states: ['unavailable', 'stopped'],
+			trigger: 'restart',
+		},
+		{
+			at: 'unavailable',
+			call: 'restart',
+			sockets: 2,
+			states: ['unavailable', 'connecting'],
+			trigger: 'restart',
+		},
+		{
+			at: 'connecting',
+			call: 'close',
+			sockets: 1,
+			states: ['unavailable', 'connecting', 'stopped'],
+			trigger: 'restart',
+		},
+		{
+			at: 'connecting',
+			call: 'restart',
+			sockets: 2,
+			states: ['unavailable', 'connecting'],
+			trigger: 'restart',
+		},
+		{
+			at: 'open',
+			call: 'close',
+			sockets: 1,
+			states: ['open', 'unavailable', 'stopped'],
+			trigger: 'open',
+		},
+		{
+			at: 'backoff',
+			call: 'close',
+			sockets: 1,
+			states: ['unavailable', 'backoff', 'stopped'],
+			trigger: 'peerClose',
+		},
+	] as const)(
+		'honors $call reentry from statechange($at) during $trigger',
+		async ({ at, call, sockets, states, trigger }) => {
+			const setup = createClient();
+			const socket = setup.factory.latest;
+			if (trigger !== 'open') socket.open();
+			const pending =
+				trigger === 'open'
+					? setup.client['/counter/set'].set({ request: 1 })
+					: setup.client['/counter'].get();
+			let reentered = false;
+			setup.events.statechange.mockImplementation((state) => {
+				setup.states.push(state);
+				if (state !== at || reentered) return;
+				reentered = true;
+				setup.clientMethods[call]();
+			});
+			setup.states.length = 0;
+
+			if (trigger === 'open') socket.open();
+			else if (trigger === 'peerClose') socket.peerClose();
+			else setup.clientMethods.restart();
+
+			await expect(pending).rejects.toEqual(
+				errorCode('SMOLRPC_UNAVAILABLE'),
+			);
+			expect(setup.states).toEqual(states);
+			expect(setup.factory.attempts).toHaveLength(sockets);
+			if (trigger === 'open') {
+				expect(socket.sendAttempts).toHaveLength(0);
+				expect(setup.events.open).not.toHaveBeenCalled();
+			}
+			expect(vi.getTimerCount()).toBe(0);
+			vi.advanceTimersByTime(20_000);
+			expect(setup.factory.attempts).toHaveLength(sockets);
+			if (sockets === 2) {
+				setup.factory.latest.open();
+				expect(setup.states.at(-1)).toBe('open');
+			}
+		},
+	);
+
 	it.each(['close', 'restart', 'invalidate', 'unexpected'] as const)(
 		'suppresses later native close after $route retirement',
 		(route) => {

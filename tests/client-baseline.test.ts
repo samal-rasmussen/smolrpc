@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { dummyClient } from '../index.js';
 import {
 	createOpenClient as setupClient,
 	frames,
 } from './client-test-helpers.ts';
+import type { Resources } from './resources.ts';
 
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -136,6 +138,23 @@ describe('client baseline', () => {
 			resource: unsubscribeRequest.resource,
 			type: 'UnsubscribeAccept',
 		});
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it('dummyClient never settles, never throws, and never delivers', async () => {
+		const client = dummyClient<Resources>();
+		const settled = vi.fn();
+		void client['/counter'].get().then(settled, settled);
+		void client['/counter/set'].set({ request: 1 }).then(settled, settled);
+		const observed = vi.fn();
+		const handle = client['/counter']
+			.subscribe()
+			.subscribe({ error: observed, next: observed });
+		expect(() => handle.unsubscribe()).not.toThrow();
+
+		await vi.runAllTimersAsync();
+		expect(settled).not.toHaveBeenCalled();
+		expect(observed).not.toHaveBeenCalled();
 	});
 
 	it('rejects a request when the server rejects it', async () => {

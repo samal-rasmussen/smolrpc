@@ -113,10 +113,18 @@ describe('client protocol frames and metadata', () => {
 		expect(setup.client[path].subscribe(secondArgs)).toBe(second);
 		const freshFirst = setup.client[path].subscribe(firstArgs);
 		expect(freshFirst).not.toBe(first);
-		freshFirst.subscribe({ next: vi.fn() });
+		const freshHandle = freshFirst.subscribe({ next: vi.fn() });
 		expect(
 			frames(socket).filter(({ type }) => type === 'SubscribeRequest'),
 		).toHaveLength(3);
+
+		// A woken idle handle is re-cached, so a fresh lookup shares its wire subscription.
+		freshHandle.unsubscribe();
+		freshFirst.subscribe({ next: vi.fn() });
+		expect(setup.client[path].subscribe(firstArgs)).toBe(freshFirst);
+		expect(
+			frames(socket).filter(({ type }) => type === 'SubscribeRequest'),
+		).toHaveLength(4);
 	});
 
 	it('restricts public errors and diagnostics to sanitised metadata', async () => {

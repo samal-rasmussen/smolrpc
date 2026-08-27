@@ -531,4 +531,145 @@ describe('server subscriptions', () => {
 			{ event },
 		);
 	});
+	function deferredSubscribe(
+		stream: ReturnType<typeof controlledSubscribable<number>>,
+	) {
+		let release = () => {};
+		const subscribe = vi.fn(
+			() =>
+				new Promise<Subscribable<number>>((resolve) => {
+					release = () => resolve(stream.subscribable);
+				}),
+		);
+		return { release: () => release(), subscribe };
+	}
+
+	function asyncServer(subscribe: () => unknown) {
+		const log = createServerLogger();
+		const server = initServer(
+			{
+				'/streams/:groupId/items/:itemId': {
+					subscribe: subscribe as never,
+				},
+			},
+			resources,
+			{ serverLogger: log.logger },
+		);
+		const socket = new ControlledServerSocket();
+		server.addConnection(socket.asWebSocket(), 'async.test');
+		return { log, socket };
+	}
+
+	it('never starts a subscription whose connection closed during the handler', async () => {
+		const stream = controlledSubscribable<number>();
+		const subscribeSpy = vi.spyOn(stream.subscribable, 'subscribe');
+		const { release, subscribe } = deferredSubscribe(stream);
+		const { socket } = asyncServer(subscribe);
+		const pending = socket.receive(json_stringify(subscribeRequest(1)));
+		expect(subscribe).toHaveBeenCalledOnce();
+		const framesBeforeClose = socket.sent.length;
+		socket.close();
+		release();
+		await pending;
+		expect(subscribeSpy).not.toHaveBeenCalled();
+		expect(socket.sent.length).toBe(framesBeforeClose);
+	});
+
+	it('honors an unsubscribe that arrives during the handler', async () => {
+		const stream = controlledSubscribable<number>();
+		const subscribeSpy = vi.spyOn(stream.subscribable, 'subscribe');
+		const { release, subscribe } = deferredSubscribe(stream);
+		const { socket } = asyncServer(subscribe);
+		const pending = socket.receive(json_stringify(subscribeRequest(1)));
+		await socket.receive(json_stringify(unsubscribeRequest(2, 1)));
+		expect(socket.sentFrames().map((frame) => frame.type)).toEqual([
+			'UnsubscribeAccept',
+		]);
+		release();
+		await pending;
+		expect(subscribeSpy).not.toHaveBeenCalled();
+		expect(socket.sentFrames().map((frame) => frame.type)).toEqual([
+			'UnsubscribeAccept',
+		]);
+		socket.close();
+		expect(stream.unsubscribe).not.toHaveBeenCalled();
+	});
+
+	it('rejects a duplicate subscription id instead of orphaning the first', async () => {
+		const first = controlledSubscribable<number>();
+		const second = controlledSubscribable<number>();
+		const subscribe = vi
+			.fn()
+			.mockReturnValueOnce(first.subscribable)
+			.mockReturnValueOnce(second.subscribable);
+		const { socket } = asyncServer(subscribe);
+		await socket.receive(json_stringify(subscribeRequest(1)));
+		await socket.receive(json_stringify(subscribeRequest(1)));
+		expect(socket.sentFrames().at(-1)).toEqual({
+			error: 'duplicate subscription id',
+			request: subscribeRequest(1),
+			type: 'RequestReject',
+		});
+		socket.close();
+		expect(first.unsubscribe).toHaveBeenCalledOnce();
+	});
+
+	it('frees the id again when the handler throws', async () => {
+		const stream = controlledSubscribable<number>();
+		const subscribe = vi
+			.fn()
+			.mockImplementationOnce(() => {
+				throw new Error('handler failed');
+			})
+			.mockReturnValueOnce(stream.subscribable);
+		const { socket } = asyncServer(subscribe);
+		await socket.receive(json_stringify(subscribeRequest(1)));
+		expect(socket.sentFrames().at(-1)).toEqual(
+			expect.objectContaining({ error: '500', type: 'RequestReject' }),
+		);
+		await socket.receive(json_stringify(subscribeRequest(1)));
+		expect(socket.sentFrames().at(-1)).toEqual({
+			id: 1,
+			resource: '/streams/:groupId/items/:itemId',
+			type: 'SubscribeAccept',
+		});
+		socket.close();
+		expect(stream.unsubscribe).toHaveBeenCalledOnce();
+	});
+
+	it('logs instead of throwing into the notifier when the event send fails', async () => {
+		const stream = controlledSubscribable<number>();
+		const { log, socket } = asyncServer(() => stream.subscribable);
+		await socket.receive(json_stringify(subscribeRequest(1)));
+		const failure = new Error('socket is dead');
+		socket.send = () => {
+			throw failure;
+		};
+		expect(() => stream.emit(5)).not.toThrow();
+		expect(log.error).toHaveBeenCalledWith(
+			expect.stringContaining('send'),
+			0,
+			'async.test',
+			expect.objectContaining({ error: failure }),
+		);
+	});
+
+	it('logs instead of rejecting the message listener when a reject send fails', async () => {
+		const { log, socket } = asyncServer(() => {
+			throw new Error('handler failed');
+		});
+		const failure = new Error('socket is dead');
+		socket.send = () => {
+			throw failure;
+		};
+		await expect(
+			socket.receive(json_stringify(subscribeRequest(1))),
+		).resolves.toBeUndefined();
+		expect(log.error).toHaveBeenLastCalledWith(
+			expect.stringContaining('send'),
+			0,
+			'async.test',
+			expect.objectContaining({ error: failure }),
+		);
+	});
 });

@@ -38,6 +38,7 @@ describe('recovery lifecycle methods', () => {
 		const attempts = setup.factory.attempts.length;
 		const sendAttempts = replacement.sendAttempts.length;
 		const timers = vi.getTimerCount();
+		const diagnostics = setup.reportInternalError.mock.calls.length;
 
 		retired.open();
 		retired.message({
@@ -56,6 +57,7 @@ describe('recovery lifecycle methods', () => {
 		expect(setup.factory.attempts).toHaveLength(attempts);
 		expect(replacement.sendAttempts).toHaveLength(sendAttempts);
 		expect(vi.getTimerCount()).toBe(timers);
+		expect(setup.reportInternalError).toHaveBeenCalledTimes(diagnostics);
 
 		replacement.message({
 			data: 2,
@@ -278,6 +280,65 @@ describe('recovery lifecycle methods', () => {
 		vi.advanceTimersByTime(20_000);
 		expect(setup.factory.attempts).toHaveLength(2);
 	});
+
+	it.each(['explicit', 'automatic'] as const)(
+		'contains a %s attempt whose socket rejects handler installation',
+		(kind) => {
+			const failure = new Error('handler installation failed');
+			const plan = {
+				onHandlerInstalled(_socket: unknown, handler: string) {
+					if (handler === 'message') throw failure;
+				},
+			};
+			const setup =
+				kind === 'explicit' ? createClient() : createClient([{}, plan]);
+			setup.factory.latest.open();
+			if (kind === 'explicit') {
+				setup.clientMethods.close();
+				setup.factory.enqueue(plan);
+				setup.states.length = 0;
+				expect(() => setup.clientMethods.open()).toThrow(failure);
+				expect(setup.states).toEqual(['connecting', 'stopped']);
+				expect(setup.reportInternalError).not.toHaveBeenCalled();
+			} else {
+				setup.states.length = 0;
+				setup.factory.latest.peerClose();
+				vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]);
+				expect(setup.states).toEqual([
+					'unavailable',
+					'backoff',
+					'connecting',
+					'backoff',
+				]);
+				expect(setup.reportInternalError).toHaveBeenCalledOnce();
+				expect(setup.reportInternalError).toHaveBeenCalledWith(
+					expect.stringContaining('handler installation failed'),
+					expect.anything(),
+				);
+				expect(setup.events.reconnect).not.toHaveBeenCalled();
+			}
+			const broken = setup.factory.latest;
+			expect(setup.factory.attempts).toHaveLength(2);
+			expect(broken.closeCalls).toHaveLength(1);
+
+			// The partially installed open handler must be stale.
+			const states = [...setup.states];
+			broken.open();
+			expect(setup.states).toEqual(states);
+			expect(setup.events.open).toHaveBeenCalledOnce();
+
+			if (kind === 'explicit') {
+				vi.advanceTimersByTime(20_000);
+				expect(setup.factory.attempts).toHaveLength(2);
+				return;
+			}
+			vi.advanceTimersByTime(RECONNECT_DELAYS_MS[1]);
+			expect(setup.factory.attempts).toHaveLength(3);
+			setup.factory.latest.open();
+			expect(setup.states.at(-1)).toBe('open');
+			expect(setup.events.reconnect).toHaveBeenCalledOnce();
+		},
+	);
 
 	it('revalidates recovery after raw and diagnostic callback reentry', () => {
 		const closeSetup = createClient();

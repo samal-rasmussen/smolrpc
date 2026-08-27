@@ -233,6 +233,15 @@ client['/posts/:postId'].subscribe({
 });
 ```
 
+## Changes in 0.57.0
+
+Four behavior corrections; no API or type changes.
+
+-   Server: a `SubscribeRequest` cancelled by a close or an `UnsubscribeRequest` while its handler is still awaiting is never started and receives no reply. An `UnsubscribeRequest` that arrives during the handler receives `UnsubscribeAccept` instead of `Not subscribed`. A second `SubscribeRequest` reusing an active id on the same connection is rejected with `duplicate subscription id`.
+-   Server: a throwing `ws.send` during event or rejection delivery is logged through `serverLogger.error` instead of escaping into the application's notifier or the message listener.
+-   Client: late frames for an unsubscribed id are dropped silently until the unsubscribe acknowledgement settles; they no longer reach `reportInternalError`.
+-   Client: adding an observer to an existing subscription while the socket is closing errors only that observer; existing observers are retired in the documented order after `statechange('unavailable')`. A woken idle subscription handle is re-cached so later lookups share its wire subscription.
+
 ## Migrating from 0.55.0 to 0.56.0
 
 Valid protocol traffic remains wire-compatible between the official 0.55.0 and 0.56.0 clients and servers. Most migration work is in client lifecycle handling and in code that uses transformed schemas.

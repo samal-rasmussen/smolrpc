@@ -1003,6 +1003,10 @@ export function initClientProxy(websocket, reportInternalError) {
 			record.phase = 'unsent';
 			definiteResponse = false;
 			generation.operations.set(requestId, record);
+			// A woken idle handle re-enters the cache so later lookups share it.
+			if (cacheKey != null && !generation.subscriptions.has(cacheKey)) {
+				generation.subscriptions.set(cacheKey, record);
+			}
 			const result = websocket.sendFrame(
 				generation,
 				record,
@@ -1113,6 +1117,9 @@ export function initClientProxy(websocket, reportInternalError) {
 					if (generation.operations.get(ackId) === ack) {
 						generation.operations.delete(ackId);
 					}
+					if (generation.operations.get(subscriptionId) === ack) {
+						generation.operations.delete(subscriptionId);
+					}
 					if (timer != null) {
 						clearTimeout(timer);
 						timer = undefined;
@@ -1130,7 +1137,14 @@ export function initClientProxy(websocket, reportInternalError) {
 				},
 				/** @param {unknown} message */
 				handleMessage(message) {
-					if (settled) return;
+					if (settled) {
+						return;
+					}
+					// The ack doubles as a tombstone for the old subscription id:
+					// frames still in flight for it are expected, not diagnostics.
+					if (extractRequestId(message) === subscriptionId) {
+						return;
+					}
 					if (
 						isRecord(message) &&
 						message.type === 'UnsubscribeAccept' &&
@@ -1188,7 +1202,9 @@ export function initClientProxy(websocket, reportInternalError) {
 			};
 
 			timer = setTimeout(() => {
-				if (settled) return;
+				if (settled) {
+					return;
+				}
 				ack.detach();
 				if (ack.phase === 'sending') {
 					ackPendingError = clientError(
@@ -1213,6 +1229,7 @@ export function initClientProxy(websocket, reportInternalError) {
 				);
 			}, OPERATION_TIMEOUT_MS);
 			generation.operations.set(ackId, ack);
+			generation.operations.set(subscriptionId, ack);
 			const result = websocket.sendFrame(
 				generation,
 				ack,
@@ -1320,7 +1337,8 @@ export function initClientProxy(websocket, reportInternalError) {
 						resource,
 						generation,
 					);
-					record.fail(error, false);
+					// Only the newcomer is errored here. Existing observers are
+					// retired by onclose, after statechange('unavailable').
 					invokeObserver(observer, 'error', error);
 					return { unsubscribe() {} };
 				}

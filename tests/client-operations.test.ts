@@ -179,6 +179,104 @@ describe('client generation and operations', () => {
 		});
 	});
 
+	it('reports an unknown outcome when an accepted SET times out', async () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		const set = setup.client['/counter/set'].set({ request: 1 });
+		expect(socket.sent).toHaveLength(1);
+
+		vi.advanceTimersByTime(OPERATION_TIMEOUT_MS - 1);
+		expect(vi.getTimerCount()).toBe(1);
+		vi.advanceTimersByTime(1);
+		await expect(set).rejects.toEqual(
+			errorCode('SMOLRPC_MUTATION_OUTCOME_UNKNOWN'),
+		);
+		expect(vi.getTimerCount()).toBe(0);
+		expect(socket.sendAttempts).toHaveLength(1);
+	});
+
+	it('sends a SET made while connecting once the socket opens', async () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		const set = setup.client['/counter/set'].set({ request: 4 });
+		expect(socket.sendAttempts).toHaveLength(0);
+
+		socket.open();
+		const [request] = frames(socket);
+		expect(socket.sent).toHaveLength(1);
+		expect(request).toMatchObject({
+			request: 4,
+			resource: '/counter/set',
+			type: 'SetRequest',
+		});
+		socket.message({
+			data: 4,
+			id: request.id,
+			resource: request.resource,
+			type: 'SetSuccess',
+		});
+		await expect(set).resolves.toBe(4);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
+	it.each(['connecting', 'stopped', 'backoff'] as const)(
+		'rejects GET and settles SET without sending while %s',
+		async (state) => {
+			const setup = createClient();
+			if (state === 'stopped') setup.clientMethods.close();
+			if (state === 'backoff') {
+				setup.factory.latest.open();
+				setup.factory.latest.peerClose();
+			}
+			expect(setup.states.at(-1)).toBe(state);
+			const timers = vi.getTimerCount();
+
+			let get: Promise<number> | undefined;
+			expect(() => {
+				get = setup.client['/counter'].get();
+			}).not.toThrow();
+			await expect(get).rejects.toEqual(errorCode('SMOLRPC_UNAVAILABLE'));
+
+			const settled = vi.fn();
+			const set = setup.client['/counter/set'].set({ request: 1 });
+			void set.then(settled, settled);
+			await Promise.resolve();
+			await Promise.resolve();
+			if (state === 'connecting') {
+				expect(settled).not.toHaveBeenCalled();
+				vi.advanceTimersByTime(OPERATION_TIMEOUT_MS);
+				await expect(set).rejects.toEqual(errorCode('SMOLRPC_TIMEOUT'));
+			} else {
+				expect(settled).toHaveBeenCalledOnce();
+				await expect(set).rejects.toEqual(
+					errorCode('SMOLRPC_UNAVAILABLE'),
+				);
+			}
+			for (const socket of setup.factory.attempts) {
+				expect(socket.sendAttempts).toHaveLength(0);
+			}
+			expect(vi.getTimerCount()).toBe(timers);
+		},
+	);
+
+	it('rejects the second SET waiter when the first waiter closes during send', async () => {
+		let close = () => {};
+		const setup = createClient([{ onSend: () => close() }]);
+		close = setup.clientMethods.close;
+		const socket = setup.factory.latest;
+		const first = setup.client['/counter/set'].set({ request: 1 });
+		const second = setup.client['/counter/set'].set({ request: 2 });
+
+		socket.open();
+		await expect(first).rejects.toEqual(
+			errorCode('SMOLRPC_MUTATION_OUTCOME_UNKNOWN'),
+		);
+		await expect(second).rejects.toEqual(errorCode('SMOLRPC_UNAVAILABLE'));
+		expect(socket.sendAttempts).toHaveLength(1);
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
 	it('times out a waiting SET without later sending it', async () => {
 		const setup = createClient();
 		const socket = setup.factory.latest;
