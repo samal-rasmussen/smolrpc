@@ -289,7 +289,8 @@ describe('client subscriptions and protocol dispatch', () => {
 		});
 		expect(firstNext).toHaveBeenCalledWith(1);
 		expect(secondNext).toHaveBeenCalledWith(1);
-		expect(lateNext).not.toHaveBeenCalled();
+		expect(lateNext).toHaveBeenCalledOnce();
+		expect(lateNext).toHaveBeenCalledWith(1);
 		socket.message({
 			data: 2,
 			id: request.id,
@@ -298,8 +299,119 @@ describe('client subscriptions and protocol dispatch', () => {
 		});
 		expect(firstNext).toHaveBeenCalledTimes(2);
 		expect(secondNext).toHaveBeenCalledTimes(2);
-		expect(lateNext).toHaveBeenCalledOnce();
-		expect(lateNext).toHaveBeenCalledWith(2);
+		expect(lateNext.mock.calls).toEqual([[1], [2]]);
+	});
+
+	it('replays the current value exactly once to a cached subscriber added during next', () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		const log: string[] = [];
+		let added = false;
+		setup.client['/counter'].subscribe().subscribe({
+			next: (value) => {
+				log.push(`first ${value}`);
+				if (added) {
+					return;
+				}
+				added = true;
+				setup.client['/counter'].subscribe().subscribe({
+					next: (inner) => log.push(`inner ${inner}`),
+				});
+			},
+		});
+		setup.client['/counter'].subscribe().subscribe({
+			next: (value) => log.push(`second ${value}`),
+		});
+		expect(
+			frames(socket).filter((frame) => frame.type === 'SubscribeRequest'),
+		).toHaveLength(1);
+		const request = frames(socket).at(-1);
+		if (request == null) {
+			throw new Error('missing subscription request');
+		}
+
+		socket.message({
+			data: 1,
+			id: request.id,
+			resource: request.resource,
+			type: 'SubscribeEvent',
+		});
+		expect(log).toEqual(['first 1', 'inner 1', 'second 1']);
+		socket.message({
+			data: 2,
+			id: request.id,
+			resource: request.resource,
+			type: 'SubscribeEvent',
+		});
+		expect(log).toEqual([
+			'first 1',
+			'inner 1',
+			'second 1',
+			'first 2',
+			'second 2',
+			'inner 2',
+		]);
+		expect(setup.reportInternalError).not.toHaveBeenCalled();
+	});
+
+	it('does not duplicate values when an event arrives during a reentrant replay', () => {
+		const setup = createClient();
+		const socket = setup.factory.latest;
+		socket.open();
+		const subscription = setup.client['/counter'].subscribe();
+		const event = (data: number) => {
+			const request = frames(socket).find(
+				(frame) => frame.type === 'SubscribeRequest',
+			);
+			if (request == null) {
+				throw new Error('missing subscription request');
+			}
+			return {
+				data,
+				id: request.id,
+				resource: request.resource,
+				type: 'SubscribeEvent',
+			};
+		};
+		const log: string[] = [];
+		let added = false;
+		let nested = false;
+		subscription.subscribe({
+			next: (value) => {
+				log.push(`first ${value}`);
+				if (added) {
+					return;
+				}
+				added = true;
+				subscription.subscribe({
+					next: (inner) => {
+						log.push(`inner ${inner}`);
+						if (nested) {
+							return;
+						}
+						nested = true;
+						// The server event arrives synchronously during the replay.
+						socket.message(event(2));
+					},
+				});
+			},
+		});
+
+		socket.message(event(1));
+		expect(log).toEqual(['first 1', 'inner 1', 'first 2', 'inner 2']);
+		socket.message(event(3));
+		expect(log).toEqual([
+			'first 1',
+			'inner 1',
+			'first 2',
+			'inner 2',
+			'first 3',
+			'inner 3',
+		]);
+		const late = vi.fn();
+		subscription.subscribe({ next: late });
+		expect(late.mock.calls).toEqual([[3]]);
 	});
 
 	it('supports own and other-handle unsubscribe during next delivery', () => {

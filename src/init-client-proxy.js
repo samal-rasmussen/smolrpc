@@ -786,7 +786,6 @@ export function initClientProxy(websocket, reportInternalError) {
 		let requestId = 0;
 		let startedAt = Date.now();
 		let hasValue = false;
-		let deliveryDepth = 0;
 		/** @type {any} */
 		let lastValue;
 		/** @type {SmolRpcError | undefined} */
@@ -945,25 +944,22 @@ export function initClientProxy(websocket, reportInternalError) {
 				) {
 					hasValue = true;
 					lastValue = message.data;
+					// Observers added during this loop are not in the snapshot;
+					// they receive lastValue from the subscribe() replay instead.
 					const recipients = [...observers];
-					deliveryDepth++;
-					try {
-						for (const recipient of recipients) {
-							if (
-								status !== 'active' ||
-								!websocket.isCurrent(generation) ||
-								!observers.has(recipient)
-							) {
-								continue;
-							}
-							invokeObserver(
-								recipient.observer,
-								'next',
-								message.data,
-							);
+					for (const recipient of recipients) {
+						if (
+							status !== 'active' ||
+							!websocket.isCurrent(generation) ||
+							!observers.has(recipient)
+						) {
+							continue;
 						}
-					} finally {
-						deliveryDepth--;
+						invokeObserver(
+							recipient.observer,
+							'next',
+							message.data,
+						);
 					}
 					return;
 				}
@@ -1396,7 +1392,6 @@ export function initClientProxy(websocket, reportInternalError) {
 				if (status === 'active') {
 					if (
 						hasValue &&
-						deliveryDepth === 0 &&
 						status === 'active' &&
 						observers.has(recipient) &&
 						websocket.isCurrent(generation)

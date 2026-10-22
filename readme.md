@@ -251,7 +251,7 @@ Resources are defined as an object where each key is a URL-like path, and the va
 
 Path parameters are defined with a colon prefix (`:paramName`). Callers supply string or number values for those parameters, and smolrpc materializes them into the wire resource path. Parameter keys must exactly match every colon-prefixed placeholder; merely supplying the same number of differently named keys is invalid.
 
-Subscription caching is configured per `subscribe()` call with `cache`; it defaults to `true`.
+Subscription caching is configured per `subscribe()` call with `cache`; it defaults to `true`. An observer that joins a cached subscription after it has received a value is immediately given the latest value, including explicit `undefined`. This also applies when the observer joins from inside another observer's `next` callback; it receives the value being delivered exactly once.
 
 ### Client API
 
